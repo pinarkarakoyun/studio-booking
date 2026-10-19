@@ -38,7 +38,15 @@ Online payments, WhatsApp/SMS reminders, waiting list, self sign-up, instructor 
 
 ## Tech stack
 
-To be decided during the technology selection phase.
+| Layer | Choice | Why |
+|---|---|---|
+| Frontend | React (Vite) | Clear separation from the backend, large ecosystem, PWA-friendly |
+| Backend | Node.js + Express (JavaScript) | Transparent, minimal framework; the API flow stays visible |
+| Database | PostgreSQL, plain SQL (`pg`) | Strong data integrity and transactions for booking logic |
+| Authentication | Server-side sessions, httpOnly cookies, bcrypt password hashing | Sessions can be revoked instantly (e.g. when a member leaves) |
+| Deployment | Decided later, see below | Pricing changes often, so this is re-checked right before deploying |
+
+The backend will also serve the built React app, so the frontend and API share one origin (simpler cookies, no CORS setup).
 
 ## Roadmap
 
