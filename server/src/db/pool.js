@@ -13,4 +13,10 @@ const pool = new Pool({
   database: process.env.DB_NAME,
 });
 
+// Boştaki bir bağlantıda hata olursa (ör. veritabanı yeniden başlarsa) pool 'error' olayı yayar;
+// dinleyici olmazsa bu yakalanmamış hata Node sürecini çökertir.
+pool.on('error', (err) => {
+  console.error('Unexpected error on idle database client:', err);
+});
+
 export default pool;
