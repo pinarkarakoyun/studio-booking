@@ -30,10 +30,14 @@ async function withTransaction(db, work) {
   }
 }
 
-// Müşteri satırının ortak sorgusu: açık grup üyeliği, şu anki ya da yaklaşan dondurma, kullanılabilir haklar.
+// Müşteri satırının ortak sorgusu: bugünkü grubu, ileri tarihte başlayacak grubu (grup değişikliği ya da
+// yeni başlayan müşteri), şu anki ya da yaklaşan dondurma, kullanılabilir haklar.
+// "Bugünkü grup" ile "açık üyelik" aynı şey değil: 16 Kasım'dan itibaren başka gruba geçecek biri,
+// o tarihe kadar hâlâ eski grubundadır.
 const CUSTOMER_SELECT = `
   SELECT u.id, u.full_name, u.phone, u.status,
          g.id AS group_id, g.name AS group_name,
+         ng.id AS next_group_id, ng.name AS next_group_name, ngm.joined_on AS next_group_starts_on,
          fz.starts_on AS freeze_starts_on, fz.ends_on AS freeze_ends_on,
          (fz.starts_on IS NOT NULL AND fz.starts_on <= today.date) AS is_frozen,
          (SELECT count(*)::int FROM credits c
@@ -42,8 +46,16 @@ const CUSTOMER_SELECT = `
   FROM users u
   JOIN studios st ON st.id = u.studio_id
   CROSS JOIN LATERAL (SELECT (now() AT TIME ZONE st.timezone)::date AS date) AS today
-  LEFT JOIN group_members gm ON gm.user_id = u.id AND gm.left_on IS NULL
+  LEFT JOIN group_members gm ON gm.user_id = u.id
+                            AND gm.joined_on <= today.date AND (gm.left_on IS NULL OR today.date < gm.left_on)
   LEFT JOIN groups g ON g.id = gm.group_id
+  LEFT JOIN LATERAL (
+    SELECT m.group_id, m.joined_on FROM group_members m
+    WHERE m.user_id = u.id AND m.joined_on > today.date
+    ORDER BY m.joined_on
+    LIMIT 1
+  ) AS ngm ON true
+  LEFT JOIN groups ng ON ng.id = ngm.group_id
   -- Bitmemiş tek dondurma (dönemler çakışamadığı için en fazla bir tane bugünü ya da geleceği kapsar).
   LEFT JOIN LATERAL (
     SELECT f.starts_on, f.ends_on FROM freezes f
@@ -61,6 +73,9 @@ function toCustomerDto(row) {
     phone: row.phone,
     status: row.status,
     group: row.group_id ? { id: row.group_id, name: row.group_name } : null,
+    upcomingGroup: row.next_group_id
+      ? { id: row.next_group_id, name: row.next_group_name, startsOn: row.next_group_starts_on }
+      : null,
     freeze: row.freeze_starts_on
       ? { startsOn: row.freeze_starts_on, endsOn: row.freeze_ends_on, active: row.is_frozen }
       : null,
@@ -245,7 +260,13 @@ export async function markLeft(admin, customerId, { db = pool } = {}) {
     // Müşteri silinmez, durumu değişir (geçmiş kayıtlar korunur, BR-14).
     await client.query(`UPDATE users SET status = 'left' WHERE id = $1`, [customerId]);
     // Grup üyeliği bugün kapanır: bugünden itibaren derslerde sayılmaz, yeri boşalır.
-    await client.query('UPDATE group_members SET left_on = $2 WHERE user_id = $1 AND left_on IS NULL', [customerId, today]);
+    // İleri tarihli bir grup değişikliği bekliyorsa o üyelik hiç başlamadığı için silinir (bugünden
+    // kapatılamaz: bitiş, başlangıçtan önce olurdu). İleride kapanacak üyelik de bugüne çekilir.
+    await client.query('DELETE FROM group_members WHERE user_id = $1 AND joined_on > $2', [customerId, today]);
+    await client.query(
+      'UPDATE group_members SET left_on = $2 WHERE user_id = $1 AND (left_on IS NULL OR left_on > $2)',
+      [customerId, today],
+    );
     // Gelecekteki telafi kayıtları iptal: yerler başkalarına açılır. Haklar yakılır (artık kullanamaz).
     await client.query(
       `UPDATE credits c SET used_session_id = NULL, used_at = NULL, forfeited_at = now()

@@ -81,7 +81,10 @@ export default function CustomersPage({ onOpen, onAdd }) {
               <span>
                 <span className={styles.customerName}>{customer.fullName}</span>
                 <span className={styles.customerMeta}>
-                  {customer.group?.name ?? formatPhone(customer.phone)}
+                  {customer.group?.name ??
+                    (customer.upcomingGroup
+                      ? `${customer.upcomingGroup.name}, ${formatDateDayMonth(customer.upcomingGroup.startsOn)} tarihinden itibaren`
+                      : formatPhone(customer.phone))}
                 </span>
               </span>
               <CustomerTag customer={customer} />

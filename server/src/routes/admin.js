@@ -7,11 +7,18 @@ import {
   freezeCustomer,
   getCustomer,
   listCustomers,
-  listGroups,
   markLeft,
   previewLeave,
   resetCustomerPassword,
 } from '../services/adminCustomers.js';
+import {
+  changeCustomerGroup,
+  closeGroup,
+  createGroup,
+  getGroup,
+  listAllGroups,
+  updateGroup,
+} from '../services/adminGroups.js';
 import { getSessionRoster, getToday } from '../services/adminSchedule.js';
 
 const router = Router();
@@ -27,6 +34,17 @@ function parseId(value, code, message) {
 }
 const sessionId = (req) => parseId(req.params.id, 'SESSION_NOT_FOUND', 'Ders bulunamadı.');
 const customerId = (req) => parseId(req.params.id, 'CUSTOMER_NOT_FOUND', 'Müşteri bulunamadı.');
+const groupId = (req) => parseId(req.params.id, 'GROUP_NOT_FOUND', 'Grup bulunamadı.');
+
+// Grup formundan gelen alanlar (düzenleme ve önizleme aynı gövdeyi kullanır).
+const groupInput = (body) => ({
+  name: body?.name,
+  weekdays: body?.weekdays,
+  startTime: body?.startTime,
+  durationMinutes: body?.durationMinutes,
+  capacity: body?.capacity,
+  effectiveFrom: body?.effectiveFrom,
+});
 
 // --- Bugün --------------------------------------------------------------------------------------
 
@@ -84,9 +102,42 @@ router.post('/api/admin/customers/:id/leave', async (req, res) => {
   res.status(204).end();
 });
 
-// Yeni müşteri formundaki grup seçimi için.
+router.post('/api/admin/customers/:id/change-group', async (req, res) => {
+  res.json(
+    await changeCustomerGroup(req.user, customerId(req), {
+      groupId: req.body?.groupId,
+      effectiveFrom: req.body?.effectiveFrom,
+      confirmFull: req.body?.confirmFull === true,
+    }),
+  );
+});
+
+// --- Gruplar ------------------------------------------------------------------------------------
+
+// Açık ve kapalı bütün gruplar (yeni müşteri formu da bunu kullanır, kapalıları ayıklar).
 router.get('/api/admin/groups', async (req, res) => {
-  res.json({ groups: await listGroups(req.user) });
+  res.json({ groups: await listAllGroups(req.user) });
+});
+
+router.post('/api/admin/groups', async (req, res) => {
+  res.status(201).json(await createGroup(req.user, groupInput(req.body)));
+});
+
+router.get('/api/admin/groups/:id', async (req, res) => {
+  res.json({ group: await getGroup(req.user, groupId(req)) });
+});
+
+router.put('/api/admin/groups/:id', async (req, res) => {
+  res.json(await updateGroup(req.user, groupId(req), groupInput(req.body)));
+});
+
+// Kaydetmeden önce "neler olacak?": aynı kod çalışır, sonuç döner, hiçbir şey kalıcı olmaz.
+router.post('/api/admin/groups/:id/preview', async (req, res) => {
+  res.json(await updateGroup(req.user, groupId(req), groupInput(req.body), { preview: true }));
+});
+
+router.post('/api/admin/groups/:id/close', async (req, res) => {
+  res.json(await closeGroup(req.user, groupId(req)));
 });
 
 export default router;

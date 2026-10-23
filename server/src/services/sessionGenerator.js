@@ -33,6 +33,8 @@ export async function generateSessions({ days = SESSION_WINDOW_DAYS, db = pool }
       AND EXTRACT(ISODOW FROM day.date) = gd.weekday
       -- Bugünün saati geçmiş dersleri oluşturma.
       AND (day.date + g.start_time) AT TIME ZONE s.timezone > now()
+      -- Program değişikliği ileri bir tarihten geçerliyse, o tarihten önceki günlere yeni programla ders ekleme.
+      AND (g.schedule_starts_on IS NULL OR day.date >= g.schedule_starts_on)
     ON CONFLICT (group_id, date) DO NOTHING
     `,
     [days],

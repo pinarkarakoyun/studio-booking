@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { api } from '../api.js';
 import Button from '../components/Button.jsx';
 import Sheet from '../components/Sheet.jsx';
 import TextField from '../components/TextField.jsx';
+import fieldStyles from '../components/TextField.module.css';
 import { formatDateDayMonth, formatDay, formatDayMonth, formatPhone, formatTime, todayIn } from '../format.js';
 import styles from './Admin.module.css';
 
@@ -11,7 +12,7 @@ const whatsappLink = (phone) => `https://wa.me/${phone.replace('+', '')}`;
 export default function CustomerDetailPage({ studio, customerId, onBack, onCredentials }) {
   const [customer, setCustomer] = useState(null);
   const [error, setError] = useState(null);
-  // Açık olan işlem paneli: 'freeze' | 'endFreeze' | 'reset' | 'leave' | null
+  // Açık olan işlem paneli: 'group' | 'freeze' | 'endFreeze' | 'reset' | 'leave' | null
   const [action, setAction] = useState(null);
   const [notice, setNotice] = useState(null);
   const timeZone = studio.timezone;
@@ -74,6 +75,12 @@ export default function CustomerDetailPage({ studio, customerId, onBack, onCrede
           <dt>Grup</dt>
           <dd>{customer.group?.name ?? (left ? 'Stüdyodan ayrıldı' : 'Grubu yok')}</dd>
         </div>
+        {customer.upcomingGroup && (
+          <div>
+            <dt>{formatDateDayMonth(customer.upcomingGroup.startsOn)} tarihinden itibaren</dt>
+            <dd>{customer.upcomingGroup.name}</dd>
+          </div>
+        )}
         {customer.freeze && (
           <div>
             <dt>Dondurma</dt>
@@ -106,6 +113,7 @@ export default function CustomerDetailPage({ studio, customerId, onBack, onCrede
         <>
           <h2 className={styles.listLabel}>İşlemler</h2>
           <ul className={styles.people}>
+            <ActionRow label="Grubunu değiştir" onClick={() => setAction('group')} />
             {customer.freeze ? (
               <ActionRow label="Dondurmayı bitir" onClick={() => setAction('endFreeze')} />
             ) : (
@@ -116,6 +124,19 @@ export default function CustomerDetailPage({ studio, customerId, onBack, onCrede
           </ul>
         </>
       )}
+
+      <Sheet open={action === 'group'} onClose={() => setAction(null)} title="Grubunu değiştir">
+        <ChangeGroupForm
+          customer={customer}
+          today={todayIn(timeZone)}
+          onDone={(groupName, effectiveFrom, refundedMakeups) =>
+            done(
+              `${firstName}, ${formatDateDayMonth(effectiveFrom)} tarihinden itibaren ${groupName} grubunda.` +
+                (refundedMakeups > 0 ? ` Yeni grubuna yaptığı ${refundedMakeups} telafi kaydı iade edildi.` : ''),
+            )
+          }
+        />
+      </Sheet>
 
       <Sheet open={action === 'freeze'} onClose={() => setAction(null)} title="Üyeliği dondur">
         <FreezeForm
@@ -265,5 +286,108 @@ function LeaveConfirm({ customer, onDone }) {
       request={() => api(`/api/admin/customers/${customer.id}/leave`, { method: 'POST' })}
       onDone={onDone}
     />
+  );
+}
+
+// Grubunu değiştir: yeni grup + geçiş tarihi. Yeni grup doluysa sunucu uyarır, onayla yine de taşınır.
+function ChangeGroupForm({ customer, today, onDone }) {
+  const [groups, setGroups] = useState(null);
+  const [groupId, setGroupId] = useState('');
+  const [effectiveFrom, setEffectiveFrom] = useState(today);
+  const [error, setError] = useState(null);
+  const [fullWarning, setFullWarning] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const selectId = useId();
+
+  useEffect(() => {
+    api('/api/admin/groups').then(
+      ({ groups: list }) => setGroups(list.filter((g) => g.isActive && g.id !== customer.group?.id)),
+      () => setGroups([]),
+    );
+  }, [customer.group?.id]);
+
+  async function submit(confirmFull) {
+    if (!groupId) {
+      setError('Bir grup seç.');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await api(`/api/admin/customers/${customer.id}/change-group`, {
+        method: 'POST',
+        body: { groupId: Number(groupId), effectiveFrom, confirmFull },
+      });
+      const name = groups.find((g) => g.id === Number(groupId)).name;
+      onDone(name, effectiveFrom, result.refundedMakeups);
+    } catch (err) {
+      if (err.code === 'GROUP_FULL') setFullWarning(err.message);
+      else setError(err.message);
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form
+      noValidate
+      onSubmit={(event) => {
+        event.preventDefault();
+        submit(false);
+      }}
+    >
+      <p className={styles.sheetText}>
+        Şu anki grubu: {customer.group?.name ?? 'yok'}. Seçtiğin tarihten itibaren yeni grubunun derslerinde yer alır.
+      </p>
+      <div className={fieldStyles.field}>
+        <label htmlFor={selectId} className={fieldStyles.label}>
+          Yeni grup
+        </label>
+        <div className={fieldStyles.control}>
+          <select
+            id={selectId}
+            className={fieldStyles.input}
+            value={groupId}
+            onChange={(event) => {
+              setGroupId(event.target.value);
+              setFullWarning(null);
+              setError(null);
+            }}
+          >
+            <option value="">Grup seç</option>
+            {groups?.map((group) => (
+              <option key={group.id} value={group.id}>
+                {group.name} ({group.memberCount}/{group.capacity}
+                {group.memberCount >= group.capacity ? ', dolu' : ''})
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <TextField
+        label="Geçiş tarihi"
+        type="date"
+        min={today}
+        value={effectiveFrom}
+        onChange={(event) => {
+          setEffectiveFrom(event.target.value);
+          setFullWarning(null);
+        }}
+      />
+      {error && <p className={styles.formError}>{error}</p>}
+      {fullWarning ? (
+        <div className={styles.warning} role="alert">
+          <p>{fullWarning}</p>
+          <Button type="button" busy={busy} busyLabel="Kaydediliyor…" onClick={() => submit(true)}>
+            Yine de taşı
+          </Button>
+        </div>
+      ) : (
+        <div className={styles.formSubmit}>
+          <Button type="submit" busy={busy} busyLabel="Kaydediliyor…">
+            Grubunu değiştir
+          </Button>
+        </div>
+      )}
+    </form>
   );
 }

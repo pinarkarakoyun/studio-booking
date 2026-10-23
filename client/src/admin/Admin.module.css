@@ -518,3 +518,108 @@
   color: #9a90b3;
   text-align: center;
 }
+
+/* --- Gruplar --- */
+.groupRow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 13px 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.groupTop {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.groupBar {
+  flex: none;
+  margin-top: 6px;
+}
+
+.closedToggle {
+  margin-top: var(--space-4);
+  padding: var(--space-2) 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: #9a90b3;
+  cursor: pointer;
+}
+
+.days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: var(--space-3);
+}
+
+.day {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--white);
+  font: inherit;
+  font-size: 0.75rem;
+  color: #9a90b3;
+}
+
+.dayLarge {
+  width: 40px;
+  height: 40px;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.dayOn {
+  border-color: var(--violet);
+  background: var(--violet);
+  color: var(--white);
+}
+
+.dayPicker {
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.twoColumns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.memberRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  padding: 11px 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.memberRow:hover span:first-child {
+  color: var(--violet);
+}

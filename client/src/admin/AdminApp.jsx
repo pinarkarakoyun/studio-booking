@@ -3,6 +3,9 @@ import Sheet from '../components/Sheet.jsx';
 import CredentialsPage from './CredentialsPage.jsx';
 import CustomerDetailPage from './CustomerDetailPage.jsx';
 import CustomersPage from './CustomersPage.jsx';
+import GroupDetailPage from './GroupDetailPage.jsx';
+import GroupFormPage from './GroupFormPage.jsx';
+import GroupsPage from './GroupsPage.jsx';
 import NewCustomerPage from './NewCustomerPage.jsx';
 import SessionRosterPage from './SessionRosterPage.jsx';
 import TodayPage from './TodayPage.jsx';
@@ -26,6 +29,11 @@ export default function AdminApp({ user, studio, onLogout }) {
   const [view, setView] = useState(START);
   const [accountOpen, setAccountOpen] = useState(false);
   const goTo = (next) => setView(next);
+  // Grup detayındaki bir üyeye dokununca Müşteriler sekmesinde o müşterinin sayfası açılır.
+  const openCustomer = (id) => {
+    setTab('customers');
+    setView({ name: 'detail', id });
+  };
 
   let content;
   if (tab === 'today') {
@@ -44,6 +52,7 @@ export default function AdminApp({ user, studio, onLogout }) {
     if (view.name === 'detail') {
       content = (
         <CustomerDetailPage
+          key={view.id}
           studio={studio}
           customerId={view.id}
           onBack={() => goTo(START)}
@@ -62,6 +71,29 @@ export default function AdminApp({ user, studio, onLogout }) {
       content = <CredentialsPage studio={studio} credentials={view.credentials} onDone={() => goTo(view.backTo)} />;
     } else {
       content = <CustomersPage onOpen={(id) => goTo({ name: 'detail', id })} onAdd={() => goTo({ name: 'new' })} />;
+    }
+  } else if (tab === 'groups') {
+    if (view.name === 'detail') {
+      content = (
+        <GroupDetailPage
+          groupId={view.id}
+          initialNotice={view.notice}
+          onBack={() => goTo(START)}
+          onEdit={(group) => goTo({ name: 'edit', group })}
+          onOpenCustomer={openCustomer}
+        />
+      );
+    } else if (view.name === 'edit' || view.name === 'new') {
+      content = (
+        <GroupFormPage
+          studio={studio}
+          group={view.group}
+          onCancel={() => goTo(view.group ? { name: 'detail', id: view.group.id } : START)}
+          onSaved={(id, notice) => goTo({ name: 'detail', id, notice })}
+        />
+      );
+    } else {
+      content = <GroupsPage onOpen={(id) => goTo({ name: 'detail', id })} onAdd={() => goTo({ name: 'new' })} />;
     }
   } else {
     content = (

@@ -16,7 +16,8 @@ export default function NewCustomerPage({ studio, onCancel, onCreated }) {
   const groupFieldId = useId();
 
   useEffect(() => {
-    api('/api/admin/groups').then(({ groups: list }) => setGroups(list), () => setGroups([]));
+    // Kapalı gruplara müşteri eklenmez.
+    api('/api/admin/groups').then(({ groups: list }) => setGroups(list.filter((g) => g.isActive)), () => setGroups([]));
   }, []);
 
   function update(field) {
