@@ -4,7 +4,7 @@ import Button from '../components/Button.jsx';
 import Sheet from '../components/Sheet.jsx';
 import TextField from '../components/TextField.jsx';
 import fieldStyles from '../components/TextField.module.css';
-import { formatDateDayMonth, formatDay, formatDayMonth, formatPhone, formatTime, todayIn } from '../format.js';
+import { addDays, formatDateDayMonth, formatDay, formatDayMonth, formatPhone, formatTime, todayIn } from '../format.js';
 import MembershipCard from './MembershipCard.jsx';
 import styles from './Admin.module.css';
 
@@ -117,6 +117,7 @@ export default function CustomerDetailPage({ studio, customerId, onBack, onCrede
           <h2 className={styles.listLabel}>İşlemler</h2>
           <ul className={styles.people}>
             <ActionRow label="Grubunu değiştir" onClick={() => setAction('group')} />
+            <ActionRow label="Telafi hakkı ver" onClick={() => setAction('credits')} />
             {customer.freeze ? (
               <ActionRow label="Dondurmayı bitir" onClick={() => setAction('endFreeze')} />
             ) : (
@@ -139,6 +140,17 @@ export default function CustomerDetailPage({ studio, customerId, onBack, onCrede
             )
           }
         />
+      </Sheet>
+
+      <Sheet open={action === 'credits'} onClose={() => setAction(null)} title="Telafi hakkı ver">
+        {action === 'credits' && (
+          <GrantCreditsForm
+            customerId={customer.id}
+            today={todayIn(timeZone)}
+            validityDays={studio.creditValidityDays}
+            onDone={(count) => done(`${firstName} için ${count} telafi hakkı verildi.`)}
+          />
+        )}
       </Sheet>
 
       <Sheet open={action === 'freeze'} onClose={() => setAction(null)} title="Üyeliği dondur">
@@ -263,6 +275,73 @@ function FreezeForm({ customerId, today, onDone }) {
       <div className={styles.formSubmit}>
         <Button type="submit" busy={busy} busyLabel="Kaydediliyor…">
           Dondur
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+// Yöneticinin kendi kararıyla verdiği hak (son dakika aksiliği, stüdyonun iptali, jest). Son gün, ayardaki
+// hak geçerliliğiyle dolu gelir; hak o günün sonuna kadar geçerlidir.
+function GrantCreditsForm({ customerId, today, validityDays, onDone }) {
+  const [count, setCount] = useState('1');
+  const [expiresOn, setExpiresOn] = useState(addDays(`${today}T12:00:00Z`, validityDays).slice(0, 10));
+  const [note, setNote] = useState('');
+  const [errors, setErrors] = useState({});
+  const [busy, setBusy] = useState(false);
+
+  async function submit(event) {
+    event.preventDefault();
+    setBusy(true);
+    setErrors({});
+    try {
+      await api(`/api/admin/customers/${customerId}/credits`, {
+        method: 'POST',
+        body: { count: Number(count), expiresOn, note },
+      });
+      onDone(Number(count));
+    } catch (err) {
+      const field = { INVALID_COUNT: 'count', INVALID_DATE: 'expiresOn' }[err.code] ?? 'form';
+      setErrors({ [field]: err.message });
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={submit} noValidate>
+      <p className={styles.sheetText}>
+        Müşteri bu hakla, iptal ettiği bir dersin hakkı gibi başka bir derse telafiye yazılabilir.
+      </p>
+      <TextField
+        label="Kaç hak?"
+        type="number"
+        inputMode="numeric"
+        min="1"
+        max="5"
+        value={count}
+        onChange={(e) => setCount(e.target.value)}
+        error={errors.count}
+      />
+      <TextField
+        label="Son geçerlilik günü"
+        type="date"
+        min={today}
+        value={expiresOn}
+        onChange={(e) => setExpiresOn(e.target.value)}
+        error={errors.expiresOn}
+        hint={`Ayarlardaki süreyle (${validityDays} gün) dolu geldi; o günün sonuna kadar geçerli.`}
+      />
+      <TextField
+        label="Not (isteğe bağlı)"
+        value={note}
+        maxLength={200}
+        placeholder="26 Ekim, hastalık"
+        onChange={(e) => setNote(e.target.value)}
+      />
+      {errors.form && <p className={styles.formError}>{errors.form}</p>}
+      <div className={styles.formSubmit}>
+        <Button type="submit" busy={busy} busyLabel="Kaydediliyor…">
+          Hakkı ver
         </Button>
       </div>
     </form>

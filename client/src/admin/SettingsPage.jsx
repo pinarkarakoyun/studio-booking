@@ -117,7 +117,11 @@ export default function SettingsPage({ onStudioChange }) {
     try {
       const { settings } = await api('/api/admin/settings', { method: 'PUT', body: toBody(form) });
       setForm(toForm(settings));
-      onStudioChange({ name: settings.studioName, whatsappPhone: settings.whatsappPhone });
+      onStudioChange({
+        name: settings.studioName,
+        whatsappPhone: settings.whatsappPhone,
+        creditValidityDays: settings.creditValidityDays,
+      });
       setNotice('Kaydedildi. Yeni kurallar bundan sonraki işlemlerde geçerli.');
     } catch (err) {
       setErrors({ [FIELD_FOR_CODE[err.code] ?? 'form']: err.message });

@@ -5,6 +5,7 @@ import {
   createCustomer,
   endFreeze,
   freezeCustomer,
+  grantCredits,
   getCustomer,
   listCustomers,
   markLeft,
@@ -89,6 +90,15 @@ router.post('/api/admin/customers/:id/freeze', async (req, res) => {
   await freezeCustomer(req.user, customerId(req), {
     startsOn: req.body?.startsOn,
     endsOn: req.body?.endsOn ?? null,
+  });
+  res.status(204).end();
+});
+
+router.post('/api/admin/customers/:id/credits', async (req, res) => {
+  await grantCredits(req.user, customerId(req), {
+    count: req.body?.count,
+    expiresOn: req.body?.expiresOn,
+    note: req.body?.note,
   });
   res.status(204).end();
 });

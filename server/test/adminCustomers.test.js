@@ -215,3 +215,62 @@ describe('groups', () => {
     assert.deepEqual(body.groups.map((g) => [g.id, g.memberCount, g.capacity]), [[group, 1, 3]]);
   });
 });
+
+describe('granting make-up credits', () => {
+  const plusDays = async (n) =>
+    (await pool.query(`SELECT ((now() AT TIME ZONE 'Europe/Istanbul')::date + $1::int)::text AS d`, [n])).rows[0].d;
+
+  test('granted credits show for the customer and can be used for a make-up', async () => {
+    const { studio, group, c } = await setup();
+    const customerId = await createCustomer(studio, group);
+    const res = await c.request('POST', `/api/admin/customers/${customerId}/credits`, {
+      count: 2, expiresOn: await plusDays(10), note: '26 Ekim, hastalık',
+    });
+    assert.equal(res.status, 204);
+
+    const detail = await c.request('GET', `/api/admin/customers/${customerId}`);
+    assert.equal(detail.body.customer.credits.length, 2);
+    const { rows: [row] } = await pool.query('SELECT note, source_session_id FROM credits WHERE user_id = $1 LIMIT 1', [customerId]);
+    assert.deepEqual(row, { note: '26 Ekim, hastalık', source_session_id: null });
+
+    const me = await clientFor(customerId);
+    assert.equal((await me.request('GET', '/api/me/credits')).body.credits.length, 2);
+    const otherGroup = await createGroup(studio);
+    const sessionId = await createSession(otherGroup, 48);
+    assert.equal((await me.request('PUT', `/api/sessions/${sessionId}/makeup`)).status, 200);
+    assert.equal((await me.request('GET', '/api/me/credits')).body.credits.length, 1);
+  });
+
+  test('a credit lasts until the end of the chosen day', async () => {
+    const { studio, c } = await setup();
+    const customerId = await createCustomer(studio);
+    await c.request('POST', `/api/admin/customers/${customerId}/credits`, { count: 1, expiresOn: await plusDays(0) });
+    const { rows: [row] } = await pool.query(
+      `SELECT (expires_at AT TIME ZONE 'Europe/Istanbul')::text AS local FROM credits WHERE user_id = $1`,
+      [customerId],
+    );
+    assert.equal(row.local, `${await plusDays(0)} 23:59:59`);
+  });
+
+  test('rejects a bad count, a past date and a date more than a year ahead', async () => {
+    const { studio, c } = await setup();
+    const customerId = await createCustomer(studio);
+    const url = `/api/admin/customers/${customerId}/credits`;
+    assert.equal((await c.request('POST', url, { count: 0, expiresOn: await plusDays(5) })).body.error.code, 'INVALID_COUNT');
+    assert.equal((await c.request('POST', url, { count: 6, expiresOn: await plusDays(5) })).body.error.code, 'INVALID_COUNT');
+    assert.equal((await c.request('POST', url, { count: 1, expiresOn: await plusDays(-1) })).body.error.code, 'INVALID_DATE');
+    assert.equal((await c.request('POST', url, { count: 1, expiresOn: await plusDays(400) })).body.error.code, 'INVALID_DATE');
+    const { rows: [n] } = await pool.query('SELECT COUNT(*)::int AS n FROM credits WHERE user_id = $1', [customerId]);
+    assert.equal(n.n, 0);
+  });
+
+  test('no credits for a customer who left or for another studio', async () => {
+    const { studio, c } = await setup();
+    const left = await createCustomer(studio);
+    await pool.query(`UPDATE users SET status = 'left' WHERE id = $1`, [left]);
+    const body = { count: 1, expiresOn: await plusDays(5) };
+    assert.equal((await c.request('POST', `/api/admin/customers/${left}/credits`, body)).status, 409);
+    const other = await createCustomer(await createStudio());
+    assert.equal((await c.request('POST', `/api/admin/customers/${other}/credits`, body)).status, 404);
+  });
+});

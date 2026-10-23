@@ -215,6 +215,35 @@ export async function freezeCustomer(admin, customerId, { startsOn, endsOn = nul
   }
 }
 
+// Yöneticinin kendi kararıyla verdiği telafi hakları (son dakika aksiliği, stüdyonun iptali, jest...).
+// Hak bir dersten doğmaz (source_session_id boş); seçilen günün sonuna kadar (stüdyonun saatiyle) geçerlidir.
+// Bitiş 23:59:59 olarak saklanır: gece yarısı (ertesi gün 00:00) saklansaydı ekranda bir gün sonrası görünürdü.
+export async function grantCredits(admin, customerId, { count, expiresOn, note }, { db = pool } = {}) {
+  const customer = await findCustomer(admin, customerId, db);
+  if (customer.status === 'left') throw new AppError('CUSTOMER_LEFT', 'Bu müşteri stüdyodan ayrılmış.', 409);
+  if (!Number.isInteger(count) || count < 1 || count > 5) {
+    throw new AppError('INVALID_COUNT', 'Bir seferde 1 ile 5 arasında hak verebilirsin.', 400);
+  }
+  assertDate(expiresOn, 'Son geçerlilik günü');
+  const today = await studioToday(admin.studio_id, db);
+  if (expiresOn < today) throw new AppError('INVALID_DATE', 'Son geçerlilik günü geçmişte olamaz.', 400);
+  const { rows: [limit] } = await db.query(`SELECT ($1::date + interval '1 year')::date AS max`, [today]);
+  if (expiresOn > limit.max) throw new AppError('INVALID_DATE', 'Hak en fazla bir yıl geçerli olabilir.', 400);
+  if (note != null && typeof note !== 'string') throw new AppError('INVALID_NOTE', 'Not geçersiz.', 400);
+  const cleanNote = note?.trim() || null;
+  if (cleanNote && cleanNote.length > 200) throw new AppError('INVALID_NOTE', 'Not en fazla 200 karakter olabilir.', 400);
+
+  await db.query(
+    `
+    INSERT INTO credits (user_id, expires_at, note)
+    SELECT $1, (($2::date + 1)::timestamp AT TIME ZONE st.timezone) - interval '1 second', $3
+    FROM studios st CROSS JOIN generate_series(1, $4::int)
+    WHERE st.id = $5
+    `,
+    [customerId, expiresOn, cleanNote, count, admin.studio_id],
+  );
+}
+
 // Dondurmayı bugünden itibaren bitirir: müşteri bugünkü dersine de gelebilir. Henüz başlamamış (ileri tarihli)
 // dondurma tamamen silinir. Grubu bu arada dolduysa yönetici uyarılır (BR-16), karar onda.
 export async function endFreeze(admin, customerId, { db = pool } = {}) {
