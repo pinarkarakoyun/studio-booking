@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Sheet from '../components/Sheet.jsx';
+import { formatDay } from '../format.js';
 import CredentialsPage from './CredentialsPage.jsx';
 import CustomerDetailPage from './CustomerDetailPage.jsx';
 import CustomersPage from './CustomersPage.jsx';
@@ -30,6 +31,8 @@ export default function AdminApp({ user, studio, onStudioChange, onLogout }) {
   const [tab, setTab] = useState('today');
   const [view, setView] = useState(START);
   const [accountOpen, setAccountOpen] = useState(false);
+  // Bugün sekmesinde bakılan gün (null = bugün). Ders detayından geri dönünce aynı gün açılır.
+  const [day, setDay] = useState(null);
   const goTo = (next) => setView(next);
   // Grup detayındaki bir üyeye dokununca Müşteriler sekmesinde o müşterinin sayfası açılır.
   const openCustomer = (id) => {
@@ -41,11 +44,19 @@ export default function AdminApp({ user, studio, onStudioChange, onLogout }) {
   if (tab === 'today') {
     content =
       view.name === 'session' ? (
-        <SessionRosterPage studio={studio} sessionId={view.id} onBack={() => goTo(START)} />
+        <SessionRosterPage
+          studio={studio}
+          sessionId={view.id}
+          backLabel={day ? formatDay(day) : 'Bugün'}
+          onBack={() => goTo(START)}
+        />
       ) : (
         <TodayPage
+          key={day ?? 'today'}
           user={user}
           studio={studio}
+          date={day}
+          onChangeDate={setDay}
           onOpenSession={(id) => goTo({ name: 'session', id })}
           onOpenAccount={() => setAccountOpen(true)}
         />
@@ -124,6 +135,7 @@ export default function AdminApp({ user, studio, onStudioChange, onLogout }) {
             onClick={() => {
               setTab(item.id);
               setView(START);
+              setDay(null);
             }}
           >
             {item.label}

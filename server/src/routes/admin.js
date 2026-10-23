@@ -21,7 +21,7 @@ import {
   updateGroup,
 } from '../services/adminGroups.js';
 import { addPayment, createMembership, deletePayment, getMemberships, getPaymentOverview } from '../services/adminMemberships.js';
-import { cancelSessionByStudio, getSessionRoster, getToday } from '../services/adminSchedule.js';
+import { cancelSessionByStudio, getDay, getSessionRoster, getToday } from '../services/adminSchedule.js';
 import { getSettings, updateSettings } from '../services/adminSettings.js';
 
 const router = Router();
@@ -55,6 +55,10 @@ const groupInput = (body) => ({
 
 router.get('/api/admin/today', async (req, res) => {
   res.json(await getToday(req.user));
+});
+
+router.get('/api/admin/day', async (req, res) => {
+  res.json(await getDay(req.user, req.query.date));
 });
 
 router.get('/api/admin/sessions/:id', async (req, res) => {

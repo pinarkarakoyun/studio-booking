@@ -16,7 +16,7 @@ function reasonText(person, sessionCancelled) {
 }
 
 // Bir dersin katılımcı listesi; başlamamış bir ders buradan iptal edilebilir.
-export default function SessionRosterPage({ studio, sessionId, onBack }) {
+export default function SessionRosterPage({ studio, sessionId, backLabel = 'Bugün', onBack }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [cancelling, setCancelling] = useState(false);
@@ -43,7 +43,7 @@ export default function SessionRosterPage({ studio, sessionId, onBack }) {
 
   const back = (
     <button type="button" className={styles.back} onClick={onBack}>
-      ‹ Bugün
+      ‹ {backLabel}
     </button>
   );
 

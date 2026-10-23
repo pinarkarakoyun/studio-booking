@@ -903,3 +903,58 @@
   padding: 11px 0;
   border-bottom: 1px solid var(--line);
 }
+
+/* Bugün ekranında gün değiştirme: ‹ Cumartesi 24 Ekim › */
+.dayNav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: 6px;
+}
+
+.dayArrow {
+  width: 36px;
+  height: 36px;
+  border: 1.5px solid #e8d9df;
+  border-radius: 50%;
+  background: var(--white);
+  font: inherit;
+  font-size: 1.25rem;
+  line-height: 1;
+  color: var(--violet);
+  cursor: pointer;
+}
+
+.dayPick {
+  position: relative;
+  padding: 6px 4px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+/* Gerçek tarih alanı etiketin üstünde görünmez durur: dokunmayı o alır, telefonun tarih seçicisi açılır. */
+.dayPick input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.dayArrow:focus-visible,
+.dayPick:focus-within,
+.inlineButton:focus-visible {
+  outline: 2px solid var(--violet);
+  outline-offset: 2px;
+}
+
+.inlineButton {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--violet);
+  text-decoration: underline;
+  cursor: pointer;
+}

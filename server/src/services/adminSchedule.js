@@ -108,6 +108,15 @@ export async function getToday(admin, { db = pool } = {}) {
   };
 }
 
+// Başka bir günün dersleri (ileri tarihli bir dersi açmak, örneğin bayramda iptal etmek için; geçmiş de olur).
+// Uyarılar sadece "Bugün" ekranında; burada sadece o günün dersleri.
+export async function getDay(admin, date, { db = pool } = {}) {
+  if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(date))) {
+    throw new AppError('INVALID_DATE', 'Tarih geçersiz.', 400);
+  }
+  return { date, sessions: await sessionsOn(admin.studio_id, date, db) };
+}
+
 // Bir dersin katılımcı listesi: kim geliyor, kim gelmiyor ve neden.
 //   attending: düzenli üye (geliyor) ya da telafi
 //   notAttending: iptal etti (hakkının durumuyla) ya da o tarihte dondurulmuş

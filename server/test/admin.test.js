@@ -124,3 +124,26 @@ describe('session roster', () => {
     assert.equal((await c.request('GET', '/api/admin/sessions/abc')).status, 404);
   });
 });
+
+describe('another day', () => {
+  test("lists the chosen day's sessions, only for this studio", async () => {
+    const studio = await createStudio();
+    const c = await clientFor(await createAdmin(studio));
+    const group = await createGroup(studio);
+    const session = await createSession(group, 24 * 5);
+    const otherGroup = await createGroup(await createStudio());
+    await createSession(otherGroup, 24 * 5);
+    const { rows: [s] } = await pool.query('SELECT date::text AS date FROM sessions WHERE id = $1', [session]);
+
+    const res = await c.request('GET', `/api/admin/day?date=${s.date}`);
+    assert.equal(res.status, 200);
+    assert.equal(res.body.date, s.date);
+    assert.deepEqual(res.body.sessions.map((x) => x.id), [session]);
+  });
+
+  test('rejects an invalid date', async () => {
+    const c = await clientFor(await createAdmin(await createStudio()));
+    assert.equal((await c.request('GET', '/api/admin/day?date=2026-13-45')).body.error.code, 'INVALID_DATE');
+    assert.equal((await c.request('GET', '/api/admin/day')).status, 400);
+  });
+});
