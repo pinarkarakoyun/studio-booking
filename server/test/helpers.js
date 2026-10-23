@@ -22,8 +22,9 @@ export async function createStudio(settings = {}) {
   await pool.query(
     `
     INSERT INTO studio_settings (studio_id, credit_validity_days, cancellation_deadline_hours,
-                                 booking_window_days, refund_credit_on_makeup_cancel, max_makeups_per_month)
-    VALUES ($1, $2, $3, $4, $5, $6)
+                                 booking_window_days, refund_credit_on_makeup_cancel, max_makeups_per_month,
+                                 allow_undo_cancel, allow_makeup_before_missed, makeup_booking_cutoff_minutes)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
     `,
     [
       studio.id,
@@ -32,6 +33,9 @@ export async function createStudio(settings = {}) {
       settings.bookingWindowDays ?? 14,
       settings.refundCreditOnMakeupCancel ?? true,
       settings.maxMakeupsPerMonth ?? null,
+      settings.allowUndoCancel ?? true,
+      settings.allowMakeupBeforeMissed ?? true,
+      settings.makeupBookingCutoffMinutes ?? 0,
     ],
   );
   return studio.id;
@@ -54,9 +58,10 @@ export async function createSession(groupId, hoursFromNow, { capacity } = {}) {
   const { rows: [session] } = await pool.query(
     `
     INSERT INTO sessions (group_id, date, starts_at, capacity)
+    -- $2 * interval '1 hour': make_interval tam sayı ister; bu yazım 0.5 (30 dk) gibi değerlere de izin verir.
     SELECT g.id,
-           ((now() + make_interval(hours => $2)) AT TIME ZONE st.timezone)::date,
-           now() + make_interval(hours => $2),
+           ((now() + $2::float8 * interval '1 hour') AT TIME ZONE st.timezone)::date,
+           now() + $2::float8 * interval '1 hour',
            COALESCE($3, g.capacity)
     FROM groups g JOIN studios st ON st.id = g.studio_id
     WHERE g.id = $1

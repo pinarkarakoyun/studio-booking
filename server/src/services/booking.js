@@ -35,10 +35,13 @@ async function loadSession(client, sessionId, { lock = false } = {}) {
     `
     SELECT s.id, s.group_id, s.date, s.starts_at, s.status,
            ss.credit_validity_days, ss.refund_credit_on_makeup_cancel, ss.max_makeups_per_month,
+           ss.allow_undo_cancel, ss.allow_makeup_before_missed,
            st.timezone,
            s.starts_at > now() AS is_future,
            s.starts_at - make_interval(hours => ss.cancellation_deadline_hours) > now()
              AS is_before_deadline,
+           s.starts_at - make_interval(mins => ss.makeup_booking_cutoff_minutes) > now()
+             AS is_before_makeup_cutoff,
            s.date <= (now() AT TIME ZONE st.timezone)::date + ss.booking_window_days
              AS is_within_booking_window
     FROM sessions s
@@ -153,6 +156,9 @@ async function bookMakeupInTransaction(client, userId, targetSessionId) {
   if (!target.is_future) {
     throw new BookingError('SESSION_STARTED', 'Bu ders başladı veya geçti.');
   }
+  if (!target.is_before_makeup_cutoff) {
+    throw new BookingError('MAKEUP_BOOKING_CLOSED', 'Bu derse telafi kaydı kapandı.');
+  }
   if (!target.is_within_booking_window) {
     throw new BookingError('TOO_FAR_AHEAD', 'Bu kadar ileri tarihli bir derse henüz telafi yapılamaz.');
   }
@@ -208,21 +214,28 @@ async function bookMakeupInTransaction(client, userId, targetSessionId) {
   }
 
   // Telafi dersinde hâlâ geçerli olacak, süresi en erken dolan krediyi kullan (müşterinin lehine).
+  // Stüdyo "kaçırılan dersten önce telafi"ye izin vermiyorsa, kaynağı telafi dersinden sonra olan
+  // krediler kullanılamaz (elle verilen, kaynağı olmayan krediler her zaman kullanılabilir).
   // SKIP LOCKED: aynı müşteri aynı anda iki farklı derse telafi yazdırırsa ikisi aynı krediyi
   // kapmaya çalışmaz; ikinci istek kilitli olanı atlayıp sıradaki krediyi alır.
+  // OF c: LEFT JOIN'in boş olabilen tarafı kilitlenemez; sadece kredi satırını kilitliyoruz.
   const { rows: [credit] } = await client.query(
     `
-    SELECT id FROM credits
-    WHERE user_id = $1
-      AND used_session_id IS NULL
-      AND forfeited_at IS NULL
-      AND expires_at >= (SELECT starts_at FROM sessions WHERE id = $2)
-      AND source_session_id IS DISTINCT FROM $2
-    ORDER BY expires_at, id
+    SELECT c.id
+    FROM credits c
+    LEFT JOIN sessions source ON source.id = c.source_session_id
+    WHERE c.user_id = $1
+      AND c.used_session_id IS NULL
+      AND c.forfeited_at IS NULL
+      AND c.expires_at >= (SELECT starts_at FROM sessions WHERE id = $2)
+      AND c.source_session_id IS DISTINCT FROM $2
+      AND ($3 OR source.starts_at IS NULL
+              OR source.starts_at < (SELECT starts_at FROM sessions WHERE id = $2))
+    ORDER BY c.expires_at, c.id
     LIMIT 1
-    FOR UPDATE SKIP LOCKED
+    FOR UPDATE OF c SKIP LOCKED
     `,
-    [userId, targetSessionId],
+    [userId, targetSessionId, target.allow_makeup_before_missed],
   );
   if (!credit) {
     throw new BookingError('NO_CREDIT', 'Kullanılabilir telafi hakkınız yok.');
@@ -245,6 +258,25 @@ export function bookMakeup({ userId, sessionId }, { db = pool } = {}) {
 // müşteri "dersimi iptal ettim ama yer bulamadım" durumuna düşmez.
 export function swapSession({ userId, fromSessionId, toSessionId }, { db = pool } = {}) {
   return withTransaction(db, async (client) => {
+    // Stüdyo kaçırılan dersten önce telafiye izin vermiyorsa, genel "hak yok" hatası yerine
+    // sebebi açıkça söylüyoruz.
+    const { rows: [order] } = await client.query(
+      `
+      SELECT ss.allow_makeup_before_missed AS allowed, t.starts_at > f.starts_at AS is_after
+      FROM sessions f
+      JOIN sessions t           ON t.id = $2
+      JOIN groups g             ON g.id = f.group_id
+      JOIN studio_settings ss   ON ss.studio_id = g.studio_id
+      WHERE f.id = $1
+      `,
+      [fromSessionId, toSessionId],
+    );
+    if (order && !order.allowed && !order.is_after) {
+      throw new BookingError(
+        'MAKEUP_BEFORE_MISSED_NOT_ALLOWED',
+        'Telafi, kaçırılan dersten sonraki bir derse yapılmalı.',
+      );
+    }
     await cancelInTransaction(client, userId, fromSessionId);
     return bookMakeupInTransaction(client, userId, toSessionId);
   });
@@ -256,6 +288,9 @@ export function undoCancel({ userId, sessionId }, { db = pool } = {}) {
   return withTransaction(db, async (client) => {
     // Geri dönmek yeni bir yer almak demek: kapasite kontrolü için ders kilitlenir.
     const session = await loadSession(client, sessionId, { lock: true });
+    if (!session.allow_undo_cancel) {
+      throw new BookingError('UNDO_CANCEL_DISABLED', 'Bu stüdyoda iptal geri alınamıyor.');
+    }
     if (!session.is_future) {
       throw new BookingError('SESSION_STARTED', 'Bu ders başladı veya geçti.');
     }

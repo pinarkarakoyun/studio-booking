@@ -274,6 +274,75 @@ describe('cancelMakeup', () => {
   });
 });
 
+describe('studio settings', () => {
+  test('undo cancel can be turned off', async () => {
+    const studio = await createStudio({ allowUndoCancel: false });
+    const group = await createGroup(studio);
+    const session = await createSession(group, 72);
+    const user = await createCustomer(studio, group);
+    await cancelSession({ userId: user, sessionId: session });
+
+    await assert.rejects(
+      undoCancel({ userId: user, sessionId: session }),
+      bookingError('UNDO_CANCEL_DISABLED'),
+    );
+  });
+
+  test('make-up booking closes N minutes before the session', async () => {
+    const studio = await createStudio({ makeupBookingCutoffMinutes: 60 });
+    const soon = await createSession(await createGroup(studio), 0.5); // 30 dk sonra
+    const later = await createSession(await createGroup(studio), 2);
+    const user = await createCustomer(studio);
+    await grantCredit(user);
+
+    await assert.rejects(bookMakeup({ userId: user, sessionId: soon }), bookingError('MAKEUP_BOOKING_CLOSED'));
+    await bookMakeup({ userId: user, sessionId: later });
+  });
+
+  describe('when make-up before the missed session is not allowed', () => {
+    const settings = { allowMakeupBeforeMissed: false };
+
+    test('swap to an earlier session is rejected with a clear reason', async () => {
+      const studio = await createStudio(settings);
+      const group = await createGroup(studio);
+      const monday = await createSession(group, 72);
+      const saturday = await createSession(await createGroup(studio), 24);
+      const user = await createCustomer(studio, group);
+
+      await assert.rejects(
+        swapSession({ userId: user, fromSessionId: monday, toSessionId: saturday }),
+        bookingError('MAKEUP_BEFORE_MISSED_NOT_ALLOWED'),
+      );
+      assert.equal((await occupancy(monday)).regular_count, 1); // iptal de geri alındı
+    });
+
+    test('swap to a later session still works', async () => {
+      const studio = await createStudio(settings);
+      const group = await createGroup(studio);
+      const monday = await createSession(group, 24);
+      const thursday = await createSession(await createGroup(studio), 72);
+      const user = await createCustomer(studio, group);
+
+      await swapSession({ userId: user, fromSessionId: monday, toSessionId: thursday });
+      assert.equal((await occupancy(thursday)).makeup_count, 1);
+    });
+
+    test('a credit from a later session cannot be used earlier, a granted credit can', async () => {
+      const studio = await createStudio(settings);
+      const group = await createGroup(studio);
+      const monday = await createSession(group, 72);
+      const saturday = await createSession(await createGroup(studio), 24);
+      const user = await createCustomer(studio, group);
+      await cancelSession({ userId: user, sessionId: monday });
+
+      await assert.rejects(bookMakeup({ userId: user, sessionId: saturday }), bookingError('NO_CREDIT'));
+
+      await grantCredit(user); // kaynağı olmayan, yöneticinin verdiği hak
+      await bookMakeup({ userId: user, sessionId: saturday });
+    });
+  });
+});
+
 describe('concurrency: aynı anda son yer', () => {
   test('ten customers racing for one free spot: exactly one wins', async () => {
     const studio = await createStudio();
