@@ -28,3 +28,18 @@
   height: 44px;
   font-size: 24px;
 }
+
+/* Tanıtım sitesinin girişi: logo en büyük halinde (Pınar: "biraz daha büyük olsun"). */
+.hero {
+  width: 88px;
+  height: 88px;
+  font-size: 46px;
+}
+
+@media (min-width: 900px) {
+  .hero {
+    width: 120px;
+    height: 120px;
+    font-size: 62px;
+  }
+}

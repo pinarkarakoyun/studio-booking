@@ -48,6 +48,10 @@ Online payments (payments are collected in person and only recorded in the syste
 
 The backend will also serve the built React app, so the frontend and API share one origin (simpler cookies, no CORS setup).
 
+### Public site and studio branding
+
+The root address (`/`) is the studio's public page; the booking app lives under `/giris`. A studio's own content (logo, instructor, address, photos) is kept outside the repository in a folder set by `BRAND_DIR` and served under `/brand`. The public page reads `BRAND_DIR/site.json`; see `server/site.example.json` for the format. Missing fields show placeholders.
+
 ## Roadmap
 
 1. Requirements and business rules (done)

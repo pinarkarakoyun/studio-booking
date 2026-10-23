@@ -1,0 +1,18 @@
+{
+  "tagline": "Şehrinde kadınlara özel reformer pilates",
+  "subline": "Küçük gruplar, sana göre bir program.",
+  "instructor": {
+    "name": "Eğitmenin adı",
+    "years": 8,
+    "bio": "Eğitmenin kendini anlattığı iki üç cümle.",
+    "certificates": ["Örnek sertifika 1", "Örnek sertifika 2"],
+    "photo": "egitmen.jpg"
+  },
+  "address": "Örnek Mahallesi, Örnek Sokak No: 1",
+  "mapsUrl": "https://maps.google.com/",
+  "instagramUrl": "https://www.instagram.com/",
+  "photos": [
+    { "file": "studyo-1.jpg", "alt": "Reformer aletleri ve aydınlık salon" },
+    { "file": "studyo-2.jpg", "alt": "Grup dersi" }
+  ]
+}
