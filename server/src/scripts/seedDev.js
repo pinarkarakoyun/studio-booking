@@ -8,6 +8,7 @@
 import pool from '../db/pool.js';
 import { createUser } from '../services/auth.js';
 import { generateSessions } from '../services/sessionGenerator.js';
+import { seedDemoPayments } from './seedDemoPayments.js';
 
 // Bu dosya import edilince değil, çalıştırılınca iş yapar; o yüzden buradan bir şey dışarı açılmıyor.
 const DEV_ACCOUNTS = {
@@ -137,6 +138,7 @@ try {
     `INSERT INTO freezes (user_id, starts_on, ends_on) VALUES ($1, current_date, current_date + 10)`,
     [membersByGroup[0][3]],
   );
+  await seedDemoPayments(client, studio.id);
   await client.query('COMMIT');
 
   console.log(`Deneme verisi eklendi: ${GROUPS.length} grup, ${sessions} ders.`);

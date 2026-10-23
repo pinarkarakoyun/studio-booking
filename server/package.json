@@ -10,6 +10,7 @@
     "migrate": "node src/db/migrate.js",
     "create-admin": "node src/scripts/createAdmin.js",
     "seed:dev": "node src/scripts/seedDev.js",
+    "seed:payments": "node src/scripts/seedDemoPayments.js",
     "pretest": "DB_NAME=studio_booking_test node test/createTestDb.js && DB_NAME=studio_booking_test node src/db/migrate.js",
     "test": "DB_NAME=studio_booking_test BCRYPT_COST=4 node --test --test-concurrency=1 'test/**/*.test.js'"
   },

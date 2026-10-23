@@ -11,6 +11,8 @@ const METHODS = [
   { value: 'transfer', label: 'Havale' },
   { value: 'card', label: 'Kart' },
 ];
+// Yeni dönem en fazla kaç aylık yazılabilir (sadece ekranda; sunucu tarihlere bakar).
+const MAX_MONTHS = 12;
 const methodLabel = (value) => METHODS.find((m) => m.value === value).label.toLocaleLowerCase('tr');
 
 // Müşteri detayındaki üyelik kartı: dönem, ödenen/kalan, ödemeler; "Ödeme ekle" ve "Yeni dönem başlat".
@@ -266,17 +268,21 @@ function PaymentForm({ membership, today, onDone }) {
 
 function PeriodForm({ customerId, suggestedStartsOn, lastFeeKurus, onDone }) {
   const [startsOn, setStartsOn] = useState(suggestedStartsOn);
-  const [months, setMonths] = useState(1);
+  // Ay sayısı metin olarak tutulur (kutu boş da olabilir); bitiş elle değişirse boşalır.
+  const [months, setMonths] = useState('1');
   const [endsOn, setEndsOn] = useState(addMonthsInclusive(suggestedStartsOn, 1));
   const [fee, setFee] = useState(lastFeeKurus ? String(lastFeeKurus / 100).replace('.', ',') : '');
   const [note, setNote] = useState('');
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
 
-  // "1 ay / 3 ay" bitişi başlangıca göre doldurur; bitiş elle değiştirilirse seçim kalkar.
-  function pickMonths(count) {
-    setMonths(count);
-    setEndsOn(addMonthsInclusive(startsOn, count));
+  // Yazılan ay sayısı bitişi başlangıca göre doldurur (1–12). Bitiş elle değiştirilirse kutu boşalır.
+  function changeMonths(value) {
+    setMonths(value);
+    const count = Number(value);
+    if (Number.isInteger(count) && count >= 1 && count <= MAX_MONTHS && startsOn) {
+      setEndsOn(addMonthsInclusive(startsOn, count));
+    }
   }
 
   async function submit(event) {
@@ -307,26 +313,21 @@ function PeriodForm({ customerId, suggestedStartsOn, lastFeeKurus, onDone }) {
         value={startsOn}
         onChange={(e) => {
           setStartsOn(e.target.value);
-          if (months && e.target.value) setEndsOn(addMonthsInclusive(e.target.value, months));
+          const count = Number(months);
+          if (count >= 1 && count <= MAX_MONTHS && e.target.value) setEndsOn(addMonthsInclusive(e.target.value, count));
         }}
         hint={lastFeeKurus === undefined ? undefined : 'Önceki dönemin bittiği günün ertesi; geç ödeme günü kaydırmaz.'}
       />
-      <fieldset className={styles.choiceGroup}>
-        <legend>Süre</legend>
-        <div className={styles.choices}>
-          {[1, 3].map((count) => (
-            <button
-              key={count}
-              type="button"
-              className={`${styles.choice} ${months === count ? styles.choiceOn : ''}`}
-              aria-pressed={months === count}
-              onClick={() => pickMonths(count)}
-            >
-              {count} ay
-            </button>
-          ))}
-        </div>
-      </fieldset>
+      <TextField
+        label="Kaç aylık?"
+        type="number"
+        inputMode="numeric"
+        min="1"
+        max={MAX_MONTHS}
+        value={months}
+        onChange={(e) => changeMonths(e.target.value)}
+        hint="Bitiş tarihi buna göre dolar; özel bir bitiş için tarihi elle değiştirebilirsin."
+      />
       <TextField
         label="Bitiş"
         type="date"
@@ -334,7 +335,7 @@ function PeriodForm({ customerId, suggestedStartsOn, lastFeeKurus, onDone }) {
         min={startsOn}
         onChange={(e) => {
           setEndsOn(e.target.value);
-          setMonths(null);
+          setMonths('');
         }}
       />
       <TextField
