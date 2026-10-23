@@ -87,3 +87,37 @@ export function addDays(instant, days) {
   result.setUTCDate(result.getUTCDate() + days);
   return result.toISOString();
 }
+
+// Para kuruş cinsinden tamsayı olarak gelir (150000 = 1.500 ₺). Küsuratı yoksa gösterilmez.
+export function formatMoney(kurus) {
+  const lira = kurus / 100;
+  return `${lira.toLocaleString('tr-TR', { minimumFractionDigits: Number.isInteger(lira) ? 0 : 2, maximumFractionDigits: 2 })} ₺`;
+}
+
+// Yöneticinin yazdığı tutarı kuruşa çevirir; anlaşılamazsa null.
+// Türkçe yazım: nokta binlik ayıracı, virgül ondalık ("1.500" = bin beş yüz, "1500,50" = bin beş yüz lira elli kuruş).
+// Tek bir nokta ve arkasında 1-2 hane varsa ("1500.5") ondalık sayılır; telefon klavyesi bazen sadece nokta verir.
+export function parseMoney(text) {
+  const value = String(text).replace(/[\s₺]/g, '');
+  let normalized;
+  if (/^\d{1,3}(\.\d{3})*(,\d{1,2})?$/.test(value) || /^\d+(,\d{1,2})?$/.test(value)) {
+    normalized = value.replace(/\./g, '').replace(',', '.');
+  } else if (/^\d+\.\d{1,2}$/.test(value)) {
+    normalized = value;
+  } else {
+    return null;
+  }
+  return Math.round(Number(normalized) * 100);
+}
+
+// Takvim gününe ay ekler ve bir gün çıkarır: 1 Kasım + 1 ay -> 30 Kasım (dönemin son günü).
+// Ay sonu taşmasında ayın son gününe sabitlenir (31 Ocak + 1 ay = 28 Şubat, dönem 27 Şubat'ta biter).
+// Yönetici bitiş tarihini her zaman elle değiştirebilir.
+export function addMonthsInclusive(date, months) {
+  const start = asCalendarDay(date);
+  const target = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + months, 1, 12));
+  const lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0, 12)).getUTCDate();
+  target.setUTCDate(Math.min(start.getUTCDate(), lastDay));
+  target.setUTCDate(target.getUTCDate() - 1);
+  return target.toISOString().slice(0, 10);
+}

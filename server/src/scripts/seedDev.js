@@ -47,10 +47,13 @@ try {
   await client.query('INSERT INTO studio_settings (studio_id) VALUES ($1)', [studio.id]);
 
   const { admin, customer } = DEV_ACCOUNTS;
-  await createUser(
+  const adminId = await createUser(
     { studioId: studio.id, role: 'admin', fullName: admin.fullName, phone: admin.phone, temporaryPassword: admin.password },
     { db: client },
   );
+  // Deneme yöneticisi yeni şifre ekranına takılmasın: panel tarayıcıda hemen denenebilsin.
+  // Müşteri hesabı ilk giriş akışını denemek için zorunlulukla kalır.
+  await client.query('UPDATE users SET must_change_password = false WHERE id = $1', [adminId]);
 
   let fillerNumber = 100;
   const groupIds = [];

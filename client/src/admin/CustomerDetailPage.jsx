@@ -5,6 +5,7 @@ import Sheet from '../components/Sheet.jsx';
 import TextField from '../components/TextField.jsx';
 import fieldStyles from '../components/TextField.module.css';
 import { formatDateDayMonth, formatDay, formatDayMonth, formatPhone, formatTime, todayIn } from '../format.js';
+import MembershipCard from './MembershipCard.jsx';
 import styles from './Admin.module.css';
 
 const whatsappLink = (phone) => `https://wa.me/${phone.replace('+', '')}`;
@@ -108,6 +109,8 @@ export default function CustomerDetailPage({ studio, customerId, onBack, onCrede
           </div>
         )}
       </dl>
+
+      <MembershipCard customerId={customerId} today={todayIn(timeZone)} canStartPeriod={!left} />
 
       {!left && (
         <>
