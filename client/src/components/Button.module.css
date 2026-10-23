@@ -1,0 +1,43 @@
+.button {
+  width: 100%;
+  padding: 14px 20px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background-color 0.15s var(--ease),
+    transform 0.1s var(--ease);
+}
+
+.button:active {
+  transform: scale(0.98);
+}
+
+.button:disabled {
+  cursor: progress;
+}
+
+.primary {
+  background: var(--pink);
+  color: var(--white);
+}
+
+.primary:hover {
+  background: #f23c8b;
+}
+
+.primary:disabled {
+  background: #ff86ba;
+}
+
+.quiet {
+  background: transparent;
+  color: var(--violet);
+}
+
+.quiet:hover {
+  background: var(--violet-soft);
+}

@@ -5,6 +5,7 @@ import { loadUser } from './middleware/auth.js';
 import authRouter from './routes/auth.js';
 import healthRouter from './routes/health.js';
 import sessionsRouter from './routes/sessions.js';
+import studioRouter from './routes/studio.js';
 
 // Uygulama burada kuruluyor ama dinlemeye (listen) başlamıyor. Böylece testler uygulamayı
 // rastgele bir portta kendileri başlatabiliyor; index.js ise gerçek sunucuyu başlatıyor.
@@ -17,6 +18,7 @@ export function createApp() {
   app.use(loadUser);
 
   app.use(healthRouter);
+  app.use(studioRouter);
   app.use(authRouter);
   app.use(sessionsRouter);
 

@@ -71,7 +71,7 @@ async function assertActiveUserOfStudio(client, userId, session) {
     throw new BookingError('SESSION_NOT_FOUND', 'Ders bulunamadı.');
   }
   if (rows[0].status !== 'active') {
-    throw new BookingError('USER_NOT_ACTIVE', 'Hesabınız aktif değil.');
+    throw new BookingError('USER_NOT_ACTIVE', 'Hesabın aktif değil.');
   }
 }
 
@@ -122,11 +122,11 @@ async function cancelInTransaction(client, userId, sessionId) {
     throw new BookingError('CANCELLATION_DEADLINE_PASSED', 'Bu ders için iptal süresi geçti.');
   }
   if (!(await isRegularMember(client, userId, session))) {
-    throw new BookingError('NOT_A_MEMBER', 'Bu ders sizin grubunuza ait değil.');
+    throw new BookingError('NOT_A_MEMBER', 'Bu ders senin grubuna ait değil.');
   }
   // Dondurma dönemindeki derslerden hak doğmaz.
   if (await isFrozenOnAny(client, userId, [session.date])) {
-    throw new BookingError('USER_FROZEN', 'Üyeliğiniz bu tarihte dondurulmuş.');
+    throw new BookingError('USER_FROZEN', 'Üyeliğin bu tarihte dondurulmuş.');
   }
 
   // Hakkın süresi kaçırılan dersin başlangıcından sayılır (BR-27).
@@ -144,7 +144,7 @@ async function cancelInTransaction(client, userId, sessionId) {
     [userId, sessionId, session.credit_validity_days],
   );
   if (rows.length === 0) {
-    throw new BookingError('ALREADY_CANCELLED', 'Bu dersi zaten iptal ettiniz.');
+    throw new BookingError('ALREADY_CANCELLED', 'Bu dersi zaten iptal ettin.');
   }
   return { creditId: rows[0].id, expiresAt: rows[0].expires_at };
 }
@@ -175,7 +175,7 @@ async function bookMakeupInTransaction(client, userId, targetSessionId) {
     [target.timezone],
   );
   if (await isFrozenOnAny(client, userId, [today.date, target.date])) {
-    throw new BookingError('USER_FROZEN', 'Üyeliğiniz dondurulmuşken telafi yapılamaz.');
+    throw new BookingError('USER_FROZEN', 'Üyeliğin dondurulmuşken telafi yapılamaz.');
   }
 
   // Zaten bu derste mi? (Aynı derse iki kez kayıt olunamaz, BR-05.)
@@ -185,16 +185,16 @@ async function bookMakeupInTransaction(client, userId, targetSessionId) {
       [userId, targetSessionId],
     );
     if (rows.length > 0) {
-      throw new BookingError('USE_UNDO_CANCEL', 'Bu dersi iptal etmiştiniz; iptali geri alabilirsiniz.');
+      throw new BookingError('USE_UNDO_CANCEL', 'Bu dersi iptal etmiştin; iptali geri alabilirsin.');
     }
-    throw new BookingError('ALREADY_ATTENDING', 'Bu derse zaten kayıtlısınız.');
+    throw new BookingError('ALREADY_ATTENDING', 'Bu derse zaten kayıtlısın.');
   }
   const { rows: existing } = await client.query(
     'SELECT 1 FROM credits WHERE user_id = $1 AND used_session_id = $2',
     [userId, targetSessionId],
   );
   if (existing.length > 0) {
-    throw new BookingError('ALREADY_ATTENDING', 'Bu derse zaten telafi yazdırdınız.');
+    throw new BookingError('ALREADY_ATTENDING', 'Bu derse zaten telafi yazdırdın.');
   }
 
   // Aylık telafi sınırı (ayar boşsa sınır yok). Ay, telafi dersinin ayıdır.
@@ -210,7 +210,7 @@ async function bookMakeupInTransaction(client, userId, targetSessionId) {
       [userId, target.date],
     );
     if (usage.used >= target.max_makeups_per_month) {
-      throw new BookingError('MONTHLY_MAKEUP_LIMIT', 'Bu ay için telafi hakkı sınırına ulaştınız.');
+      throw new BookingError('MONTHLY_MAKEUP_LIMIT', 'Bu ay için telafi sınırına ulaştın.');
     }
   }
 
@@ -243,7 +243,7 @@ async function bookMakeupInTransaction(client, userId, targetSessionId) {
     [userId, targetSessionId, target.allow_makeup_before_missed],
   );
   if (!credit) {
-    throw new BookingError('NO_CREDIT', 'Kullanılabilir telafi hakkınız yok.');
+    throw new BookingError('NO_CREDIT', 'Kullanılabilir telafi hakkın yok.');
   }
 
   await client.query(
@@ -308,13 +308,13 @@ export function undoCancel({ userId, sessionId }, { db = pool } = {}) {
       [userId, sessionId],
     );
     if (!credit) {
-      throw new BookingError('NOT_CANCELLED', 'Bu dersi iptal etmemişsiniz.');
+      throw new BookingError('NOT_CANCELLED', 'Bu dersi iptal etmemişsin.');
     }
     if (credit.used_session_id !== null || credit.forfeited_at !== null) {
       throw new BookingError('CREDIT_ALREADY_USED', 'Bu iptalden doğan hak kullanıldığı için geri alınamaz.');
     }
     if ((await freeSpots(client, sessionId)) <= 0) {
-      throw new BookingError('SESSION_FULL', 'Bu sırada yeriniz doldu; iptal geri alınamıyor.');
+      throw new BookingError('SESSION_FULL', 'Bu arada yerin doldu; iptal geri alınamıyor.');
     }
     // Kredi siliniyor: iptal hiç yapılmamış gibi olur ve müşteri tekrar düzenli üye olarak sayılır.
     await client.query('DELETE FROM credits WHERE id = $1', [credit.id]);
@@ -334,7 +334,7 @@ export function cancelMakeup({ userId, sessionId }, { db = pool } = {}) {
       [userId, sessionId],
     );
     if (!credit) {
-      throw new BookingError('NO_MAKEUP_BOOKING', 'Bu derste telafi kaydınız yok.');
+      throw new BookingError('NO_MAKEUP_BOOKING', 'Bu derste telafi kaydın yok.');
     }
     // Hakkın geri gelip gelmeyeceğine stüdyonun ayarı karar verir; kapalıysa hak yanar.
     const refunded = session.refund_credit_on_makeup_cancel;

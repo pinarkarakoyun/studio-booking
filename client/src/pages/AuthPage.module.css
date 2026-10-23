@@ -1,0 +1,93 @@
+/* Giriş ve yeni şifre ekranlarının ortak düzeni: telefonda tek sütun, büyük ekranda ortada dar bir sütun. */
+.page {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 400px;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: var(--space-8) 20px var(--space-6);
+}
+
+.brand {
+  text-align: center;
+}
+
+.brand > :first-child {
+  margin: 0 auto;
+}
+
+.studioName {
+  margin: var(--space-3) 0 0;
+  font-family: var(--font-brand);
+  font-weight: 500;
+  font-size: 1.625rem;
+  line-height: 1.1;
+  letter-spacing: 0.06em;
+  color: var(--violet);
+}
+
+.lead {
+  margin: var(--space-2) 0 0;
+  color: var(--ink-soft);
+}
+
+.title {
+  margin: var(--space-6) 0 0;
+  font-family: var(--font-brand);
+  font-weight: 500;
+  font-size: var(--text-xl);
+  line-height: 1.1;
+  color: var(--violet);
+}
+
+.form {
+  margin-top: var(--space-2);
+}
+
+.form > button[type='submit'] {
+  margin-top: var(--space-6);
+}
+
+.footer {
+  margin-top: auto;
+  padding-top: var(--space-6);
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}
+
+.footer a {
+  color: var(--violet);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.footer a:hover {
+  text-decoration: underline;
+}
+
+/* Şifre gücü çubuğu: üç parça, dolu parça sayısı şifrenin gücünü gösterir. */
+.strength {
+  display: flex;
+  gap: 6px;
+  margin-top: var(--space-2);
+}
+
+.strength span {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--violet-soft);
+  transition: background-color 0.2s var(--ease);
+}
+
+.strength .filled {
+  background: var(--violet);
+}
+
+@media (min-width: 600px) {
+  .page {
+    padding-top: 12vh;
+  }
+}

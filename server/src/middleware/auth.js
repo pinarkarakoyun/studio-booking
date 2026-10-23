@@ -17,10 +17,10 @@ export async function loadUser(req, res, next) {
 export function requireAuth({ allowPendingPasswordChange = false } = {}) {
   return (req, res, next) => {
     if (!req.user) {
-      throw new AppError('NOT_AUTHENTICATED', 'Lütfen giriş yapın.', 401);
+      throw new AppError('NOT_AUTHENTICATED', 'Devam etmek için giriş yap.', 401);
     }
     if (req.user.must_change_password && !allowPendingPasswordChange) {
-      throw new AppError('PASSWORD_CHANGE_REQUIRED', 'Devam etmek için yeni bir şifre belirleyin.', 403);
+      throw new AppError('PASSWORD_CHANGE_REQUIRED', 'Devam etmek için yeni bir şifre belirle.', 403);
     }
     next();
   };
@@ -31,7 +31,7 @@ export function requireAuth({ allowPendingPasswordChange = false } = {}) {
 export function requireRole(role) {
   return (req, res, next) => {
     if (req.user?.role !== role) {
-      throw new AppError('FORBIDDEN', 'Bu işlem için yetkiniz yok.', 403);
+      throw new AppError('FORBIDDEN', 'Bu işlem için yetkin yok.', 403);
     }
     next();
   };

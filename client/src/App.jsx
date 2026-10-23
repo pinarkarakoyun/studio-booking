@@ -1,40 +1,115 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react';
+import { api } from './api.js';
+import Button from './components/Button.jsx';
+import ChangePasswordPage from './pages/ChangePasswordPage.jsx';
+import HomePage from './pages/HomePage.jsx';
+import LoginPage from './pages/LoginPage.jsx';
+import styles from './pages/AuthPage.module.css';
 
-function App() {
-  // useState: ekranda gösterilecek mesajı saklar. setMessage çağrılınca
-  // React bileşeni yeniden çizer ve yeni mesaj görünür.
-  const [message, setMessage] = useState('Kontrol ediliyor...')
-
-  // useEffect: bileşen ekrana çizildikten sonra çalışır. Boş bağımlılık
-  // dizisi ([]) sayesinde sadece ilk render'da bir kez çalışır.
-  // (Geliştirme modunda StrictMode bunu bilerek iki kez çalıştırır; sorun değil.)
-  useEffect(() => {
-    // useEffect'e doğrudan async fonksiyon verilemez; bu yüzden içeride tanımlıyoruz.
-    async function checkHealth() {
-      try {
-        // Adres '/api' ile başladığı için Vite proxy'si isteği Express'e iletir.
-        const response = await fetch('/api/health')
-        // fetch, 500 gibi hata kodlarında hata fırlatmaz; bu yüzden ok'u kendimiz kontrol ediyoruz.
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`)
-        }
-        setMessage('Sunucu: çalışıyor, Veritabanı: bağlı')
-      } catch (err) {
-        // Ağ hatası (sunucu kapalı) veya ok olmayan yanıt buraya düşer.
-        console.error('Health check failed:', err)
-        setMessage('Sunucuya ulaşılamıyor')
-      }
-    }
-
-    checkHealth()
-  }, [])
-
-  return (
-    <main className="card">
-      <h1>Stüdyo Rezervasyon</h1>
-      <p>{message}</p>
-    </main>
-  )
+// Açılışta gereken iki bilgi: stüdyo (isim, WhatsApp) ve giriş yapmış kullanıcı (yoksa null).
+// Sadece veri getirir, state'e dokunmaz; sonucu bileşen kendisi işler.
+async function fetchInitialData() {
+  const [studioData, me] = await Promise.all([
+    api('/api/studio'),
+    // 401 = giriş yapılmamış; bu bir hata değil, giriş ekranını göstermek demek.
+    api('/api/auth/me').catch((err) => {
+      if (err.status === 401) return { user: null };
+      throw err;
+    }),
+  ]);
+  return { studio: studioData.studio, user: me.user };
 }
 
-export default App
+// Hangi ekranın gösterileceğine oturum durumu karar verir (henüz sayfa yönlendirme kütüphanesi yok):
+//   giriş yok                 -> Giriş
+//   geçici şifreyle girilmiş  -> Yeni şifre (sunucu da başka hiçbir şeye izin vermiyor)
+//   normal                    -> Ana ekran
+function App() {
+  const [status, setStatus] = useState('loading'); // loading | ready | error
+  const [studio, setStudio] = useState(null);
+  const [user, setUser] = useState(null);
+  // Girişte yazılan şifre, sadece "yeni şifre" ekranında mevcut şifre olarak kullanılmak üzere bellekte.
+  const [loginPassword, setLoginPassword] = useState(null);
+
+  function load() {
+    return fetchInitialData().then(
+      (data) => {
+        setStudio(data.studio);
+        setUser(data.user);
+        setStatus('ready');
+      },
+      () => setStatus('error'),
+    );
+  }
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sadece açılışta bir kez
+  }, []);
+
+  useEffect(() => {
+    if (studio?.name) document.title = studio.name;
+  }, [studio]);
+
+  async function refreshUser() {
+    const { user: fresh } = await api('/api/auth/me');
+    setLoginPassword(null);
+    setUser(fresh);
+  }
+
+  async function logout() {
+    await api('/api/auth/logout', { method: 'POST' }).catch(() => {});
+    setLoginPassword(null);
+    setUser(null);
+  }
+
+  // İlk yükleme genelde göz açıp kapayana kadar biter; ekranı titretmemek için boş bırakıyoruz.
+  if (status === 'loading') return null;
+
+  if (status === 'error') {
+    return (
+      <main className={styles.page}>
+        <h1 className={styles.title}>Bağlantı kurulamadı</h1>
+        <p className={styles.lead}>Sunucuya ulaşılamıyor. İnternet bağlantını kontrol edip tekrar dene.</p>
+        <p className={styles.footer}>
+          <Button
+            type="button"
+            onClick={() => {
+              setStatus('loading');
+              load();
+            }}
+          >
+            Tekrar dene
+          </Button>
+        </p>
+      </main>
+    );
+  }
+
+  if (!user) {
+    return (
+      <LoginPage
+        studio={studio}
+        onLoggedIn={(loggedIn, password) => {
+          setLoginPassword(password);
+          setUser(loggedIn);
+        }}
+      />
+    );
+  }
+
+  if (user.mustChangePassword) {
+    return (
+      <ChangePasswordPage
+        user={user}
+        currentPassword={loginPassword}
+        onChanged={refreshUser}
+        onLogout={logout}
+      />
+    );
+  }
+
+  return <HomePage user={user} onLogout={logout} />;
+}
+
+export default App;

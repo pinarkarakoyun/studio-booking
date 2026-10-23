@@ -53,7 +53,7 @@ function assertNotRateLimited(key) {
     return;
   }
   if (entry.count >= MAX_FAILED_ATTEMPTS) {
-    throw new AppError('TOO_MANY_ATTEMPTS', 'Çok fazla hatalı deneme. Lütfen 15 dakika sonra tekrar deneyin.', 429);
+    throw new AppError('TOO_MANY_ATTEMPTS', 'Çok fazla hatalı deneme yapıldı. 15 dakika sonra tekrar dene.', 429);
   }
 }
 
@@ -150,7 +150,7 @@ export async function login({ phone, password }, { db = pool } = {}) {
 
   // Şifre doğruysa kişi kimliğini kanıtladı; hesabın kapalı olduğunu söylemek artık bilgi sızdırmaz.
   if (user.status === 'left') {
-    throw new AppError('ACCOUNT_CLOSED', 'Hesabınız kapatılmış. Lütfen stüdyo ile iletişime geçin.', 403);
+    throw new AppError('ACCOUNT_CLOSED', 'Hesabın kapatılmış. Stüdyoyla iletişime geç.', 403);
   }
 
   const token = await createSession(user.id, db);
@@ -168,7 +168,7 @@ export async function changePassword({ userId, sessionId, currentPassword, newPa
     user.password_hash,
   );
   if (!currentOk) {
-    throw new AppError('INVALID_CURRENT_PASSWORD', 'Mevcut şifreniz hatalı.', 400);
+    throw new AppError('INVALID_CURRENT_PASSWORD', 'Mevcut şifren hatalı.', 400);
   }
   assertPasswordStrength(newPassword);
   if (newPassword === currentPassword) {

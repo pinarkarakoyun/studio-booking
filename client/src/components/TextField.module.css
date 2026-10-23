@@ -1,0 +1,69 @@
+.field {
+  margin-top: var(--space-4);
+}
+
+.label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.control {
+  display: flex;
+  align-items: center;
+  background: var(--white);
+  border: 1.5px solid #e8d9df;
+  border-radius: var(--radius-md);
+  transition: border-color 0.15s var(--ease);
+}
+
+.control:focus-within {
+  border-color: var(--violet);
+}
+
+.invalid,
+.invalid:focus-within {
+  border-color: var(--danger);
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 0;
+  background: transparent;
+  /* 16px: daha küçük olursa iPhone alana dokununca sayfayı yakınlaştırır. */
+  font: inherit;
+  font-size: 16px;
+  color: var(--ink);
+}
+
+.input:focus {
+  outline: none;
+}
+
+.reveal {
+  padding: 12px 14px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--violet);
+  cursor: pointer;
+}
+
+.error,
+.hint {
+  margin: 6px 0 0;
+  font-size: var(--text-sm);
+}
+
+.error {
+  color: var(--danger);
+}
+
+.hint {
+  color: var(--ink-soft);
+}
