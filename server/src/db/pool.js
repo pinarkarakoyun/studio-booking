@@ -1,7 +1,13 @@
 import pg from 'pg';
 
 // pg bir CommonJS paketi; Pool sınıfını default export içinden alıyoruz.
-const { Pool } = pg;
+const { Pool, types } = pg;
+
+// PostgreSQL'in DATE tipi (OID 1082) saatsiz bir takvim günüdür ("2026-10-26").
+// pg varsayılan olarak onu sunucunun yerel gece yarısında bir JS Date'e çevirir; Date UTC'ye
+// çevrilince (ör. JSON'a yazılırken) Türkiye'de bir gün geriye kayar ("2026-10-25T21:00Z").
+// Bu yüzden tarihleri olduğu gibi metin olarak alıyoruz.
+types.setTypeParser(1082, (value) => value);
 
 // Pool: her sorguda yeni bağlantı açmak yerine hazır bağlantıları tekrar kullanır.
 const pool = new Pool({
