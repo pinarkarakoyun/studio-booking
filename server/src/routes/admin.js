@@ -20,6 +20,7 @@ import {
   updateGroup,
 } from '../services/adminGroups.js';
 import { getSessionRoster, getToday } from '../services/adminSchedule.js';
+import { getSettings, updateSettings } from '../services/adminSettings.js';
 
 const router = Router();
 
@@ -138,6 +139,14 @@ router.post('/api/admin/groups/:id/preview', async (req, res) => {
 
 router.post('/api/admin/groups/:id/close', async (req, res) => {
   res.json(await closeGroup(req.user, groupId(req)));
+});
+
+router.get('/api/admin/settings', async (req, res) => {
+  res.json({ settings: await getSettings(req.user) });
+});
+
+router.put('/api/admin/settings', async (req, res) => {
+  res.json({ settings: await updateSettings(req.user, req.body) });
 });
 
 export default router;

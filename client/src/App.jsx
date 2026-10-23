@@ -112,7 +112,14 @@ function App() {
   }
 
   if (user.role === 'admin') {
-    return <AdminApp user={user} studio={studio} onLogout={logout} />;
+    return (
+      <AdminApp
+        user={user}
+        studio={studio}
+        onStudioChange={(changes) => setStudio((current) => ({ ...current, ...changes }))}
+        onLogout={logout}
+      />
+    );
   }
   return <MySessionsPage user={user} studio={studio} onLogout={logout} />;
 }

@@ -5,6 +5,7 @@ import CustomerDetailPage from './CustomerDetailPage.jsx';
 import CustomersPage from './CustomersPage.jsx';
 import GroupDetailPage from './GroupDetailPage.jsx';
 import GroupFormPage from './GroupFormPage.jsx';
+import SettingsPage from './SettingsPage.jsx';
 import GroupsPage from './GroupsPage.jsx';
 import NewCustomerPage from './NewCustomerPage.jsx';
 import SessionRosterPage from './SessionRosterPage.jsx';
@@ -24,7 +25,7 @@ const TABS = [
 // Sekmeye dokununca o sekmenin ilk ekranına dönülür.
 const START = { name: 'start' };
 
-export default function AdminApp({ user, studio, onLogout }) {
+export default function AdminApp({ user, studio, onStudioChange, onLogout }) {
   const [tab, setTab] = useState('today');
   const [view, setView] = useState(START);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -95,6 +96,8 @@ export default function AdminApp({ user, studio, onLogout }) {
     } else {
       content = <GroupsPage onOpen={(id) => goTo({ name: 'detail', id })} onAdd={() => goTo({ name: 'new' })} />;
     }
+  } else if (tab === 'settings') {
+    content = <SettingsPage onStudioChange={onStudioChange} />;
   } else {
     content = (
       <main className={styles.page}>
