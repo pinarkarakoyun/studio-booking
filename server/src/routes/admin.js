@@ -21,7 +21,14 @@ import {
   updateGroup,
 } from '../services/adminGroups.js';
 import { addPayment, createMembership, deletePayment, getMemberships, getPaymentOverview } from '../services/adminMemberships.js';
-import { cancelSessionByStudio, getDay, getSessionRoster, getToday } from '../services/adminSchedule.js';
+import {
+  addToSession,
+  cancelSessionByStudio,
+  getDay,
+  getSessionRoster,
+  getToday,
+  removeMakeupFromSession,
+} from '../services/adminSchedule.js';
 import { getSettings, updateSettings } from '../services/adminSettings.js';
 
 const router = Router();
@@ -66,6 +73,16 @@ router.get('/api/admin/sessions/:id', async (req, res) => {
 });
 
 // Önce "kaç kişi etkilenir?" (aynı kod, sonunda geri alınır), sonra kesin iptal.
+router.post('/api/admin/sessions/:id/attendees', async (req, res) => {
+  const userId = parseId(req.body?.userId, 'CUSTOMER_NOT_FOUND', 'Müşteri bulunamadı.');
+  res.status(201).json(await addToSession(req.user, sessionId(req), { userId, confirmFull: req.body?.confirmFull === true }));
+});
+
+router.delete('/api/admin/sessions/:id/attendees/:userId', async (req, res) => {
+  const userId = parseId(req.params.userId, 'CUSTOMER_NOT_FOUND', 'Müşteri bulunamadı.');
+  res.json(await removeMakeupFromSession(req.user, sessionId(req), userId));
+});
+
 router.post('/api/admin/sessions/:id/cancel/preview', async (req, res) => {
   res.json(await cancelSessionByStudio(req.user, sessionId(req), { reason: req.body?.reason }, { preview: true }));
 });

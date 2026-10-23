@@ -5,6 +5,9 @@ import { AppError } from '../errors.js';
 
 const sortByName = (a, b) => a.fullName.localeCompare(b.fullName, 'tr');
 
+// Hakkı olmayan müşteriyi yönetici derse eklerken oluşan, hemen kullanılmış hak kaydının notu.
+const ADDED_BY_ADMIN = 'Yönetici ekledi';
+
 // Stüdyonun saat dilimine göre bugünün ve yarının takvim günü.
 async function studioDates(studioId, db) {
   const { rows: [row] } = await db.query(
@@ -159,13 +162,13 @@ export async function getSessionRoster(admin, sessionId, { db = pool } = {}) {
     LEFT JOIN credits c ON c.user_id = u.id AND c.source_session_id = s.id
     WHERE s.id = $1
     UNION ALL
-    -- Başka gruplardan bu derse telafiyle gelenler.
-    SELECT u.id, u.full_name, 'makeup', NULL
+    -- Başka gruplardan bu derse telafiyle gelenler ("yönetici ekledi" hak kullanmadan eklenenler).
+    SELECT u.id, u.full_name, 'makeup', CASE WHEN c.note = $2 THEN 'added' END
     FROM credits c
     JOIN users u ON u.id = c.user_id
     WHERE c.used_session_id = $1
     `,
-    [sessionId],
+    [sessionId, ADDED_BY_ADMIN],
   );
 
   const toPerson = (row) => ({ id: row.id, fullName: row.full_name, state: row.state, creditState: row.credit_state });
@@ -247,6 +250,127 @@ export async function cancelSessionByStudio(admin, sessionId, { reason } = {}, {
     await client.query(`UPDATE sessions SET status = 'cancelled', cancel_reason = $2 WHERE id = $1`, [sessionId, cleanReason]);
     await client.query(preview ? 'ROLLBACK' : 'COMMIT');
     return { creditedMembers, refundedMakeups, creditsEnabled: session.credit_on_studio_cancel };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+// --- Yönetici derse kişi ekliyor / telafiden çıkarıyor ------------------------------------------
+// Ders bitene kadar (kapıdan gelen de kaydedilebilsin). Müşterinin telafi kuralları (kaç gün ileri,
+// kapanış dakikası, aylık sınır) yöneticiyi bağlamaz: bilerek ekliyor. Hakkı varsa süresi ilk dolacak
+// geçerli hakkı kullanılır; yoksa "Yönetici ekledi" notlu, hemen kullanılmış bir hak kaydı oluşur
+// (doluluk ve kayıtlar tutarlı kalsın). Ders doluysa uyarılır, confirmFull ile eklenir.
+export async function addToSession(admin, sessionId, { userId, confirmFull = false }, { db = pool } = {}) {
+  const client = await db.connect();
+  try {
+    await client.query('BEGIN');
+    // Ders kilitlenir: aynı anda bir müşteri telafiye yazılıyorsa doluluk ikisini birden görür.
+    const { rows: [session] } = await client.query(
+      `
+      SELECT s.id, s.group_id, s.date, s.status, s.starts_at,
+             s.starts_at + make_interval(mins => g.duration_minutes) <= now() AS has_ended
+      FROM sessions s JOIN groups g ON g.id = s.group_id
+      WHERE s.id = $1 AND g.studio_id = $2
+      FOR UPDATE OF s
+      `,
+      [sessionId, admin.studio_id],
+    );
+    if (!session) throw new AppError('SESSION_NOT_FOUND', 'Ders bulunamadı.', 404);
+    if (session.status === 'cancelled') throw new AppError('SESSION_CANCELLED', 'Bu ders iptal edilmiş.', 409);
+    if (session.has_ended) throw new AppError('SESSION_ENDED', 'Bitmiş bir derse kişi eklenemez.', 409);
+
+    const { rows: [customer] } = await client.query(
+      `SELECT id, full_name, status FROM users WHERE id = $1 AND studio_id = $2 AND role = 'customer'`,
+      [userId, admin.studio_id],
+    );
+    if (!customer) throw new AppError('CUSTOMER_NOT_FOUND', 'Müşteri bulunamadı.', 404);
+    if (customer.status === 'left') throw new AppError('CUSTOMER_LEFT', 'Bu müşteri stüdyodan ayrılmış.', 409);
+
+    const { rows: [relation] } = await client.query(
+      `
+      SELECT
+        EXISTS (SELECT 1 FROM group_members gm
+                WHERE gm.user_id = $1 AND gm.group_id = $2
+                  AND gm.joined_on <= $3 AND (gm.left_on IS NULL OR $3 < gm.left_on)) AS is_member,
+        EXISTS (SELECT 1 FROM credits c WHERE c.user_id = $1 AND c.used_session_id = $4) AS is_makeup
+      `,
+      [userId, session.group_id, session.date, sessionId],
+    );
+    if (relation.is_member) {
+      throw new AppError('ALREADY_MEMBER', `${customer.full_name} bu grubun üyesi; bu ders zaten onun dersi.`, 409);
+    }
+    if (relation.is_makeup) throw new AppError('ALREADY_IN_SESSION', `${customer.full_name} bu derse zaten geliyor.`, 409);
+
+    const { rows: [occupancy] } = await client.query(
+      'SELECT booked_count, capacity FROM session_occupancy WHERE session_id = $1',
+      [sessionId],
+    );
+    if (occupancy.booked_count >= occupancy.capacity && !confirmFull) {
+      throw new AppError('SESSION_FULL', `Ders dolu (${occupancy.booked_count}/${occupancy.capacity}).`, 409);
+    }
+
+    const { rows: [credit] } = await client.query(
+      `
+      SELECT c.id FROM credits c
+      WHERE c.user_id = $1 AND c.used_session_id IS NULL AND c.forfeited_at IS NULL AND c.expires_at >= $2
+        AND (c.source_session_id IS NULL OR c.source_session_id <> $3)
+      ORDER BY c.expires_at, c.id
+      LIMIT 1
+      FOR UPDATE SKIP LOCKED
+      `,
+      [userId, session.starts_at, sessionId],
+    );
+    if (credit) {
+      await client.query('UPDATE credits SET used_session_id = $2, used_at = now() WHERE id = $1', [credit.id, sessionId]);
+    } else {
+      await client.query(
+        `INSERT INTO credits (user_id, used_session_id, used_at, expires_at, note) VALUES ($1, $2, now(), $3, $4)`,
+        [userId, sessionId, session.starts_at, ADDED_BY_ADMIN],
+      );
+    }
+    await client.query('COMMIT');
+    return { usedCredit: Boolean(credit) };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+// Telafi misafirini dersten çıkarır: hakkı geri döner; hak kullanmadan eklendiyse o kayıt silinir.
+export async function removeMakeupFromSession(admin, sessionId, userId, { db = pool } = {}) {
+  const client = await db.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows: [session] } = await client.query(
+      `
+      SELECT s.id, s.starts_at + make_interval(mins => g.duration_minutes) <= now() AS has_ended
+      FROM sessions s JOIN groups g ON g.id = s.group_id
+      WHERE s.id = $1 AND g.studio_id = $2
+      FOR UPDATE OF s
+      `,
+      [sessionId, admin.studio_id],
+    );
+    if (!session) throw new AppError('SESSION_NOT_FOUND', 'Ders bulunamadı.', 404);
+    if (session.has_ended) throw new AppError('SESSION_ENDED', 'Bitmiş bir dersten kişi çıkarılamaz.', 409);
+
+    const { rowCount: removed } = await client.query(
+      'DELETE FROM credits WHERE user_id = $1 AND used_session_id = $2 AND note = $3',
+      [userId, sessionId, ADDED_BY_ADMIN],
+    );
+    const { rowCount: refunded } = removed
+      ? { rowCount: 0 }
+      : await client.query(
+        'UPDATE credits SET used_session_id = NULL, used_at = NULL WHERE user_id = $1 AND used_session_id = $2',
+        [userId, sessionId],
+      );
+    if (!removed && !refunded) throw new AppError('NOT_IN_SESSION', 'Bu kişi bu derse telafiyle gelmiyor.', 404);
+    await client.query('COMMIT');
+    return { refundedCredit: refunded > 0 };
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
