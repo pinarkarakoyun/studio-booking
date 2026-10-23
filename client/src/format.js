@@ -20,6 +20,11 @@ export function formatDay(date) {
   return `${weekday} ${day} ${month}`;
 }
 
+// "Cumartesi"
+export function formatWeekday(date) {
+  return parts(date, { weekday: 'long' }).weekday;
+}
+
 // Gün şeridi için: { weekday: "Pzt", day: "26" }
 export function formatDayShort(date) {
   const { weekday, day } = parts(date, { weekday: 'short', day: 'numeric' });

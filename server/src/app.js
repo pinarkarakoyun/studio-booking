@@ -2,6 +2,7 @@ import cookieParser from 'cookie-parser';
 import express from 'express';
 import { AppError } from './errors.js';
 import { loadUser } from './middleware/auth.js';
+import adminRouter from './routes/admin.js';
 import authRouter from './routes/auth.js';
 import healthRouter from './routes/health.js';
 import sessionsRouter from './routes/sessions.js';
@@ -28,6 +29,7 @@ export function createApp() {
   app.use(studioRouter);
   app.use(authRouter);
   app.use(sessionsRouter);
+  app.use(adminRouter);
 
   // Hata yakalayıcı: 4 parametreli olduğu için Express bunu hata middleware'i olarak tanır.
   // Express 5'te async route'lardaki hatalar da otomatik buraya gelir.

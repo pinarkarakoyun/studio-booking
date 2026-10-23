@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from './api.js';
+import AdminApp from './admin/AdminApp.jsx';
 import Button from './components/Button.jsx';
 import ChangePasswordPage from './pages/ChangePasswordPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
@@ -23,7 +24,7 @@ async function fetchInitialData() {
 // Hangi ekranın gösterileceğine oturum durumu karar verir (henüz sayfa yönlendirme kütüphanesi yok):
 //   giriş yok                 -> Giriş
 //   geçici şifreyle girilmiş  -> Yeni şifre (sunucu da başka hiçbir şeye izin vermiyor)
-//   normal                    -> Derslerim
+//   normal                    -> yönetici ise panel, müşteri ise Derslerim
 function App() {
   const [status, setStatus] = useState('loading'); // loading | ready | error
   const [studio, setStudio] = useState(null);
@@ -110,6 +111,9 @@ function App() {
     );
   }
 
+  if (user.role === 'admin') {
+    return <AdminApp user={user} studio={studio} onLogout={logout} />;
+  }
   return <MySessionsPage user={user} studio={studio} onLogout={logout} />;
 }
 

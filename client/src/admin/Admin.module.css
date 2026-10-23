@@ -1,0 +1,277 @@
+/* Yönetici paneli: telefon öncelikli; altta sabit sekme çubuğu olduğu için sayfanın altında boşluk var. */
+.page {
+  width: 100%;
+  max-width: 560px;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 20px 20px calc(96px + env(safe-area-inset-bottom));
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.account {
+  padding: var(--space-2) 0 var(--space-2) var(--space-3);
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.title {
+  margin: var(--space-3) 0 0;
+  font-family: var(--font-brand);
+  font-weight: 500;
+  font-size: 2.125rem;
+  line-height: 1.05;
+  color: var(--violet);
+}
+
+.subtitle {
+  margin: 4px 0 0;
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}
+
+.muted {
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+/* Dikkat edilecekler notu */
+.alerts {
+  margin-top: var(--space-4);
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--blush);
+  font-size: var(--text-sm);
+  line-height: 1.55;
+}
+
+.alerts ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.list {
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Ders satırı: saat | grup + doluluk çubuğu | sayı */
+.sessionRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: 14px 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sessionRow:hover .sessionGroup {
+  color: var(--violet);
+}
+
+.sessionTime {
+  display: flex;
+  flex-direction: column;
+  width: 48px;
+  font-weight: 800;
+  font-size: 1.0625rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ended {
+  font-weight: 400;
+  font-size: 0.75rem;
+  color: #9a90b3;
+}
+
+.sessionMiddle {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.sessionGroup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+}
+
+.sessionCount {
+  min-width: 36px;
+  font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.full {
+  color: var(--pink-text);
+}
+
+.bar {
+  display: block;
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--violet-soft);
+}
+
+/* Ders satırında çubuk dikey bir sütunun içinde: oradaki flex:1 genişliği değil yüksekliği
+   paylaştırır ve çubuğu 0 piksel yüksekliğe ezerdi. Sütunda çubuk kendi yüksekliğinde kalsın. */
+.sessionMiddle .bar {
+  flex: none;
+}
+
+.bar span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--violet);
+}
+
+.tagMakeup,
+.tagCancel {
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.tagMakeup {
+  background: var(--violet-soft);
+  color: var(--violet);
+}
+
+.tagCancel {
+  background: var(--blush);
+  color: #5a1f33;
+}
+
+.inactive {
+  color: #9a90b3;
+}
+
+.tomorrow {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}
+
+/* Ders detayı */
+.back {
+  padding: var(--space-2) 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--violet);
+  cursor: pointer;
+}
+
+.rosterTitle {
+  margin: var(--space-2) 0 0;
+  font-family: var(--font-brand);
+  font-weight: 500;
+  font-size: 1.75rem;
+  line-height: 1.1;
+  color: var(--violet);
+}
+
+.rosterFill {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.listLabel {
+  margin: var(--space-6) 0 0;
+  font-size: var(--text-sm);
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+
+.people {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.person {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.reason {
+  font-size: var(--text-sm);
+  text-align: right;
+}
+
+/* Alt sekme çubuğu */
+.tabBar {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 5;
+  display: flex;
+  justify-content: space-around;
+  padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+  background: var(--white);
+}
+
+.tab {
+  flex: 1;
+  padding: 10px 2px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.tabActive {
+  font-weight: 700;
+  color: var(--violet);
+}
+
+.sheetAction {
+  display: block;
+  width: 100%;
+  margin-top: var(--space-4);
+  padding: 13px 16px;
+  border: 1.5px solid #e8d9df;
+  border-radius: 16px;
+  background: var(--white);
+  font: inherit;
+  font-weight: 700;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}

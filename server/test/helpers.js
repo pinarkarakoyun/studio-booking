@@ -72,6 +72,53 @@ export async function createSession(groupId, hoursFromNow, { capacity } = {}) {
   return session.id;
 }
 
+// Stüdyonun saatine göre BUGÜN, verilen saatte ("09:00") bir ders. Gece yarısına yakın çalışan
+// testlerde "şimdiden N saat sonra" ertesi güne kayabileceği için "bugün" testleri bunu kullanır.
+export async function createSessionToday(groupId, time) {
+  const { rows: [session] } = await pool.query(
+    `
+    INSERT INTO sessions (group_id, date, starts_at, capacity)
+    SELECT g.id,
+           (now() AT TIME ZONE st.timezone)::date,
+           ((now() AT TIME ZONE st.timezone)::date + $2::time) AT TIME ZONE st.timezone,
+           g.capacity
+    FROM groups g JOIN studios st ON st.id = g.studio_id
+    WHERE g.id = $1
+    RETURNING id
+    `,
+    [groupId, time],
+  );
+  return session.id;
+}
+
+// Doğrudan veritabanına iptal / telafi yazar (süre kontrollerine takılmadan senaryo kurmak için).
+export async function insertCancellation(userId, sessionId) {
+  await pool.query(
+    `INSERT INTO credits (user_id, source_session_id, expires_at) VALUES ($1, $2, now() + interval '30 days')`,
+    [userId, sessionId],
+  );
+}
+
+export async function insertMakeup(userId, sessionId) {
+  await pool.query(
+    `INSERT INTO credits (user_id, used_session_id, used_at, expires_at)
+     VALUES ($1, $2, now(), now() + interval '30 days')`,
+    [userId, sessionId],
+  );
+}
+
+export async function createAdmin(studioId) {
+  phoneCounter += 1;
+  const { rows: [user] } = await pool.query(
+    `
+    INSERT INTO users (studio_id, role, full_name, phone, password_hash, must_change_password)
+    VALUES ($1, 'admin', 'Yönetici', $2, 'x', false) RETURNING id
+    `,
+    [studioId, `+90531${String(phoneCounter).padStart(7, '0')}`],
+  );
+  return user.id;
+}
+
 let phoneCounter = 0;
 
 // Gruba üye olan aktif bir müşteri oluşturur (groupId verilmezse grupsuz).
