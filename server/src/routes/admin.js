@@ -19,6 +19,7 @@ import {
   listAllGroups,
   updateGroup,
 } from '../services/adminGroups.js';
+import { addPayment, createMembership, deletePayment, getMemberships } from '../services/adminMemberships.js';
 import { getSessionRoster, getToday } from '../services/adminSchedule.js';
 import { getSettings, updateSettings } from '../services/adminSettings.js';
 
@@ -35,6 +36,8 @@ function parseId(value, code, message) {
 }
 const sessionId = (req) => parseId(req.params.id, 'SESSION_NOT_FOUND', 'Ders bulunamadı.');
 const customerId = (req) => parseId(req.params.id, 'CUSTOMER_NOT_FOUND', 'Müşteri bulunamadı.');
+const membershipId = (req) => parseId(req.params.id, 'MEMBERSHIP_NOT_FOUND', 'Üyelik dönemi bulunamadı.');
+const paymentId = (req) => parseId(req.params.id, 'PAYMENT_NOT_FOUND', 'Ödeme bulunamadı.');
 const groupId = (req) => parseId(req.params.id, 'GROUP_NOT_FOUND', 'Grup bulunamadı.');
 
 // Grup formundan gelen alanlar (düzenleme ve önizleme aynı gövdeyi kullanır).
@@ -140,6 +143,28 @@ router.post('/api/admin/groups/:id/preview', async (req, res) => {
 router.post('/api/admin/groups/:id/close', async (req, res) => {
   res.json(await closeGroup(req.user, groupId(req)));
 });
+
+// --- Üyelik ve ödemeler -------------------------------------------------------------------------
+
+router.get('/api/admin/customers/:id/memberships', async (req, res) => {
+  res.json(await getMemberships(req.user, customerId(req)));
+});
+
+router.post('/api/admin/customers/:id/memberships', async (req, res) => {
+  const { startsOn, endsOn, feeKurus, note } = req.body ?? {};
+  res.status(201).json({ membership: await createMembership(req.user, customerId(req), { startsOn, endsOn, feeKurus, note }) });
+});
+
+router.post('/api/admin/memberships/:id/payments', async (req, res) => {
+  const { amountKurus, paidOn, method, note } = req.body ?? {};
+  res.status(201).json({ membership: await addPayment(req.user, membershipId(req), { amountKurus, paidOn, method, note }) });
+});
+
+router.delete('/api/admin/payments/:id', async (req, res) => {
+  res.json({ membership: await deletePayment(req.user, paymentId(req)) });
+});
+
+// --- Ayarlar ------------------------------------------------------------------------------------
 
 router.get('/api/admin/settings', async (req, res) => {
   res.json({ settings: await getSettings(req.user) });
