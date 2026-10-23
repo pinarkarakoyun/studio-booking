@@ -25,6 +25,9 @@ const SESSIONS_WITH_MY_STATUS = `
          GREATEST(o.free_spots, 0) AS free_spots,
          s.starts_at - make_interval(hours => ss.cancellation_deadline_hours) AS cancel_deadline_at,
          s.starts_at - make_interval(mins => ss.makeup_booking_cutoff_minutes) AS makeup_deadline_at,
+         -- İptal geri alınabilir mi? Stüdyo izin veriyorsa ve bu iptalden doğan hak henüz kullanılmadıysa
+         -- (ör. "yerine şuna gel" ile hak hemen harcandıysa geri alınamaz). Ekran "Geri al"ı buna göre gösterir.
+         (ss.allow_undo_cancel AND me.has_unused_credit) AS can_undo_cancel,
          CASE
            WHEN me.is_makeup                    THEN 'makeup'
            WHEN me.is_member AND me.is_frozen    THEN 'frozen'
@@ -44,7 +47,9 @@ const SESSIONS_WITH_MY_STATUS = `
       EXISTS (SELECT 1 FROM freezes f
               WHERE f.user_id = $1 AND daterange(f.starts_on, f.ends_on, '[]') @> s.date) AS is_frozen,
       EXISTS (SELECT 1 FROM credits c WHERE c.user_id = $1 AND c.source_session_id = s.id) AS is_cancelled,
-      EXISTS (SELECT 1 FROM credits c WHERE c.user_id = $1 AND c.used_session_id = s.id)   AS is_makeup
+      EXISTS (SELECT 1 FROM credits c WHERE c.user_id = $1 AND c.used_session_id = s.id)   AS is_makeup,
+      EXISTS (SELECT 1 FROM credits c WHERE c.user_id = $1 AND c.source_session_id = s.id
+                AND c.used_session_id IS NULL AND c.forfeited_at IS NULL)                  AS has_unused_credit
   ) AS me
   WHERE g.studio_id = $2
     AND s.starts_at > now()
@@ -64,6 +69,7 @@ function toSessionDto(row) {
     cancelDeadlineAt: row.cancel_deadline_at,
     makeupDeadlineAt: row.makeup_deadline_at,
     myStatus: row.my_status,
+    canUndoCancel: row.can_undo_cancel,
   };
 }
 

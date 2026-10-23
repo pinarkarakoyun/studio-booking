@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { api } from './api.js';
 import Button from './components/Button.jsx';
 import ChangePasswordPage from './pages/ChangePasswordPage.jsx';
-import HomePage from './pages/HomePage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
+import MySessionsPage from './pages/MySessionsPage.jsx';
 import styles from './pages/AuthPage.module.css';
 
 // Açılışta gereken iki bilgi: stüdyo (isim, WhatsApp) ve giriş yapmış kullanıcı (yoksa null).
@@ -23,7 +23,7 @@ async function fetchInitialData() {
 // Hangi ekranın gösterileceğine oturum durumu karar verir (henüz sayfa yönlendirme kütüphanesi yok):
 //   giriş yok                 -> Giriş
 //   geçici şifreyle girilmiş  -> Yeni şifre (sunucu da başka hiçbir şeye izin vermiyor)
-//   normal                    -> Ana ekran
+//   normal                    -> Derslerim
 function App() {
   const [status, setStatus] = useState('loading'); // loading | ready | error
   const [studio, setStudio] = useState(null);
@@ -109,7 +109,7 @@ function App() {
     );
   }
 
-  return <HomePage user={user} onLogout={logout} />;
+  return <MySessionsPage user={user} studio={studio} onLogout={logout} />;
 }
 
 export default App;

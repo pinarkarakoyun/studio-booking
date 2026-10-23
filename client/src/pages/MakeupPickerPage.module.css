@@ -1,0 +1,179 @@
+.page {
+  width: 100%;
+  max-width: 480px;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 16px 20px calc(var(--space-8) + 72px + env(safe-area-inset-bottom));
+}
+
+.back {
+  padding: var(--space-2) 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--violet);
+  cursor: pointer;
+}
+
+.title {
+  margin: var(--space-2) 0 0;
+  font-family: var(--font-brand);
+  font-weight: 500;
+  font-size: 2rem;
+  line-height: 1.05;
+  color: var(--violet);
+}
+
+.subtitle {
+  margin: 4px 0 0;
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}
+
+.empty {
+  margin: var(--space-6) 0 0;
+  padding: var(--space-4);
+  border-radius: 16px;
+  background: var(--blush);
+  color: var(--ink-soft);
+}
+
+/* Gün şeridi: telefonda yana kaydırılabilir. */
+.days {
+  display: flex;
+  gap: var(--space-2);
+  margin: var(--space-4) -20px 0;
+  padding: 2px 20px 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.dayChip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  min-width: 48px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--white);
+  font: inherit;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.dayChipSelected {
+  border-color: var(--violet);
+  background: var(--violet);
+  color: var(--white);
+}
+
+.dayChipWeekday {
+  font-size: 0.6875rem;
+  opacity: 0.75;
+}
+
+.dayChipNumber {
+  font-weight: 800;
+  font-size: 1.0625rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.dayTitle {
+  margin: var(--space-6) 0 0;
+  font-family: var(--font-brand);
+  font-weight: 500;
+  font-size: 1.3rem;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.optionUnavailable {
+  color: #9a90b3;
+}
+
+.time {
+  display: block;
+  font-weight: 800;
+  font-size: 1.125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Doluluk çubuğu: dolu kısım mor. */
+.bar {
+  display: block;
+  width: 130px;
+  height: 5px;
+  margin-top: 6px;
+  border-radius: 3px;
+  background: var(--violet-soft);
+}
+
+.bar span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--violet);
+}
+
+.spots {
+  display: block;
+  margin-top: 4px;
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}
+
+.optionUnavailable .spots {
+  color: inherit;
+}
+
+.pick {
+  flex-shrink: 0;
+  padding: 9px 18px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--pink);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--white);
+  cursor: pointer;
+}
+
+.pick:disabled {
+  cursor: progress;
+  background: #ff86ba;
+}
+
+.confirm {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.cancel {
+  padding: 9px 6px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-soft);
+  cursor: pointer;
+}

@@ -1,0 +1,54 @@
+.sheet {
+  width: 100%;
+  max-width: 480px;
+  max-height: 85dvh;
+  margin: auto auto 0;
+  padding: 0;
+  border: 0;
+  border-radius: 22px 22px 0 0;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.sheet[open] {
+  animation: slide-up 0.28s var(--ease);
+}
+
+.sheet::backdrop {
+  background: rgb(34 22 63 / 45%);
+}
+
+.body {
+  padding: var(--space-3) 20px calc(var(--space-6) + env(safe-area-inset-bottom));
+}
+
+.handle {
+  width: 40px;
+  height: 4px;
+  margin: 0 auto var(--space-4);
+  border-radius: 2px;
+  background: #e8d9df;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-brand);
+  font-weight: 500;
+  font-size: 1.5rem;
+  line-height: 1.15;
+  color: var(--violet);
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+/* Geniş ekranda panel ekranın altına yapışık değil, ortada dursun. */
+@media (min-width: 600px) {
+  .sheet {
+    margin: auto;
+    border-radius: 22px;
+  }
+}

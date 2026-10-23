@@ -67,6 +67,16 @@ describe('access', () => {
 });
 
 describe('reading', () => {
+  test('studio info is public and includes what the customer screen needs', async () => {
+    await createStudio({ creditValidityDays: 10 });
+
+    const res = await client().request('GET', '/api/studio');
+
+    assert.equal(res.status, 200);
+    assert.equal(res.body.studio.timezone, 'Europe/Istanbul');
+    assert.equal(res.body.studio.creditValidityDays, 10);
+  });
+
   test('my sessions show my regular class with occupancy and deadlines', async () => {
     const { c, regular, makeup } = await setup();
 
@@ -134,6 +144,16 @@ describe('actions', () => {
     const { sessions } = (await c.request('GET', '/api/me/sessions')).body;
     assert.equal(statusOf(sessions, regular), 'cancelled');
     assert.equal(statusOf(sessions, makeup), 'makeup');
+    // Hak hemen harcandığı için iptal geri alınamaz; ekran "Geri al" göstermemeli.
+    assert.equal(sessions.find((s) => s.id === regular).canUndoCancel, false);
+  });
+
+  test('a plain cancel can be undone, and the list says so', async () => {
+    const { c, regular } = await setup();
+    await c.request('POST', `/api/sessions/${regular}/cancel`);
+
+    const { sessions } = (await c.request('GET', '/api/me/sessions')).body;
+    assert.equal(sessions.find((s) => s.id === regular).canUndoCancel, true);
   });
 
   test('book and drop a make-up with PUT / DELETE', async () => {
