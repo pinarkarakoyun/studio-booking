@@ -20,6 +20,12 @@ export function formatDay(date) {
   return `${weekday} ${day} ${month}`;
 }
 
+// Takvim günü için "2 Kasım" (dondurma bitişi gibi saatsiz tarihler)
+export function formatDateDayMonth(date) {
+  const { day, month } = parts(date, { day: 'numeric', month: 'long' });
+  return `${day} ${month}`;
+}
+
 // "Cumartesi"
 export function formatWeekday(date) {
   return parts(date, { weekday: 'long' }).weekday;
@@ -46,6 +52,12 @@ export function formatWeekdayTime(instant, timeZone) {
 // "4 Kasım": hak bitiş tarihi gibi
 export function formatDayMonth(instant, timeZone) {
   return new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', timeZone }).format(new Date(instant));
+}
+
+// "+905334445566" -> "0533 444 55 66" (Türkiye numaraları); diğerleri olduğu gibi.
+export function formatPhone(e164) {
+  const match = /^\+90(\d{3})(\d{3})(\d{2})(\d{2})$/.exec(e164 ?? '');
+  return match ? `0${match[1]} ${match[2]} ${match[3]} ${match[4]}` : e164;
 }
 
 // Stüdyonun saat dilimine göre bugünün takvim günü: "2026-10-23"

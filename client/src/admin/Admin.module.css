@@ -275,3 +275,246 @@
   text-align: left;
   cursor: pointer;
 }
+
+/* --- Müşteriler --- */
+.titleRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.addLink {
+  padding: var(--space-2) 0 var(--space-2) var(--space-3);
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 700;
+  color: var(--pink-text);
+  cursor: pointer;
+}
+
+.search {
+  width: 100%;
+  margin-top: var(--space-4);
+  padding: 11px 14px;
+  border: 1.5px solid #e8d9df;
+  border-radius: var(--radius-md);
+  background: var(--white);
+  font: inherit;
+  font-size: 16px;
+  color: var(--ink);
+}
+
+.search:focus {
+  outline: none;
+  border-color: var(--violet);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 var(--space-1);
+}
+
+.chip {
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--white);
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.chipOn {
+  border-color: var(--violet);
+  background: var(--violet);
+  color: var(--white);
+}
+
+.customerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  padding: 12px 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.customerRow:hover .customerName {
+  color: var(--violet);
+}
+
+.customerName {
+  display: block;
+}
+
+.customerMeta {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+
+.inlineLink {
+  margin-left: var(--space-2);
+  font-weight: 700;
+  color: var(--violet);
+  text-decoration: none;
+}
+
+.notice {
+  margin: var(--space-4) 0 0;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--violet-soft);
+  font-size: var(--text-sm);
+  color: var(--violet);
+}
+
+.summary {
+  margin: var(--space-4) 0 0;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--blush);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+
+.summary div {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.summary dt {
+  color: var(--ink-soft);
+}
+
+.summary dt::after {
+  content: ':';
+}
+
+.summary dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.actionRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 13px 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.actionRow span:last-child {
+  color: #9a90b3;
+}
+
+.danger,
+.danger span:last-child {
+  color: var(--danger);
+}
+
+.sheetText {
+  margin: var(--space-2) 0 var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}
+
+.formError {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-sm);
+  color: var(--danger);
+}
+
+.formSubmit,
+.dangerButton {
+  margin-top: var(--space-6);
+}
+
+/* Geri alınması zor işlemde ana düğme pembe değil kırmızı. */
+.dangerButton button {
+  background: var(--danger);
+}
+
+.dangerButton button:hover {
+  background: #9a1d33;
+}
+
+.warning {
+  margin-top: var(--space-6);
+  padding: 12px 14px;
+  border: 1.5px solid #f3c3cf;
+  border-radius: 14px;
+  background: var(--blush);
+  font-size: var(--text-sm);
+}
+
+.warning p {
+  margin: 0 0 var(--space-3);
+}
+
+/* Giriş bilgileri */
+.credentials {
+  margin: var(--space-6) 0 var(--space-4);
+  padding: 14px 16px;
+  border: 1.5px solid #e8d9df;
+  border-radius: 16px;
+  background: var(--white);
+}
+
+.credentials dt {
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+
+.credentials dd {
+  margin: 0 0 var(--space-3);
+  font-weight: 700;
+}
+
+.credentials dd:last-child {
+  margin-bottom: 0;
+}
+
+.password {
+  font-size: 1.375rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.whatsappButton {
+  display: block;
+  margin-bottom: var(--space-2);
+  padding: 14px 20px;
+  border-radius: var(--radius-pill);
+  background: var(--pink);
+  font-weight: 700;
+  color: var(--white);
+  text-align: center;
+  text-decoration: none;
+}
+
+.fineprint {
+  margin: var(--space-4) 0;
+  font-size: 0.75rem;
+  color: #9a90b3;
+  text-align: center;
+}
