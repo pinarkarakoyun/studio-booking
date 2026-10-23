@@ -21,6 +21,9 @@ const isComing = (session) =>
 
 const isPast = (instant, now) => new Date(instant).getTime() <= now;
 
+// weekLabel'ın iki haftadan sonrası için verdiği başlık; bu gruptakiler başta gizli.
+const LATER = 'Daha sonra';
+
 // Ders listesini "Bu hafta / Gelecek hafta / Daha sonra" başlıklarına böler (sıra korunur).
 function groupByWeek(sessions, today) {
   const groups = [];
@@ -37,6 +40,8 @@ export default function MySessionsPage({ user, studio, onLogout }) {
   const [loadError, setLoadError] = useState(null);
   const [sheetSession, setSheetSession] = useState(null);
   const [accountOpen, setAccountOpen] = useState(false);
+  // Liste varsayılan olarak bu hafta + gelecek haftayı gösterir; sonrası istenirse açılır.
+  const [showLater, setShowLater] = useState(false);
   // Telafi seçme ekranı: { from: ders } "yerine şuna gel" için, { from: null } hakkını kullanmak için.
   const [picker, setPicker] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -139,6 +144,9 @@ export default function MySessionsPage({ user, studio, onLogout }) {
   const today = todayIn(timeZone);
   const next = data.sessions.find(isComing);
   const rest = data.sessions.filter((session) => session !== next);
+  const weeks = groupByWeek(rest, today);
+  const visibleWeeks = showLater ? weeks : weeks.filter((group) => group.label !== LATER);
+  const hasHiddenWeeks = visibleWeeks.length < weeks.length;
   const credits = data.credits;
 
   return (
@@ -186,7 +194,7 @@ export default function MySessionsPage({ user, studio, onLogout }) {
         </section>
       )}
 
-      {groupByWeek(rest, today).map((group) => (
+      {visibleWeeks.map((group) => (
         <section key={group.label} aria-label={group.label}>
           <h2 className={styles.weekLabel}>{group.label}</h2>
           <ul className={styles.list}>
@@ -204,6 +212,12 @@ export default function MySessionsPage({ user, studio, onLogout }) {
           </ul>
         </section>
       ))}
+
+      {hasHiddenWeeks && (
+        <button type="button" className={styles.showLater} onClick={() => setShowLater(true)}>
+          Sonraki dersleri göster
+        </button>
+      )}
 
       <Sheet
         open={Boolean(sheetSession)}
