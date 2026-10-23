@@ -163,3 +163,36 @@ describe('payments overview', () => {
     assert.equal(body.expired.length + body.underpaid.length + body.noMembership.length, 0);
   });
 });
+
+describe("customer's own membership end", () => {
+  async function customerSetup() {
+    const { studio, c, customerId } = await setup();
+    const me = await clientFor(customerId);
+    return { studio, c, customerId, me };
+  }
+
+  test('shows the end of the current period, following a period that was opened in advance', async () => {
+    const { c, customerId, me } = await customerSetup();
+    assert.deepEqual((await me.request('GET', '/api/me/membership')).body, { membership: null });
+
+    await openMembership(c, customerId, -10, 20);
+    assert.deepEqual((await me.request('GET', '/api/me/membership')).body.membership, { endsOn: await day(20), ended: false });
+
+    await openMembership(c, customerId, 21, 50);
+    await openMembership(c, customerId, 80, 100); // arada boşluk var: gösterilmez
+    const { body } = await me.request('GET', '/api/me/membership');
+    assert.deepEqual(body.membership, { endsOn: await day(50), ended: false });
+  });
+
+  test('an ended period says so; no amounts are ever sent', async () => {
+    const { c, customerId, me } = await customerSetup();
+    await openMembership(c, customerId, -40, -3);
+    const { body } = await me.request('GET', '/api/me/membership');
+    assert.deepEqual(body.membership, { endsOn: await day(-3), ended: true });
+  });
+
+  test('an admin cannot use the customer endpoint', async () => {
+    const { c } = await customerSetup();
+    assert.equal((await c.request('GET', '/api/me/membership')).status, 403);
+  });
+});

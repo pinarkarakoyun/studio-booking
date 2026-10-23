@@ -2,14 +2,15 @@ import { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import Monogram from '../components/Monogram.jsx';
 import Sheet from '../components/Sheet.jsx';
-import { addDays, formatDay, formatDayMonth, formatTime, formatWeekdayTime, todayIn, weekLabel } from '../format.js';
+import { addDays, formatDateDayMonth, formatDay, formatDayMonth, formatTime, formatWeekdayTime, todayIn, weekLabel } from '../format.js';
 import MakeupPickerPage from './MakeupPickerPage.jsx';
 import styles from './MySessionsPage.module.css';
 
 function fetchMyData() {
-  return Promise.all([api('/api/me/sessions'), api('/api/me/credits')]).then(([s, c]) => ({
+  return Promise.all([api('/api/me/sessions'), api('/api/me/credits'), api('/api/me/membership')]).then(([s, c, m]) => ({
     sessions: s.sessions,
     credits: c.credits,
+    membership: m.membership,
     // Son tarih karşılaştırmaları için "şimdi", veri geldiği anda bir kez alınır (render sırasında değil).
     loadedAt: Date.now(),
   }));
@@ -158,6 +159,12 @@ export default function MySessionsPage({ user, studio, onLogout }) {
         </button>
       </header>
       <h1 className={styles.title}>Derslerim</h1>
+      {/* Sadece bitiş tarihi, sakin bir bilgi; tutar ve borç müşteriye gösterilmez (BR-37). */}
+      {data.membership && (
+        <p className={styles.membershipLine}>
+          Üyeliğin {formatDateDayMonth(data.membership.endsOn)} tarihinde {data.membership.ended ? 'bitti' : 'bitiyor'}.
+        </p>
+      )}
 
       {next ? (
         <section className={styles.next} aria-label="Sıradaki dersin">

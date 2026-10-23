@@ -262,3 +262,24 @@ export async function getPaymentOverview(admin, { db = pool } = {}) {
     thisMonth: { count: month.count, totalKurus: month.total },
   };
 }
+
+// Müşterinin kendi ekranı (Derslerim) için: sadece üyeliğin bitiş tarihi, tutar yok (BR-37).
+// Bugünü kapsayan dönemden başlayıp arkasından kesintisiz gelen dönemleri izler: yönetici sonraki dönemi
+// önceden açtıysa müşteri en son tarihi görür. Bugün dönem yoksa: ilerideki ilk dönem, o da yoksa en son biten.
+// Hiç dönem yoksa null.
+export async function getMyMembershipEnd(user, { db = pool } = {}) {
+  const today = await studioToday(user.studio_id, db);
+  const { rows } = await db.query(`${MEMBERSHIP_SELECT} WHERE m.user_id = $1 ORDER BY m.starts_on`, [user.id, today]);
+  if (rows.length === 0) return null;
+
+  let index = rows.findIndex((m) => m.starts_on <= today && m.effective_ends_on >= today);
+  if (index === -1) index = rows.findIndex((m) => m.starts_on > today);
+  if (index === -1) return { endsOn: rows.at(-1).effective_ends_on, ended: true };
+
+  let endsOn = rows[index].effective_ends_on;
+  for (const next of rows.slice(index + 1)) {
+    if (daysBetween(endsOn, next.starts_on) > 1) break;
+    if (next.effective_ends_on > endsOn) endsOn = next.effective_ends_on;
+  }
+  return { endsOn, ended: false };
+}
