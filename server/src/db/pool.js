@@ -1,3 +1,6 @@
+// Pool, .env'deki bağlantı bilgilerine ihtiyaç duyan modül; .env'i kendisi yükler.
+// Böylece pool'u hangi dosya (sunucu, migrate, test) önce import ederse etsin ayarlar hazır olur.
+import 'dotenv/config';
 import pg from 'pg';
 
 // pg bir CommonJS paketi; Pool sınıfını default export içinden alıyoruz.
