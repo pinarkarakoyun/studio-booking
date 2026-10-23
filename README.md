@@ -30,11 +30,11 @@ Small neighborhood studios often manage group attendance through messaging apps 
 |---|---|
 | Public site | Single-page studio introduction, working hours, contact, login button |
 | Customer | Login, view own group and upcoming classes, cancel a class, book a make-up class |
-| Admin | Manage customers, groups, capacity, bookings; freeze or unfreeze memberships; configure rules |
+| Admin | Manage customers, groups, capacity, bookings; freeze or unfreeze memberships; configure rules; track membership periods and record offline payments (due soon, paid, overdue) |
 
 ## Not in the first version
 
-Online payments, WhatsApp/SMS reminders, waiting list, self sign-up, instructor role, reporting, multi-studio screens, native mobile app. The data model will leave room for multiple studios later.
+Online payments (payments are collected in person and only recorded in the system), class packs (memberships are time-based only), WhatsApp/SMS reminders, waiting list, self sign-up, instructor role, reporting, multi-studio screens, native mobile app. The data model will leave room for multiple studios later.
 
 ## Tech stack
 
