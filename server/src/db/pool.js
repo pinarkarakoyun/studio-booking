@@ -12,6 +12,17 @@ const { Pool, types } = pg;
 // Bu yüzden tarihleri olduğu gibi metin olarak alıyoruz.
 types.setTypeParser(1082, (value) => value);
 
+// bigint (OID 20): id'lerimiz ve count() sonuçları. pg bunları varsayılan olarak metin ("1") getirir,
+// çünkü JS sayıları 2^53'ten büyük tamsayıları kayıpsız tutamaz. Bizim değerlerimiz o kadar büyümez;
+// sayıya çeviriyoruz ama büyürse sessizce yanlış sayı üretmek yerine hata veriyoruz.
+types.setTypeParser(20, (value) => {
+  const number = Number(value);
+  if (!Number.isSafeInteger(number)) {
+    throw new RangeError(`bigint value ${value} does not fit in a JavaScript number`);
+  }
+  return number;
+});
+
 // Pool: her sorguda yeni bağlantı açmak yerine hazır bağlantıları tekrar kullanır.
 const pool = new Pool({
   host: process.env.DB_HOST,

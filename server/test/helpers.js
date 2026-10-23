@@ -12,7 +12,7 @@ export { pool };
 export async function resetDb() {
   await pool.query(`
     TRUNCATE studios, studio_settings, users, groups, group_days, group_members,
-             sessions, credits, freezes
+             sessions, credits, freezes, user_sessions
     RESTART IDENTITY CASCADE
   `);
 }

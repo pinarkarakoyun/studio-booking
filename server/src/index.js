@@ -1,14 +1,9 @@
 // Bu import en üstte olmalı: diğer modüller (ör. pool.js) yüklenmeden önce .env okunur.
 import 'dotenv/config';
-import express from 'express';
-import healthRouter from './routes/health.js';
+import { createApp } from './app.js';
 import { generateSessions } from './services/sessionGenerator.js';
 
-const app = express();
-// Gelen isteklerin JSON gövdesini çözüp req.body içine koyar.
-app.use(express.json());
-
-app.use(healthRouter);
+const app = createApp();
 
 // PORT tanımlı değilse 3000 kullanılır.
 const PORT = process.env.PORT || 3000;

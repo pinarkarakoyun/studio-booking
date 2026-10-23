@@ -1,12 +1,12 @@
 import pool from '../db/pool.js';
+import { AppError } from '../errors.js';
 
-// İş kuralı ihlalleri için ayrı bir hata türü. API katmanı `code`a bakıp müşteriye
-// anlamlı bir mesaj ve 4xx durum kodu döndürecek; beklenmeyen hatalar ise 500 olacak.
-export class BookingError extends Error {
+// Rezervasyon kuralı ihlalleri. 409 Conflict: istek geçerli ama mevcut durumla çelişiyor
+// (ders dolu, hak yok...). API katmanı `code`a bakıp müşteriye anlamlı bir mesaj gösterecek.
+export class BookingError extends AppError {
   constructor(code, message) {
-    super(message);
+    super(code, message, 409);
     this.name = 'BookingError';
-    this.code = code;
   }
 }
 
