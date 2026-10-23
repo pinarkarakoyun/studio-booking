@@ -21,7 +21,7 @@ import {
   updateGroup,
 } from '../services/adminGroups.js';
 import { addPayment, createMembership, deletePayment, getMemberships, getPaymentOverview } from '../services/adminMemberships.js';
-import { getSessionRoster, getToday } from '../services/adminSchedule.js';
+import { cancelSessionByStudio, getSessionRoster, getToday } from '../services/adminSchedule.js';
 import { getSettings, updateSettings } from '../services/adminSettings.js';
 
 const router = Router();
@@ -59,6 +59,15 @@ router.get('/api/admin/today', async (req, res) => {
 
 router.get('/api/admin/sessions/:id', async (req, res) => {
   res.json(await getSessionRoster(req.user, sessionId(req)));
+});
+
+// Önce "kaç kişi etkilenir?" (aynı kod, sonunda geri alınır), sonra kesin iptal.
+router.post('/api/admin/sessions/:id/cancel/preview', async (req, res) => {
+  res.json(await cancelSessionByStudio(req.user, sessionId(req), { reason: req.body?.reason }, { preview: true }));
+});
+
+router.post('/api/admin/sessions/:id/cancel', async (req, res) => {
+  res.json(await cancelSessionByStudio(req.user, sessionId(req), { reason: req.body?.reason }));
 });
 
 // --- Müşteriler ---------------------------------------------------------------------------------

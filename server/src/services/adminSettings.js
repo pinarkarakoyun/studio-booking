@@ -20,6 +20,7 @@ const BOOLEAN_RULES = {
   allowUndoCancel: 'allow_undo_cancel',
   allowMakeupBeforeMissed: 'allow_makeup_before_missed',
   refundCreditOnMakeupCancel: 'refund_credit_on_makeup_cancel',
+  creditOnStudioCancel: 'credit_on_studio_cancel',
 };
 
 function toDto(row) {

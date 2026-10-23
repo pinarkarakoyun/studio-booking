@@ -139,6 +139,7 @@ export default function SettingsPage({ onStudioChange }) {
         <h2 className={styles.settingSection}>İptal</h2>
         <NumberRow label="İptal için son süre" hint="Dersten önce" unit="saat" min="0" max="72" {...number('cancellationDeadlineHours')} />
         <SwitchRow label="İptali geri alma" hint="Yer hâlâ boşsa" {...toggle('allowUndoCancel')} />
+        <SwitchRow label="Stüdyo iptalinde telafi hakkı" hint="Stüdyo dersi iptal edince gelecek olanlara" {...toggle('creditOnStudioCancel')} />
 
         <h2 className={styles.settingSection}>Telafi</h2>
         <NumberRow label="Telafi hakkı geçerliliği" hint="Kaçırılan dersten itibaren" unit="gün" min="1" max="365" {...number('creditValidityDays')} />

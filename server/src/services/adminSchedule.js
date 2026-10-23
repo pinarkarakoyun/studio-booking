@@ -75,6 +75,8 @@ async function alerts(studioId, today, db) {
     JOIN groups g   ON g.id = s.group_id
     JOIN users u    ON u.id = c.user_id
     WHERE g.studio_id = $1 AND c.created_at > now() - interval '24 hours'
+      -- Stüdyonun iptal ettiği dersten doğan haklar müşterinin iptali değildir; uyarıda görünmez.
+      AND s.status = 'scheduled'
     ORDER BY c.created_at DESC
     LIMIT 5
     `,
@@ -112,7 +114,7 @@ export async function getToday(admin, { db = pool } = {}) {
 export async function getSessionRoster(admin, sessionId, { db = pool } = {}) {
   const [session] = (await db.query(
     `
-    SELECT s.id, s.date, s.starts_at, s.status, g.name AS group_name, g.duration_minutes,
+    SELECT s.id, s.date, s.starts_at, s.status, s.cancel_reason, g.name AS group_name, g.duration_minutes,
            o.capacity, o.booked_count, GREATEST(o.free_spots, 0) AS free_spots
     FROM sessions s
     JOIN groups g            ON g.id = s.group_id
@@ -165,6 +167,7 @@ export async function getSessionRoster(admin, sessionId, { db = pool } = {}) {
       date: session.date,
       startsAt: session.starts_at,
       status: session.status,
+      cancelReason: session.cancel_reason,
       groupName: session.group_name,
       durationMinutes: session.duration_minutes,
       capacity: session.capacity,
@@ -174,4 +177,71 @@ export async function getSessionRoster(admin, sessionId, { db = pool } = {}) {
     attending: all.filter((p) => p.state === 'regular' || p.state === 'makeup').sort(sortByName),
     notAttending: all.filter((p) => p.state === 'cancelled' || p.state === 'frozen').sort(sortByName),
   };
+}
+
+// --- Stüdyonun dersi iptal etmesi ---------------------------------------------------------------
+// Bayram, hocanın hastalığı... İptal kesindir (geri alınmaz); önizleme aynı kodu çalıştırıp geri alır,
+// onay panelinde gerçek sayılar görünür.
+//   - Bu derse telafiyle gelenlerin hakları iade edilir (başka derse yazılabilirler).
+//   - Ayar açıksa (credit_on_studio_cancel) derse gelecek düzenli üyelere, normal iptaldeki gibi
+//     dersin başlangıcından sayılan bir hak verilir. Dersi zaten iptal etmiş (hakkı var) ya da o tarihte
+//     dondurulmuş üyeye ikinci hak verilmez.
+export async function cancelSessionByStudio(admin, sessionId, { reason } = {}, { db = pool, preview = false } = {}) {
+  if (reason != null && typeof reason !== 'string') throw new AppError('INVALID_REASON', 'Sebep geçersiz.', 400);
+  const cleanReason = reason?.trim() || null;
+  if (cleanReason && cleanReason.length > 120) {
+    throw new AppError('INVALID_REASON', 'Sebep en fazla 120 karakter olabilir.', 400);
+  }
+
+  const client = await db.connect();
+  try {
+    await client.query('BEGIN');
+    // Ders kilitlenir: aynı anda bir müşteri telafiye yazılıyorsa önce o biter, sonra iptal onu da görür.
+    const { rows: [session] } = await client.query(
+      `
+      SELECT s.id, s.status, s.starts_at <= now() AS started, ss.credit_validity_days, ss.credit_on_studio_cancel
+      FROM sessions s
+      JOIN groups g ON g.id = s.group_id
+      JOIN studio_settings ss ON ss.studio_id = g.studio_id
+      WHERE s.id = $1 AND g.studio_id = $2
+      FOR UPDATE OF s
+      `,
+      [sessionId, admin.studio_id],
+    );
+    if (!session) throw new AppError('SESSION_NOT_FOUND', 'Ders bulunamadı.', 404);
+    if (session.status === 'cancelled') throw new AppError('SESSION_ALREADY_CANCELLED', 'Bu ders zaten iptal edilmiş.', 409);
+    if (session.started) throw new AppError('SESSION_STARTED', 'Başlamış ya da geçmiş bir ders iptal edilemez.', 409);
+
+    const { rowCount: refundedMakeups } = await client.query(
+      'UPDATE credits SET used_session_id = NULL, used_at = NULL WHERE used_session_id = $1',
+      [sessionId],
+    );
+
+    let creditedMembers = 0;
+    if (session.credit_on_studio_cancel) {
+      ({ rowCount: creditedMembers } = await client.query(
+        `
+        INSERT INTO credits (user_id, source_session_id, expires_at, note)
+        SELECT gm.user_id, s.id, s.starts_at + make_interval(days => $2), 'Stüdyo dersi iptal etti'
+        FROM sessions s
+        JOIN group_members gm ON gm.group_id = s.group_id
+                             AND gm.joined_on <= s.date AND (gm.left_on IS NULL OR s.date < gm.left_on)
+        WHERE s.id = $1
+          AND NOT EXISTS (SELECT 1 FROM freezes f
+                          WHERE f.user_id = gm.user_id AND daterange(f.starts_on, f.ends_on, '[]') @> s.date)
+        ON CONFLICT (user_id, source_session_id) DO NOTHING
+        `,
+        [sessionId, session.credit_validity_days],
+      ));
+    }
+
+    await client.query(`UPDATE sessions SET status = 'cancelled', cancel_reason = $2 WHERE id = $1`, [sessionId, cleanReason]);
+    await client.query(preview ? 'ROLLBACK' : 'COMMIT');
+    return { creditedMembers, refundedMakeups, creditsEnabled: session.credit_on_studio_cancel };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }

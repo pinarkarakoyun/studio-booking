@@ -18,6 +18,7 @@ const SESSIONS_WITH_MY_STATUS = `
          s.date,
          s.starts_at,
          s.status AS session_status,
+         s.cancel_reason,
          g.name AS group_name,
          g.duration_minutes,
          o.capacity,
@@ -27,7 +28,8 @@ const SESSIONS_WITH_MY_STATUS = `
          s.starts_at - make_interval(mins => ss.makeup_booking_cutoff_minutes) AS makeup_deadline_at,
          -- İptal geri alınabilir mi? Stüdyo izin veriyorsa ve bu iptalden doğan hak henüz kullanılmadıysa
          -- (ör. "yerine şuna gel" ile hak hemen harcandıysa geri alınamaz). Ekran "Geri al"ı buna göre gösterir.
-         (ss.allow_undo_cancel AND me.has_unused_credit) AS can_undo_cancel,
+         -- Stüdyonun iptal ettiği derste "Geri al" olmaz: hakkı stüdyo verdi, ders yapılmayacak.
+         (ss.allow_undo_cancel AND me.has_unused_credit AND s.status = 'scheduled') AS can_undo_cancel,
          CASE
            WHEN me.is_makeup                    THEN 'makeup'
            WHEN me.is_member AND me.is_frozen    THEN 'frozen'
@@ -61,6 +63,7 @@ function toSessionDto(row) {
     date: row.date,
     startsAt: row.starts_at,
     status: row.session_status,
+    cancelReason: row.cancel_reason,
     groupName: row.group_name,
     durationMinutes: row.duration_minutes,
     capacity: row.capacity,

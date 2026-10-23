@@ -265,7 +265,10 @@ function SessionRow({ session, timeZone, now, busy, onOpen, onUndo }) {
       <li className={`${styles.row} ${styles.inactive}`}>
         <div>
           {day}
-          <p className={styles.rowNote}>Stüdyo bu dersi iptal etti.</p>
+          <p className={styles.rowNote}>
+            Stüdyo bu dersi iptal etti{session.cancelReason ? ` (${session.cancelReason})` : ''}.
+            {session.myStatus === 'cancelled' && ' Yerine telafi hakkın var.'}
+          </p>
         </div>
         {time}
       </li>
