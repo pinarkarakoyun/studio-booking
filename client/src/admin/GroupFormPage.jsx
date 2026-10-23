@@ -60,6 +60,9 @@ export default function GroupFormPage({ studio, group, onCancel, onSaved }) {
   const scheduleChanged =
     Boolean(group) && (form.startTime !== group.startTime || weekdays.join(',') !== group.weekdays.join(','));
   const capacityChanged = Boolean(group) && Number(form.capacity) !== group.capacity;
+  // Grup detayındaki "Üyeler (N)" ile aynı sayı: bugünkü üyeler ve katılacak olanlar.
+  const memberCount = group?.members.length ?? 0;
+  const capacityBelowMembers = capacityChanged && Number(form.capacity) >= 1 && Number(form.capacity) < memberCount;
 
   const body = {
     name: form.name,
@@ -178,6 +181,14 @@ export default function GroupFormPage({ studio, group, onCancel, onSaved }) {
           error={errors.capacity}
           hint={capacityChanged ? `Bugünden sonraki bütün derslerde ${form.capacity} kişi olacak.` : undefined}
         />
+        {capacityBelowMembers && (
+          <div className={styles.warning} role="status">
+            <p>
+              Bu grupta {memberCount} üye var, kapasite {form.capacity} olursa dersler dolu görünür. Üyeler gruptan
+              çıkarılmaz ama bu derslere telafi yazılamaz.
+            </p>
+          </div>
+        )}
 
         {scheduleChanged && (
           <>
