@@ -1,3 +1,48 @@
+/*
+  Görsel dil (23 Ekim 2026'da Pınar ile seçildi):
+  mor kimlik + pembe vurgu, serif = stüdyonun sesi, sans = arayüz.
+  Renkler ve yazı tipleri burada bir kez tanımlanır; bileşenler sadece bu değişkenleri kullanır.
+  İleride stüdyo ayarlarından (brand_color) gelen renk --violet'in yerine geçebilir.
+*/
+:root {
+  /* Renkler */
+  --violet: #3f21b5; /* marka rengi, Instagram gönderilerinden ölçüldü */
+  --violet-soft: #f1e9ff; /* doluluk çubuğunun boş kısmı gibi açık mor yüzeyler */
+  --pink: #ff4f9a; /* yalnızca ana buton */
+  --pink-text: #e0307f; /* pembe yazı: beyaz zeminde okunabilsin diye biraz koyu */
+  --blush: #fbf0f3; /* yumuşak yüzey */
+  --paper: #fffbfc; /* sayfa zemini */
+  --ink: #22163f; /* ana yazı rengi */
+  --ink-soft: #5e5379; /* ikincil yazı */
+  --line: #f1e4e8; /* ince çizgiler, kenarlıklar */
+  --white: #ffffff;
+  --danger: #b4233c;
+
+  /* Yazı tipleri */
+  --font-brand: 'Cormorant Garamond', Georgia, serif;
+  --font-ui: 'Archivo Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* Yazı boyutları: 16px tabanlı, telefonda rahat okunacak ölçek */
+  --text-sm: 0.8125rem; /* 13px */
+  --text-base: 1rem; /* 16px */
+  --text-lg: 1.375rem; /* 22px, serif tarih/başlık */
+  --text-xl: 2rem; /* 32px */
+
+  /* Boşluk ve köşe */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-pill: 999px;
+
+  /* Hareket: tek bir yumuşak eğri her yerde */
+  --ease: cubic-bezier(0.65, 0, 0.25, 1);
+}
+
 /* Mobil öncelikli: temel stiller küçük ekran için yazılır, büyük ekranda genişletilir. */
 *,
 *::before,
@@ -8,37 +53,50 @@
 body {
   margin: 0;
   min-height: 100vh;
-  display: grid;
-  place-items: center;
-  padding: 16px;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  font-size: 16px;
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
   line-height: 1.5;
-  color: #1f2937;
-  background: #f3f4f6;
+  color: var(--ink);
+  background: var(--paper);
+  -webkit-font-smoothing: antialiased;
 }
 
+/* Klavyeyle gezinenler nerede olduğunu görebilsin. */
+:focus-visible {
+  outline: 2px solid var(--violet);
+  outline-offset: 2px;
+}
+
+/* Hareketi azaltmak isteyenler için (işletim sistemi ayarı) animasyonları kapat. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Geçici: sağlık kontrolü sayfası (giriş ekranı gelince kalkacak). */
 .card {
   width: 100%;
   max-width: 420px;
-  padding: 24px;
+  margin: 15vh auto 0;
+  padding: var(--space-6);
   text-align: center;
-  background: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
 }
 
 .card h1 {
-  margin: 0 0 12px;
-  font-size: 1.4rem;
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-brand);
+  font-weight: 500;
+  font-size: var(--text-xl);
+  color: var(--violet);
 }
 
 .card p {
   margin: 0;
-}
-
-@media (min-width: 600px) {
-  .card {
-    padding: 32px;
-  }
 }
