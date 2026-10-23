@@ -102,6 +102,7 @@ function App() {
     return (
       <ChangePasswordPage
         user={user}
+        studio={studio}
         currentPassword={loginPassword}
         onChanged={refreshUser}
         onLogout={logout}

@@ -10,6 +10,8 @@ export default defineConfig({
     // tarayıcı aynı adrese istek attığını sanır ve CORS sorunu yaşanmaz.
     proxy: {
       '/api': 'http://localhost:3000',
+      // Stüdyo logosu gibi marka dosyaları da Express'ten gelir (repo dışındaki BRAND_DIR klasörü).
+      '/brand': 'http://localhost:3000',
     },
   },
 })

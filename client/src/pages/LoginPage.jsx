@@ -53,7 +53,7 @@ export default function LoginPage({ studio, onLoggedIn }) {
   return (
     <main className={styles.page}>
       <div className={styles.brand}>
-        <Monogram />
+        <Monogram logoUrl={studio?.logoUrl} />
         <h1 className={styles.studioName}>{studio?.name}</h1>
         <p className={styles.lead}>Derslerini görmek için giriş yap</p>
       </div>

@@ -12,6 +12,11 @@
   line-height: 1;
 }
 
+.image {
+  display: block;
+  object-fit: cover;
+}
+
 .large {
   width: 72px;
   height: 72px;

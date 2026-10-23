@@ -17,6 +17,13 @@ export function createApp() {
   app.use(cookieParser());
   app.use(loadUser);
 
+  // Stüdyonun marka dosyaları (logo vb.) repo dışındaki bir klasörden sunulur: gerçek stüdyonun markası
+  // koda girmez, her kurulum kendi klasörünü BRAND_DIR ile gösterir. studios.logo_url "/brand/logo.png" gibi
+  // bu adrese işaret eder. İleride yönetici panelinden yükleme gelince aynı klasör kullanılabilir.
+  if (process.env.BRAND_DIR) {
+    app.use('/brand', express.static(process.env.BRAND_DIR, { maxAge: '1d', fallthrough: false }));
+  }
+
   app.use(healthRouter);
   app.use(studioRouter);
   app.use(authRouter);

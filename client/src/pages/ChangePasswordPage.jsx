@@ -19,7 +19,7 @@ const STRENGTH_HINT = ['En az 8 karakter', 'En az 8 karakter', 'Yeterli', 'Güç
 
 // İlk girişte (veya yönetici şifreyi sıfırladıktan sonra) zorunlu ekran (BR-20).
 // currentPassword: girişte yazılan geçici şifre. Sayfa yenilenmişse elimizde olmaz; o zaman sorarız.
-export default function ChangePasswordPage({ user, currentPassword, onChanged, onLogout }) {
+export default function ChangePasswordPage({ user, studio, currentPassword, onChanged, onLogout }) {
   const [temporary, setTemporary] = useState('');
   const [password, setPassword] = useState('');
   const [repeat, setRepeat] = useState('');
@@ -68,7 +68,7 @@ export default function ChangePasswordPage({ user, currentPassword, onChanged, o
 
   return (
     <main className={styles.page}>
-      <Monogram size="small" />
+      <Monogram size="small" logoUrl={studio?.logoUrl} />
       <h1 className={styles.title}>Hoş geldin, {firstName}</h1>
       <p className={styles.lead}>
         Stüdyonun verdiği geçici şifreyi kendi şifrenle değiştir. Bundan sonra bununla gireceksin.

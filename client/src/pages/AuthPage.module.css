@@ -25,6 +25,8 @@
   line-height: 1.1;
   letter-spacing: 0.06em;
   color: var(--violet);
+  /* Uzun stüdyo adları dengeli satırlara bölünsün ("Studio" tek başına alt satırda kalmasın). */
+  text-wrap: balance;
 }
 
 .lead {
