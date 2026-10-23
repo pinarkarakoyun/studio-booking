@@ -26,14 +26,14 @@ async function withTransaction(db, work) {
   }
 }
 
-// Dersi, stüdyo ayarlarıyla birlikte getirir. Zaman karşılaştırmaları JS'te değil
+// Dersi, stüdyo ayarlarıyla birlikte getirir; kullanıcının o stüdyoda aktif bir hesabı olduğunu da kontrol eder. Zaman karşılaştırmaları JS'te değil
 // veritabanında yapılıyor: tek saat (veritabanının now()'u) ve stüdyonun saat dilimi kullanılır.
 // lock = true ise ders satırı FOR UPDATE ile kilitlenir: aynı derse yer almaya çalışan diğer
 // transaction'lar bu transaction bitene kadar bekler. Son yeri iki kişinin almasını engelleyen şey bu.
-async function loadSession(client, sessionId, { lock = false } = {}) {
+async function loadSession(client, sessionId, userId, { lock = false } = {}) {
   const { rows } = await client.query(
     `
-    SELECT s.id, s.group_id, s.date, s.starts_at, s.status,
+    SELECT s.id, s.group_id, s.date, s.starts_at, s.status, g.studio_id,
            ss.credit_validity_days, ss.refund_credit_on_makeup_cancel, ss.max_makeups_per_month,
            ss.allow_undo_cancel, ss.allow_makeup_before_missed,
            st.timezone,
@@ -55,15 +55,22 @@ async function loadSession(client, sessionId, { lock = false } = {}) {
   );
   const session = rows[0];
   if (!session) throw new BookingError('SESSION_NOT_FOUND', 'Ders bulunamadı.');
+  // Stüdyo kontrolü her şeyden önce: başka stüdyonun dersi hakkında (iptal mi, dolu mu...) hiçbir şey söylemiyoruz.
+  await assertActiveUserOfStudio(client, userId, session);
   if (session.status !== 'scheduled') {
     throw new BookingError('SESSION_CANCELLED', 'Bu ders stüdyo tarafından iptal edildi.');
   }
   return session;
 }
 
-async function assertActiveUser(client, userId) {
-  const { rows } = await client.query('SELECT status FROM users WHERE id = $1', [userId]);
-  if (rows[0]?.status !== 'active') {
+// Kullanıcı aktif mi ve ders kendi stüdyosuna mı ait? Başka bir stüdyonun dersi için
+// "bulunamadı" diyoruz: dersin var olduğunu bile söylemek bilgi sızdırmak olur.
+async function assertActiveUserOfStudio(client, userId, session) {
+  const { rows } = await client.query('SELECT status, studio_id FROM users WHERE id = $1', [userId]);
+  if (rows[0]?.studio_id !== session.studio_id) {
+    throw new BookingError('SESSION_NOT_FOUND', 'Ders bulunamadı.');
+  }
+  if (rows[0].status !== 'active') {
     throw new BookingError('USER_NOT_ACTIVE', 'Hesabınız aktif değil.');
   }
 }
@@ -110,11 +117,10 @@ async function freeSpots(client, sessionId) {
 
 async function cancelInTransaction(client, userId, sessionId) {
   // İptal yer açar, kapasiteyi aşma riski yok; bu yüzden dersi kilitlemiyoruz.
-  const session = await loadSession(client, sessionId);
+  const session = await loadSession(client, sessionId, userId);
   if (!session.is_before_deadline) {
     throw new BookingError('CANCELLATION_DEADLINE_PASSED', 'Bu ders için iptal süresi geçti.');
   }
-  await assertActiveUser(client, userId);
   if (!(await isRegularMember(client, userId, session))) {
     throw new BookingError('NOT_A_MEMBER', 'Bu ders sizin grubunuza ait değil.');
   }
@@ -152,7 +158,7 @@ export function cancelSession({ userId, sessionId }, { db = pool } = {}) {
 async function bookMakeupInTransaction(client, userId, targetSessionId) {
   // Önce kilit: aynı derse aynı anda gelen ikinci istek burada bekler ve kapasiteyi
   // ilk işlem bittikten sonraki güncel haliyle görür.
-  const target = await loadSession(client, targetSessionId, { lock: true });
+  const target = await loadSession(client, targetSessionId, userId, { lock: true });
   if (!target.is_future) {
     throw new BookingError('SESSION_STARTED', 'Bu ders başladı veya geçti.');
   }
@@ -162,7 +168,6 @@ async function bookMakeupInTransaction(client, userId, targetSessionId) {
   if (!target.is_within_booking_window) {
     throw new BookingError('TOO_FAR_AHEAD', 'Bu kadar ileri tarihli bir derse henüz telafi yapılamaz.');
   }
-  await assertActiveUser(client, userId);
 
   // Dondurulmuş müşteri telafi yapamaz: bugün ya da telafi günü dondurulmuşsa engellenir.
   const { rows: [today] } = await client.query(
@@ -287,7 +292,7 @@ export function swapSession({ userId, fromSessionId, toSessionId }, { db = pool 
 export function undoCancel({ userId, sessionId }, { db = pool } = {}) {
   return withTransaction(db, async (client) => {
     // Geri dönmek yeni bir yer almak demek: kapasite kontrolü için ders kilitlenir.
-    const session = await loadSession(client, sessionId, { lock: true });
+    const session = await loadSession(client, sessionId, userId, { lock: true });
     if (!session.allow_undo_cancel) {
       throw new BookingError('UNDO_CANCEL_DISABLED', 'Bu stüdyoda iptal geri alınamıyor.');
     }
@@ -320,7 +325,7 @@ export function undoCancel({ userId, sessionId }, { db = pool } = {}) {
 
 export function cancelMakeup({ userId, sessionId }, { db = pool } = {}) {
   return withTransaction(db, async (client) => {
-    const session = await loadSession(client, sessionId);
+    const session = await loadSession(client, sessionId, userId);
     if (!session.is_before_deadline) {
       throw new BookingError('CANCELLATION_DEADLINE_PASSED', 'Bu ders için iptal süresi geçti.');
     }

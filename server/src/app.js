@@ -4,6 +4,7 @@ import { AppError } from './errors.js';
 import { loadUser } from './middleware/auth.js';
 import authRouter from './routes/auth.js';
 import healthRouter from './routes/health.js';
+import sessionsRouter from './routes/sessions.js';
 
 // Uygulama burada kuruluyor ama dinlemeye (listen) başlamıyor. Böylece testler uygulamayı
 // rastgele bir portta kendileri başlatabiliyor; index.js ise gerçek sunucuyu başlatıyor.
@@ -17,6 +18,7 @@ export function createApp() {
 
   app.use(healthRouter);
   app.use(authRouter);
+  app.use(sessionsRouter);
 
   // Hata yakalayıcı: 4 parametreli olduğu için Express bunu hata middleware'i olarak tanır.
   // Express 5'te async route'lardaki hatalar da otomatik buraya gelir.

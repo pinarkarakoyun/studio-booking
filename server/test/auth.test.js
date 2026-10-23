@@ -1,50 +1,18 @@
 import assert from 'node:assert/strict';
-import { after, before, beforeEach, describe, test } from 'node:test';
-import { createApp } from '../src/app.js';
+import { after, beforeEach, describe, test } from 'node:test';
 import { createUser, resetLoginAttempts, resetPassword } from '../src/services/auth.js';
 import { createStudio, pool, resetDb } from './helpers.js';
+import { client, getBaseUrl, useServer } from './http.js';
 
-// Uygulamayı rastgele boş bir portta (0) başlatıp gerçek HTTP istekleriyle test ediyoruz:
+// Uygulamayı rastgele boş bir portta başlatıp gerçek HTTP istekleriyle test ediyoruz:
 // cookie'ler, durum kodları ve middleware sırası gerçekte nasılsa öyle çalışır.
-let server;
-let baseUrl;
-
-before(async () => {
-  server = createApp().listen(0);
-  await new Promise((resolve) => server.once('listening', resolve));
-  baseUrl = `http://localhost:${server.address().port}`;
-});
-
-after(async () => {
-  await new Promise((resolve) => server.close(resolve));
-  await pool.end();
-});
+useServer();
+after(() => pool.end());
 
 beforeEach(async () => {
   await resetDb();
   resetLoginAttempts();
 });
-
-// Küçük bir istemci: Set-Cookie'yi saklayıp sonraki isteklere ekler (tarayıcının yaptığı gibi).
-function client() {
-  let cookie = null;
-  return {
-    async request(method, path, body) {
-      const res = await fetch(baseUrl + path, {
-        method,
-        headers: {
-          ...(body ? { 'content-type': 'application/json' } : {}),
-          ...(cookie ? { cookie } : {}),
-        },
-        body: body ? JSON.stringify(body) : undefined,
-      });
-      const setCookie = res.headers.get('set-cookie');
-      if (setCookie) cookie = setCookie.split(';')[0];
-      const json = res.status === 204 ? null : await res.json();
-      return { status: res.status, body: json, setCookie };
-    },
-  };
-}
 
 const PHONE = '0532 111 22 33';
 const TEMP_PASSWORD = 'gecici-sifre-1';
@@ -231,7 +199,7 @@ describe('createUser', () => {
 });
 
 test('malformed JSON gets a 400, not a crash', async () => {
-  const res = await fetch(`${baseUrl}/api/auth/login`, {
+  const res = await fetch(`${getBaseUrl()}/api/auth/login`, {
     method: 'POST', headers: { 'content-type': 'application/json' }, body: '{bozuk',
   });
   assert.equal(res.status, 400);

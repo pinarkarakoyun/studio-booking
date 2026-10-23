@@ -79,8 +79,8 @@ export async function createCustomer(studioId, groupId = null) {
   phoneCounter += 1;
   const { rows: [user] } = await pool.query(
     `
-    INSERT INTO users (studio_id, role, full_name, phone, password_hash)
-    VALUES ($1, 'customer', 'Müşteri', $2, 'x') RETURNING id
+    INSERT INTO users (studio_id, role, full_name, phone, password_hash, must_change_password)
+    VALUES ($1, 'customer', 'Müşteri', $2, 'x', false) RETURNING id
     `,
     [studioId, `+90530${String(phoneCounter).padStart(7, '0')}`],
   );

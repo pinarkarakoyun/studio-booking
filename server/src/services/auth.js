@@ -73,7 +73,8 @@ export function resetLoginAttempts() {
 
 // --- Oturumlar ----------------------------------------------------------------------------------
 
-async function createSession(userId, db) {
+// Dışarı açık olmasının tek sebebi testler: şifreyle giriş adımını atlayıp doğrudan oturum açabilmek.
+export async function createSession(userId, db = pool) {
   const token = randomBytes(32).toString('base64url');
   await db.query(
     `
