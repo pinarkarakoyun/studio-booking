@@ -1,0 +1,44 @@
+/* Mobil öncelikli: temel stiller küçük ekran için yazılır, büyük ekranda genişletilir. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: #1f2937;
+  background: #f3f4f6;
+}
+
+.card {
+  width: 100%;
+  max-width: 420px;
+  padding: 24px;
+  text-align: center;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.card h1 {
+  margin: 0 0 12px;
+  font-size: 1.4rem;
+}
+
+.card p {
+  margin: 0;
+}
+
+@media (min-width: 600px) {
+  .card {
+    padding: 32px;
+  }
+}
