@@ -878,3 +878,28 @@
   outline: 2px solid var(--violet);
   outline-offset: 2px;
 }
+
+/* Ödemeler sekmesi */
+.paymentRowText {
+  min-width: 0;
+}
+
+.paymentRowText small {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}
+
+.paymentRowValue {
+  flex: none;
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+.monthTotal {
+  display: flex;
+  justify-content: space-between;
+  margin: var(--space-2) 0 0;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line);
+}

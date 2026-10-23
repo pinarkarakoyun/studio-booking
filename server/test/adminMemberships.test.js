@@ -117,3 +117,49 @@ describe('memberships', () => {
     assert.equal((await other.request('DELETE', `/api/admin/payments/${paymentId}`)).status, 404);
   });
 });
+
+describe('payments overview', () => {
+  test('sorts customers into expired, ending soon, underpaid and no period', async () => {
+    const studio = await createStudio();
+    const c = await clientFor(await createAdmin(studio));
+    const expired = await createCustomer(studio);
+    const endingSoon = await createCustomer(studio);
+    const renewed = await createCustomer(studio);
+    const fine = await createCustomer(studio);
+    const none = await createCustomer(studio);
+    const gone = await createCustomer(studio);
+    await pool.query(`UPDATE users SET full_name = 'Ayrılan', status = 'left' WHERE id = $1`, [gone]);
+
+    await openMembership(c, expired, -40, -3, 100000);
+    const soonId = (await openMembership(c, endingSoon, -25, 5, 100000)).body.membership.id;
+    await c.request('POST', `/api/admin/memberships/${soonId}/payments`, { amountKurus: 100000, paidOn: await day(0), method: 'cash' });
+    await openMembership(c, renewed, -25, 2, 0);
+    await openMembership(c, renewed, 3, 33, 0);
+    await openMembership(c, fine, -5, 25, 0);
+
+    const { body } = await c.request('GET', '/api/admin/payments');
+    assert.deepEqual(body.expired.map((r) => [r.customerId, r.daysAgo]), [[expired, 3]]);
+    assert.deepEqual(body.endingSoon.map((r) => [r.customerId, r.daysLeft]), [[endingSoon, 5]]);
+    assert.deepEqual(body.underpaid.map((r) => [r.customerId, r.remainingKurus]), [[expired, 100000]]);
+    assert.deepEqual(body.noMembership.map((r) => r.customerId), [none]);
+    assert.deepEqual(body.thisMonth, { count: 1, totalKurus: 100000 });
+  });
+
+  test('"ending soon" follows the reminder setting', async () => {
+    const { c, customerId } = await setup();
+    await openMembership(c, customerId, -20, 10, 0);
+    assert.equal((await c.request('GET', '/api/admin/payments')).body.endingSoon.length, 0);
+
+    const { body: { settings } } = await c.request('GET', '/api/admin/settings');
+    await c.request('PUT', '/api/admin/settings', { ...settings, paymentReminderDays: 10 });
+    assert.equal((await c.request('GET', '/api/admin/payments')).body.endingSoon.length, 1);
+  });
+
+  test("another studio's customers are not in the overview", async () => {
+    const { c, customerId } = await setup();
+    await openMembership(c, customerId, -40, -3);
+    const other = await clientFor(await createAdmin(await createStudio()));
+    const { body } = await other.request('GET', '/api/admin/payments');
+    assert.equal(body.expired.length + body.underpaid.length + body.noMembership.length, 0);
+  });
+});

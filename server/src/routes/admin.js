@@ -19,7 +19,7 @@ import {
   listAllGroups,
   updateGroup,
 } from '../services/adminGroups.js';
-import { addPayment, createMembership, deletePayment, getMemberships } from '../services/adminMemberships.js';
+import { addPayment, createMembership, deletePayment, getMemberships, getPaymentOverview } from '../services/adminMemberships.js';
 import { getSessionRoster, getToday } from '../services/adminSchedule.js';
 import { getSettings, updateSettings } from '../services/adminSettings.js';
 
@@ -153,6 +153,10 @@ router.get('/api/admin/customers/:id/memberships', async (req, res) => {
 router.post('/api/admin/customers/:id/memberships', async (req, res) => {
   const { startsOn, endsOn, feeKurus, note } = req.body ?? {};
   res.status(201).json({ membership: await createMembership(req.user, customerId(req), { startsOn, endsOn, feeKurus, note }) });
+});
+
+router.get('/api/admin/payments', async (req, res) => {
+  res.json(await getPaymentOverview(req.user));
 });
 
 router.post('/api/admin/memberships/:id/payments', async (req, res) => {

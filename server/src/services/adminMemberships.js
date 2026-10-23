@@ -45,7 +45,7 @@ async function studioToday(studioId, db) {
   return row.today;
 }
 
-// Bir müşterinin dönemleri. Dondurma uzaması: dönemin (dondurmasız) tarihlerine denk gelen dondurma
+// Dönemler ($2 = stüdyonun bugünü; WHERE çağıran yerde eklenir). Dondurma uzaması: dönemin (dondurmasız) tarihlerine denk gelen dondurma
 // günleri kadar bitiş ileri kayar (BR-36). Bitişi belirsiz dondurma bugüne kadar sayılır.
 const MEMBERSHIP_SELECT = `
   SELECT m.id, m.user_id, m.starts_on, m.ends_on, m.fee_kurus, m.note,
@@ -58,8 +58,7 @@ const MEMBERSHIP_SELECT = `
            )), 0)::int AS days
     FROM freezes f WHERE f.user_id = m.user_id
   ) AS ext
-  LEFT JOIN LATERAL (SELECT SUM(amount_kurus) AS total FROM payments p WHERE p.membership_id = m.id) AS paid ON true
-  WHERE m.user_id = $1`;
+  LEFT JOIN LATERAL (SELECT SUM(amount_kurus) AS total FROM payments p WHERE p.membership_id = m.id) AS paid ON true`;
 
 function toDto(row, payments, today) {
   let status = 'active';
@@ -93,7 +92,7 @@ async function findCustomerId(admin, customerId, db, { lock = false } = {}) {
 }
 
 async function loadMemberships(userId, today, db) {
-  const { rows } = await db.query(`${MEMBERSHIP_SELECT} ORDER BY m.starts_on DESC`, [userId, today]);
+  const { rows } = await db.query(`${MEMBERSHIP_SELECT} WHERE m.user_id = $1 ORDER BY m.starts_on DESC`, [userId, today]);
   const { rows: payments } = await db.query(
     `SELECT p.id, p.membership_id, p.amount_kurus, p.paid_on, p.method, p.note
      FROM payments p JOIN memberships m ON m.id = p.membership_id
@@ -193,4 +192,73 @@ export async function deletePayment(admin, paymentId, { db = pool } = {}) {
     const today = await studioToday(admin.studio_id, client);
     return (await loadMemberships(row.user_id, today, client)).find((m) => m.id === row.membership_id);
   });
+}
+
+// İki takvim günü arasındaki gün farkı (b - a).
+function daysBetween(a, b) {
+  return Math.round((Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / 86400000);
+}
+
+// Ödemeler sekmesi: sadece ilgilenilmesi gerekenler. Ayrılmış müşteriler dahil değil.
+// Her müşterinin en yeni dönemine bakılır; sonraki dönemi açılmış biri "yaklaşıyor"da görünmez.
+export async function getPaymentOverview(admin, { db = pool } = {}) {
+  const { rows: [studio] } = await db.query(
+    `SELECT (now() AT TIME ZONE st.timezone)::date AS today, ss.payment_reminder_days
+     FROM studios st JOIN studio_settings ss ON ss.studio_id = st.id WHERE st.id = $1`,
+    [admin.studio_id],
+  );
+  const { today } = studio;
+  const { rows: customers } = await db.query(
+    `SELECT id, full_name FROM users WHERE studio_id = $1 AND role = 'customer' AND status <> 'left'`,
+    [admin.studio_id],
+  );
+  const { rows: periods } = await db.query(
+    `${MEMBERSHIP_SELECT}
+     JOIN users u ON u.id = m.user_id
+     WHERE u.studio_id = $1 AND u.role = 'customer' AND u.status <> 'left'
+     ORDER BY m.starts_on DESC`,
+    [admin.studio_id, today],
+  );
+
+  const expired = [];
+  const endingSoon = [];
+  const underpaid = [];
+  const noMembership = [];
+  for (const customer of customers) {
+    const person = { customerId: customer.id, fullName: customer.full_name };
+    const own = periods.filter((p) => p.user_id === customer.id);
+    if (own.length === 0) {
+      noMembership.push(person);
+      continue;
+    }
+    const latest = own[0];
+    const left = daysBetween(today, latest.effective_ends_on);
+    if (left < 0) expired.push({ ...person, endsOn: latest.effective_ends_on, daysAgo: -left });
+    else if (left <= studio.payment_reminder_days) endingSoon.push({ ...person, endsOn: latest.effective_ends_on, daysLeft: left });
+    for (const period of own) {
+      const remaining = period.fee_kurus - period.paid_kurus;
+      if (remaining > 0) {
+        underpaid.push({
+          ...person, startsOn: period.starts_on, endsOn: period.effective_ends_on, feeKurus: period.fee_kurus, remainingKurus: remaining,
+        });
+      }
+    }
+  }
+
+  const { rows: [month] } = await db.query(
+    `SELECT COUNT(*)::int AS count, COALESCE(SUM(p.amount_kurus), 0)::bigint AS total
+     FROM payments p JOIN memberships m ON m.id = p.membership_id JOIN users u ON u.id = m.user_id
+     WHERE u.studio_id = $1 AND date_trunc('month', p.paid_on) = date_trunc('month', $2::date)`,
+    [admin.studio_id, today],
+  );
+
+  const byName = (a, b) => a.fullName.localeCompare(b.fullName, 'tr');
+  return {
+    reminderDays: studio.payment_reminder_days,
+    expired: expired.sort((a, b) => a.daysAgo - b.daysAgo || byName(a, b)),
+    endingSoon: endingSoon.sort((a, b) => a.daysLeft - b.daysLeft || byName(a, b)),
+    underpaid: underpaid.sort((a, b) => (a.startsOn < b.startsOn ? -1 : a.startsOn > b.startsOn ? 1 : byName(a, b))),
+    noMembership: noMembership.sort(byName),
+    thisMonth: { count: month.count, totalKurus: month.total },
+  };
 }

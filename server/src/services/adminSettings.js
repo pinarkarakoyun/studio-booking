@@ -13,6 +13,7 @@ const NUMBER_RULES = {
   creditValidityDays: { column: 'credit_validity_days', min: 1, max: 365, message: 'Hak geçerliliği 1 ile 365 gün arasında olmalı.' },
   bookingWindowDays: { column: 'booking_window_days', min: 1, max: 90, message: 'Telafi en fazla 1 ile 90 gün ileriye açılabilir.' },
   makeupBookingCutoffMinutes: { column: 'makeup_booking_cutoff_minutes', min: 0, max: 240, message: 'Telafi kapanışı 0 ile 240 dakika arasında olmalı.' },
+  paymentReminderDays: { column: 'payment_reminder_days', min: 0, max: 60, message: 'Hatırlatma 0 ile 60 gün arasında olmalı.' },
 };
 
 const BOOLEAN_RULES = {

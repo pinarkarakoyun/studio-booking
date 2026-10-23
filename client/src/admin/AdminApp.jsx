@@ -5,6 +5,7 @@ import CustomerDetailPage from './CustomerDetailPage.jsx';
 import CustomersPage from './CustomersPage.jsx';
 import GroupDetailPage from './GroupDetailPage.jsx';
 import GroupFormPage from './GroupFormPage.jsx';
+import PaymentsPage from './PaymentsPage.jsx';
 import SettingsPage from './SettingsPage.jsx';
 import GroupsPage from './GroupsPage.jsx';
 import NewCustomerPage from './NewCustomerPage.jsx';
@@ -96,6 +97,8 @@ export default function AdminApp({ user, studio, onStudioChange, onLogout }) {
     } else {
       content = <GroupsPage onOpen={(id) => goTo({ name: 'detail', id })} onAdd={() => goTo({ name: 'new' })} />;
     }
+  } else if (tab === 'payments') {
+    content = <PaymentsPage onOpenCustomer={openCustomer} />;
   } else if (tab === 'settings') {
     content = <SettingsPage onStudioChange={onStudioChange} />;
   } else {

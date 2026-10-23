@@ -14,6 +14,7 @@ const FIELD_FOR_CODE = {
   INVALID_BOOKING_WINDOW_DAYS: 'bookingWindowDays',
   INVALID_MAKEUP_BOOKING_CUTOFF_MINUTES: 'makeupBookingCutoffMinutes',
   INVALID_MAX_MAKEUPS_PER_MONTH: 'maxMakeupsPerMonth',
+  INVALID_PAYMENT_REMINDER_DAYS: 'paymentReminderDays',
 };
 
 const NUMBER_FIELDS = [
@@ -22,6 +23,7 @@ const NUMBER_FIELDS = [
   'bookingWindowDays',
   'makeupBookingCutoffMinutes',
   'maxMakeupsPerMonth',
+  'paymentReminderDays',
 ];
 
 // Sunucudan gelen ayarlar -> form (sayılar metin kutusunda metin olarak durur).
@@ -141,6 +143,9 @@ export default function SettingsPage({ onStudioChange }) {
         <NumberRow label="Ayda en fazla telafi" hint="Boş: sınırsız" min="1" max="31" placeholder="–" {...number('maxMakeupsPerMonth')} />
         <SwitchRow label="Kaçırılacak dersten önce telafi" hint="Cuma yerine Perşembe gibi" {...toggle('allowMakeupBeforeMissed')} />
         <SwitchRow label="Telafiden vazgeçince hak geri gelsin" hint="Kapalıysa hak yanar" {...toggle('refundCreditOnMakeupCancel')} />
+
+        <h2 className={styles.settingSection}>Ödeme</h2>
+        <NumberRow label="Bitişe kaç gün kala uyar" hint="Ödemeler'de “Bitişi yaklaşıyor”" unit="gün" min="0" max="60" {...number('paymentReminderDays')} />
 
         <h2 className={styles.settingSection}>Stüdyo</h2>
         <TextField
