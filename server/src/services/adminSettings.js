@@ -21,6 +21,7 @@ const BOOLEAN_RULES = {
   allowMakeupBeforeMissed: 'allow_makeup_before_missed',
   refundCreditOnMakeupCancel: 'refund_credit_on_makeup_cancel',
   creditOnStudioCancel: 'credit_on_studio_cancel',
+  showPaymentsToCustomers: 'show_payments_to_customers',
 };
 
 function toDto(row) {

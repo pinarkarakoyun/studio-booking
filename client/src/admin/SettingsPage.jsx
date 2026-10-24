@@ -151,6 +151,7 @@ export default function SettingsPage({ onStudioChange }) {
 
         <h2 className={styles.settingSection}>Ödeme</h2>
         <NumberRow label="Bitişe kaç gün kala uyar" hint="Ödemeler'de “Bitişi yaklaşıyor”" unit="gün" min="0" max="60" {...number('paymentReminderDays')} />
+        <SwitchRow label="Üyeler ödeme bilgisini görsün" hint="Derslerim'de ücret, ödenen ve kalan" {...toggle('showPaymentsToCustomers')} />
 
         <h2 className={styles.settingSection}>Stüdyo</h2>
         <TextField

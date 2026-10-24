@@ -263,23 +263,50 @@ export async function getPaymentOverview(admin, { db = pool } = {}) {
   };
 }
 
-// Müşterinin kendi ekranı (Derslerim) için: sadece üyeliğin bitiş tarihi, tutar yok (BR-37).
-// Bugünü kapsayan dönemden başlayıp arkasından kesintisiz gelen dönemleri izler: yönetici sonraki dönemi
-// önceden açtıysa müşteri en son tarihi görür. Bugün dönem yoksa: ilerideki ilk dönem, o da yoksa en son biten.
-// Hiç dönem yoksa null.
-export async function getMyMembershipEnd(user, { db = pool } = {}) {
+// Müşterinin kendi ekranı (Derslerim) için üyelik bilgisi.
+// Bitiş: bugünü kapsayan dönemden başlayıp arkasından kesintisiz gelen dönemler izlenir (yönetici sonraki dönemi
+// önceden açtıysa müşteri en son tarihi görür). Bugün dönem yoksa ilerideki ilk dönem, o da yoksa en son biten.
+// Tutarlar sadece stüdyo "Üyeler ödeme bilgisini görsün" ayarını açtıysa gönderilir (BR-37, 25 Ekim güncellemesi);
+// kapalıyken hiç gönderilmez. Yöneticinin ödeme notları hiçbir zaman gönderilmez. Hiç dönem yoksa null.
+export async function getMyMembership(user, { db = pool } = {}) {
   const today = await studioToday(user.studio_id, db);
   const { rows } = await db.query(`${MEMBERSHIP_SELECT} WHERE m.user_id = $1 ORDER BY m.starts_on`, [user.id, today]);
   if (rows.length === 0) return null;
 
   let index = rows.findIndex((m) => m.starts_on <= today && m.effective_ends_on >= today);
   if (index === -1) index = rows.findIndex((m) => m.starts_on > today);
-  if (index === -1) return { endsOn: rows.at(-1).effective_ends_on, ended: true };
+  const ended = index === -1;
+  if (ended) index = rows.length - 1;
 
   let endsOn = rows[index].effective_ends_on;
-  for (const next of rows.slice(index + 1)) {
-    if (daysBetween(endsOn, next.starts_on) > 1) break;
-    if (next.effective_ends_on > endsOn) endsOn = next.effective_ends_on;
+  if (!ended) {
+    for (const next of rows.slice(index + 1)) {
+      if (daysBetween(endsOn, next.starts_on) > 1) break;
+      if (next.effective_ends_on > endsOn) endsOn = next.effective_ends_on;
+    }
   }
-  return { endsOn, ended: false };
+  const result = { endsOn, ended };
+
+  const { rows: [setting] } = await db.query(
+    'SELECT show_payments_to_customers FROM studio_settings WHERE studio_id = $1',
+    [user.studio_id],
+  );
+  if (!setting?.show_payments_to_customers) return result;
+
+  const period = rows[index];
+  const { rows: payments } = await db.query(
+    'SELECT paid_on, amount_kurus, method FROM payments WHERE membership_id = $1 ORDER BY paid_on, id',
+    [period.id],
+  );
+  return {
+    ...result,
+    period: {
+      startsOn: period.starts_on,
+      endsOn: period.effective_ends_on,
+      feeKurus: period.fee_kurus,
+      paidKurus: period.paid_kurus,
+      remainingKurus: Math.max(0, period.fee_kurus - period.paid_kurus),
+      payments: payments.map((p) => ({ paidOn: p.paid_on, amountKurus: p.amount_kurus, method: p.method })),
+    },
+  };
 }

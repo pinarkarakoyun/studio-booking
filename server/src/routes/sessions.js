@@ -8,7 +8,7 @@ import {
   swapSession,
   undoCancel,
 } from '../services/booking.js';
-import { getMyMembershipEnd } from '../services/adminMemberships.js';
+import { getMyMembership } from '../services/adminMemberships.js';
 import { listBookableSessions, listMyCredits, listMySessions } from '../services/schedule.js';
 
 const router = Router();
@@ -38,7 +38,7 @@ router.get('/api/me/credits', async (req, res) => {
 });
 
 router.get('/api/me/membership', async (req, res) => {
-  res.json({ membership: await getMyMembershipEnd(req.user) });
+  res.json({ membership: await getMyMembership(req.user) });
 });
 
 router.get('/api/sessions', async (req, res) => {

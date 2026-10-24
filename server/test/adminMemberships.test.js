@@ -191,6 +191,31 @@ describe("customer's own membership end", () => {
     assert.deepEqual(body.membership, { endsOn: await day(-3), ended: true });
   });
 
+  test('with the setting on, the customer sees their own fee, paid, remaining and payments (no admin notes)', async () => {
+    const { studio, c, customerId, me } = await customerSetup();
+    const id = (await openMembership(c, customerId, -10, 20, 450000)).body.membership.id;
+    await c.request('POST', `/api/admin/memberships/${id}/payments`, {
+      amountKurus: 300000, paidOn: await day(-10), method: 'transfer', note: 'indirim yapıldı',
+    });
+    // Ayar kapalıyken tutar hiç gönderilmez.
+    assert.equal((await me.request('GET', '/api/me/membership')).body.membership.period, undefined);
+
+    await pool.query('UPDATE studio_settings SET show_payments_to_customers = true WHERE studio_id = $1', [studio]);
+    const { body } = await me.request('GET', '/api/me/membership');
+    assert.deepEqual(body.membership.period, {
+      startsOn: await day(-10),
+      endsOn: await day(20),
+      feeKurus: 450000,
+      paidKurus: 300000,
+      remainingKurus: 150000,
+      payments: [{ paidOn: await day(-10), amountKurus: 300000, method: 'transfer' }],
+    });
+
+    // Başka bir müşteri kendi (boş) bilgisini görür, bu müşterininkini değil.
+    const other = await clientFor(await createCustomer(studio));
+    assert.deepEqual((await other.request('GET', '/api/me/membership')).body, { membership: null });
+  });
+
   test('an admin cannot use the customer endpoint', async () => {
     const { c } = await customerSetup();
     assert.equal((await c.request('GET', '/api/me/membership')).status, 403);

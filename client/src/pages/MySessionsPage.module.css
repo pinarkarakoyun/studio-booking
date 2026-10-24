@@ -42,6 +42,61 @@
   color: var(--ink-soft);
 }
 
+/* Ödeme bilgisi açıkken: aynı satır küçük bir karta dönüşür. Renk sakin; kalan tutar uyarı rengi almaz. */
+.membershipCard {
+  margin: 0 0 var(--space-4);
+  padding: 12px 14px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--white);
+  font-size: var(--text-sm);
+}
+
+.membershipCardLine,
+.membershipAmounts {
+  margin: 0;
+}
+
+.membershipAmounts {
+  margin-top: 2px;
+  color: var(--ink-soft);
+}
+
+.paidBar {
+  display: block;
+  height: 5px;
+  margin: 10px 0 2px;
+  border-radius: 3px;
+  background: var(--violet-soft);
+  overflow: hidden;
+}
+
+.paidBar span {
+  display: block;
+  height: 100%;
+  background: var(--violet);
+}
+
+.paymentsDetails summary {
+  padding: 8px 0 0;
+  color: var(--violet);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.paymentsDetails ul {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.paymentsDetails li {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-top: 1px solid var(--line);
+}
+
 .empty {
   margin: 0;
   padding: var(--space-4);

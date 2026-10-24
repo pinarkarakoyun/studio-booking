@@ -2,7 +2,17 @@ import { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import Monogram from '../components/Monogram.jsx';
 import Sheet from '../components/Sheet.jsx';
-import { addDays, formatDateDayMonth, formatDay, formatDayMonth, formatTime, formatWeekdayTime, todayIn, weekLabel } from '../format.js';
+import {
+  addDays,
+  formatDateDayMonth,
+  formatDay,
+  formatDayMonth,
+  formatMoney,
+  formatTime,
+  formatWeekdayTime,
+  todayIn,
+  weekLabel,
+} from '../format.js';
 import MakeupPickerPage from './MakeupPickerPage.jsx';
 import styles from './MySessionsPage.module.css';
 
@@ -159,12 +169,8 @@ export default function MySessionsPage({ user, studio, onLogout }) {
         </button>
       </header>
       <h1 className={styles.title}>Derslerim</h1>
-      {/* Sadece bitiş tarihi, sakin bir bilgi; tutar ve borç müşteriye gösterilmez (BR-37). */}
-      {data.membership && (
-        <p className={styles.membershipLine}>
-          Üyeliğin {formatDateDayMonth(data.membership.endsOn)} tarihinde {data.membership.ended ? 'bitti' : 'bitiyor'}.
-        </p>
-      )}
+      {/* Bitiş tarihi her zaman; tutarlar sadece stüdyo ayarı açıksa (sunucu kapalıyken hiç göndermez, BR-37). */}
+      {data.membership && <MembershipInfo membership={data.membership} />}
 
       {next ? (
         <section className={styles.next} aria-label="Sıradaki dersin">
@@ -365,5 +371,45 @@ function CantComeOptions({ session, studio, now, busy, onSwap, onCancelOnly, onD
         Vazgeç, geliyorum
       </button>
     </>
+  );
+}
+
+const METHOD_LABELS = { cash: 'nakit', transfer: 'havale', card: 'kart' };
+
+// Üyelik bilgisi. Sakin kalır: kalan tutar uyarı rengiyle gösterilmez (müşteriye baskı hissi vermesin).
+function MembershipInfo({ membership }) {
+  const line = `Üyeliğin ${formatDateDayMonth(membership.endsOn)} tarihinde ${membership.ended ? 'bitti' : 'bitiyor'}.`;
+  const period = membership.period;
+  if (!period) return <p className={styles.membershipLine}>{line}</p>;
+
+  const paidShare = period.feeKurus === 0 ? 1 : Math.min(1, period.paidKurus / period.feeKurus);
+  return (
+    <section className={styles.membershipCard} aria-label="Üyeliğin">
+      <p className={styles.membershipCardLine}>{line}</p>
+      <p className={styles.membershipAmounts}>
+        {formatMoney(period.feeKurus)}
+        {period.remainingKurus > 0
+          ? `, ${formatMoney(period.paidKurus)} ödendi, ${formatMoney(period.remainingKurus)} kaldı`
+          : ', tamamı ödendi'}
+      </p>
+      <span className={styles.paidBar} aria-hidden="true">
+        <span style={{ width: `${paidShare * 100}%` }} />
+      </span>
+      {period.payments.length > 0 && (
+        <details className={styles.paymentsDetails}>
+          <summary>Ödemelerim</summary>
+          <ul>
+            {period.payments.map((payment, index) => (
+              <li key={index}>
+                <span>
+                  {formatDateDayMonth(payment.paidOn)}, {METHOD_LABELS[payment.method]}
+                </span>
+                <span>{formatMoney(payment.amountKurus)}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </section>
   );
 }
