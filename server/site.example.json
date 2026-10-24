@@ -8,6 +8,10 @@
     "certificates": ["Örnek sertifika 1", "Örnek sertifika 2"],
     "photo": "egitmen.jpg"
   },
+  "phone": "0500 000 00 00",
+  "workingHours": "Hafta içi 08:00–21:00, Cumartesi 09:00–14:00",
+  "groupSize": "Gruplar en fazla 6 kişilik.",
+  "equipment": "Reformer, cadillac ve küçük ekipmanlar.",
   "address": "Örnek Mahallesi, Örnek Sokak No: 1",
   "mapsUrl": "https://maps.google.com/",
   "instagramUrl": "https://www.instagram.com/",

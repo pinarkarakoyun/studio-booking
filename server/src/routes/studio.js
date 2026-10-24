@@ -53,7 +53,11 @@ const brandFile = (value) => (text(value) && path.basename(value) === value ? `/
 
 router.get('/api/site', async (req, res) => {
   const [{ rows: [studio] }, site] = await Promise.all([
-    pool.query('SELECT name, whatsapp_phone, logo_url FROM studios ORDER BY id LIMIT 1'),
+    pool.query(
+      `SELECT st.name, st.whatsapp_phone, st.logo_url, ss.cancellation_deadline_hours, ss.credit_validity_days
+       FROM studios st LEFT JOIN studio_settings ss ON ss.studio_id = st.id
+       ORDER BY st.id LIMIT 1`,
+    ),
     readSiteFile(),
   ]);
   const instructor = site.instructor ?? {};
@@ -62,6 +66,15 @@ router.get('/api/site', async (req, res) => {
       studioName: studio?.name ?? null,
       whatsappPhone: studio?.whatsapp_phone ?? null,
       logoUrl: studio?.logo_url ?? null,
+      // Sık sorulanlardaki iptal/telafi cevabı Ayarlar'dan: yönetici kuralı değiştirince site de değişir.
+      rules: {
+        cancellationDeadlineHours: studio?.cancellation_deadline_hours ?? null,
+        creditValidityDays: studio?.credit_validity_days ?? null,
+      },
+      phone: text(site.phone),
+      workingHours: text(site.workingHours),
+      groupSize: text(site.groupSize),
+      equipment: text(site.equipment),
       tagline: text(site.tagline),
       subline: text(site.subline),
       instructor: {

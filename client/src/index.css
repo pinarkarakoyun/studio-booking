@@ -15,6 +15,9 @@
   --ink: #22163f; /* ana yazı rengi */
   --ink-soft: #5e5379; /* ikincil yazı */
   --line: #f1e4e8; /* ince çizgiler, kenarlıklar */
+  --aubergine: #24104a; /* tanıtım sitesinin koyu bantları (patlıcan moru) */
+  --lavender: #e4dbfa; /* tanıtım sitesinin açık bantları */
+  --lilac: #f4effc; /* lavantadan da açık yüzey */
   --white: #ffffff;
   --danger: #b4233c;
 

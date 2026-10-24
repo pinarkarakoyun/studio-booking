@@ -27,8 +27,11 @@ describe('public site content', () => {
     assert.deepEqual(res.body.site.photos, []);
     const keys = Object.keys(res.body.site).sort();
     assert.deepEqual(keys, [
-      'address', 'instagramUrl', 'instructor', 'logoUrl', 'mapsUrl', 'photos', 'studioName', 'subline', 'tagline', 'whatsappPhone',
+      'address', 'equipment', 'groupSize', 'instagramUrl', 'instructor', 'logoUrl', 'mapsUrl', 'phone', 'photos', 'rules',
+      'studioName', 'subline', 'tagline', 'whatsappPhone', 'workingHours',
     ]);
+    // Sadece iki kural; diğer ayarlar (ör. aylık telafi sınırı) sızmaz.
+    assert.deepEqual(res.body.site.rules, { cancellationDeadlineHours: 2, creditValidityDays: 7 });
   });
 
   test("reads the brand folder's site.json; photo names become /brand addresses, paths outside are ignored", async () => {

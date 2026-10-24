@@ -1,16 +1,25 @@
 /*
-  Tanıtım sitesi (24 Ekim 2026 taslağı, Pınar onayladı): pudra giriş, mor dönen kelime, serif = stüdyonun sesi.
-  Cesaret tek yerde (dönen kelime); geri kalan her şey sakin. Mobil öncelikli, 900px üstünde genişler.
+  Tanıtım sitesi, ikinci taslak (24 Ekim 2026, Pınar onayladı): mor palet (patlıcan koyu bantlar, lavanta açık
+  bantlar, marka moru), büyük harf kalın başlıklar (Archivo, geniş), arkada dev soluk kelimeler, fotoğraf alanları.
+  Asıl hareket girişteki dönen kelime; ek olarak sadece telefondaki "Gelemiyorum" ve yumuşak kaydırma.
+  Mobil öncelikli, 900px üstünde genişler.
 */
 .site {
   background: var(--paper);
   color: var(--ink);
+  /* Telefonda alttaki sabit çubuk son bölümü örtmesin. */
+  padding-bottom: 76px;
 }
 
 .inner {
-  max-width: 1040px;
+  position: relative;
+  max-width: 1120px;
   margin: 0 auto;
-  padding: 0 22px;
+  padding: 0 20px;
+}
+
+.narrow {
+  max-width: 760px;
 }
 
 .srOnly {
@@ -22,31 +31,196 @@
   white-space: nowrap;
 }
 
-/* --- Giriş --- */
-.hero {
-  padding: 28px 0 36px;
-  background: var(--blush);
+/* --- Bantlar --- */
+.band {
+  position: relative;
+  padding: 44px 0;
+  /* clip, hidden değil: hidden'da taşan dev kelime yüzünden bant bir tıklama ya da odakla yana kayabiliyordu
+     (tarayıcıda yakalandı); clip kaydırmaya hiç izin vermez. */
+  overflow: clip;
+  /* Menü bağlantısıyla gelince başlık en üste yapışmasın. */
+  scroll-margin-top: 12px;
 }
 
-.heroTop {
+.dark {
+  background: var(--aubergine);
+  color: var(--white);
+}
+
+.lilac {
+  background: var(--lilac);
+}
+
+.brand {
+  background: var(--violet);
+  color: var(--white);
+}
+
+/* Arkadaki dev soluk kelime: süs, okunmaz (aria-hidden). */
+.ghost {
+  position: absolute;
+  top: 10px;
+  left: -8px;
+  font-family: var(--font-ui);
+  font-weight: 800;
+  font-variation-settings: 'wdth' 125;
+  font-size: clamp(84px, 24vw, 260px);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  color: var(--lavender);
+  pointer-events: none;
+  user-select: none;
+}
+
+.dark .ghost {
+  color: #30185f;
+}
+
+.lilac .ghost {
+  color: #e9e0fa;
+}
+
+.heading {
+  position: relative;
+  margin: 0 0 14px;
+  font-family: var(--font-ui);
+  font-weight: 800;
+  font-variation-settings: 'wdth' 112;
+  font-size: clamp(1.875rem, 6vw, 3.5rem);
+  line-height: 1;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+}
+
+.onLight {
+  color: var(--aubergine);
+}
+
+.lead {
+  position: relative;
+  max-width: 52ch;
+  margin: 0 0 22px;
+  color: inherit;
+  opacity: 1;
+}
+
+.dark .lead,
+.brand .lead {
+  color: #d9cff5;
+}
+
+.lilac .lead {
+  color: var(--ink-soft);
+}
+
+.muted {
+  margin: 2px 0 0;
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}
+
+.mutedLight {
+  color: #cfc4ee;
+}
+
+/* --- Menü --- */
+.nav {
+  position: relative;
+  z-index: 2;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 10px;
+  padding: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--white);
 }
 
-.loginLink {
-  padding: 8px 2px;
+.navLogo {
+  display: flex;
+  border-radius: 50%;
+}
+
+.navLinks {
+  display: none;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.navLinks a,
+.navLogin {
   font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--violet);
+  color: var(--aubergine);
   text-decoration: none;
 }
 
+.navLogin {
+  margin-left: auto;
+  padding: 8px 12px;
+  color: var(--violet);
+}
+
+.navToggle {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--aubergine);
+  color: var(--white);
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+
+/* Telefonda açılan menü: hapın altında beyaz bir kart. */
+.navLinks.navOpen {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  display: grid;
+  gap: 2px;
+  padding: 8px;
+  border-radius: 20px;
+  background: var(--white);
+}
+
+.navOpen a {
+  display: block;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: var(--text-base);
+}
+
+.navOpen a:hover {
+  background: var(--lilac);
+}
+
+/* --- Giriş --- */
+.hero {
+  padding-top: 14px;
+  background: var(--lavender);
+}
+
+.heroGhost {
+  /* Dönen kelimenin arkasına değil, girişin altına (fotoğrafın arkasına) yaslanır; ikisi üst üste binmesin. */
+  top: auto;
+  bottom: -0.12em;
+  color: #d6c9f5;
+}
+
+.heroGrid {
+  position: relative;
+  display: grid;
+  gap: 28px;
+  margin-top: 36px;
+}
+
 .wordLine {
-  margin: 36px 0 0;
+  margin: 0;
   min-height: 1.05em;
-  /* "Nefes al." en geniş halinde de dar telefona sığsın diye boyut ekran genişliğine bağlı
-     (ölçüldü: en geniş hali yazı boyutunun ~5,4 katı; 15vw ile 320–375px ekranlarda kenar boşlukları içinde kalır). */
+  /* Ölçüldü: "Nefes al." en geniş halinde yazı boyutunun ~5,4 katı; 15vw ile 320–375px ekranlarda sığar. */
   font-size: clamp(40px, 15vw, 120px);
   line-height: 1.05;
 }
@@ -58,7 +232,7 @@
   font-weight: 800;
   letter-spacing: -0.01em;
   color: var(--violet);
-  /* Genişlik ekseni doğrudan: font-stretch bu yazı tipinde tarayıcıda etkisiz kaldı (ölçüldü: genişlik değişmiyordu). */
+  /* Genişlik ekseni doğrudan: font-stretch bu yazı tipinde etkisiz kaldı (ölçüldü). */
   font-variation-settings: 'wdth' 62;
   transition: font-variation-settings 0.9s var(--ease);
 }
@@ -67,34 +241,55 @@
   font-variation-settings: 'wdth' 125;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .word {
-    font-variation-settings: 'wdth' 100;
-    transition: none;
-  }
-}
-
 .tagline {
-  max-width: 22ch;
-  margin: 16px 0 6px;
+  max-width: 20ch;
+  margin: 14px 0 6px;
   font-family: var(--font-brand);
   font-weight: 500;
-  font-size: clamp(1.375rem, 4vw, 2.25rem);
-  line-height: 1.2;
+  font-size: clamp(1.5rem, 4.4vw, 2.5rem);
+  line-height: 1.15;
   text-wrap: balance;
 }
 
 .subline {
-  margin: 0 0 8px;
+  margin: 0 0 6px;
   color: var(--ink-soft);
+}
+
+.heroPhoto {
+  aspect-ratio: 16 / 9;
+  min-height: 0;
+}
+
+/* --- Fotoğraf alanları --- */
+.photo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 160px;
+  border-radius: 24px;
+  object-fit: cover;
+}
+
+.photoEmpty {
+  display: flex;
+  align-items: flex-end;
+  padding: 16px;
+  border: 1.5px dashed #c9b8f0;
+  background: var(--lilac);
+}
+
+.photoEmpty span {
+  font-size: var(--text-sm);
+  color: #7b6ea0;
 }
 
 /* --- Düğmeler --- */
 .button {
   display: block;
-  margin-top: 12px;
-  padding: 14px 20px;
-  border-radius: 14px;
+  margin-top: 14px;
+  padding: 14px 24px;
+  border-radius: var(--radius-pill);
   font-weight: 600;
   text-align: center;
   text-decoration: none;
@@ -105,71 +300,212 @@
   color: var(--white);
 }
 
-.outline {
-  border: 1.5px solid var(--violet);
-  color: var(--violet);
-}
-
 .light {
   background: var(--white);
   color: var(--violet);
 }
 
-.button:focus-visible,
-.loginLink:focus-visible,
-.links a:focus-visible {
-  outline: 2px solid var(--violet);
+.outlineLight {
+  border: 1.5px solid var(--white);
+  color: var(--white);
+}
+
+.site a:focus-visible,
+.navToggle:focus-visible,
+.faqItem summary:focus-visible {
+  outline: 2px solid var(--pink);
   outline-offset: 3px;
 }
 
-/* --- Bölümler --- */
-.section {
-  padding: 32px 0;
+/* --- Kartlar --- */
+.cards {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.heading {
-  margin: 0 0 14px;
-  font-family: var(--font-brand);
-  font-weight: 500;
-  font-size: 1.875rem;
-  line-height: 1.1;
-  color: var(--violet);
+.card {
+  padding: 16px;
+  border: 1.5px solid #e6dcf7;
+  border-radius: 20px;
+  background: var(--white);
 }
 
-.muted {
-  margin: 2px 0 0;
+.card h3 {
+  margin: 0 0 4px;
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--aubergine);
+}
+
+.card p {
+  margin: 0;
   font-size: var(--text-sm);
   color: var(--ink-soft);
 }
 
-.placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 110px;
-  padding: 12px;
-  border: 1.5px dashed #e3cfd8;
-  border-radius: 14px;
-  background: var(--blush);
-  font-size: var(--text-sm);
-  color: #8a7f9c;
-  text-align: center;
+/* Neden biz: kartın üstünde kısa pembe çizgi (sıra numarası değil; bunlar sıralı değil). */
+.accentCard::before {
+  content: '';
+  display: block;
+  width: 28px;
+  height: 4px;
+  margin-bottom: 14px;
+  border-radius: 2px;
+  background: var(--pink);
 }
 
-/* Eğitmen */
-.instructorBody {
+/* --- İşleyişimiz --- */
+.howGrid {
+  position: relative;
   display: grid;
-  grid-template-columns: 96px minmax(0, 1fr);
-  gap: 16px;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 18px;
   align-items: start;
 }
 
+.phone {
+  padding: 12px 10px;
+  border: 5px solid #120826;
+  border-radius: 24px;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.phone p {
+  margin: 0;
+}
+
+.phoneTitle {
+  font-family: var(--font-brand);
+  font-size: 1.25rem;
+  color: var(--violet);
+}
+
+.phoneLine {
+  font-size: 9px;
+  color: var(--ink-soft);
+}
+
+.phoneNext {
+  margin-top: 8px;
+  padding: 8px;
+  border-radius: 12px;
+  background: var(--violet);
+  color: var(--white);
+  font-size: 9px;
+}
+
+.phoneDay {
+  font-family: var(--font-brand);
+  font-size: 0.95rem;
+}
+
+.phoneBottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+
+.phoneBottom strong {
+  font-size: 0.9rem;
+}
+
+/* Sistemi anlatan tek hareket: "Gelemiyorum"a basılıyormuş gibi. */
+.phonePress {
+  padding: 3px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--white);
+  color: var(--violet);
+  font-weight: 700;
+  animation: press 3.2s var(--ease) infinite;
+}
+
+@keyframes press {
+  0%,
+  62%,
+  100% {
+    transform: scale(1);
+  }
+  72% {
+    transform: scale(0.88);
+  }
+}
+
+.phoneCredit {
+  margin-top: 8px !important;
+  padding: 5px 6px;
+  border-radius: 8px;
+  background: var(--blush);
+  font-size: 9px;
+}
+
+.phoneRow {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px !important;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+  font-size: 9px;
+}
+
+.steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.steps li {
+  display: flex;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  counter-increment: step;
+}
+
+.steps li:last-child {
+  border-bottom: 0;
+}
+
+/* Bu adımlar gerçekten sıralı: numara serif ve pembe. */
+.steps li::before {
+  content: counter(step);
+  flex: none;
+  width: 20px;
+  font-family: var(--font-brand);
+  font-size: 1.75rem;
+  line-height: 1;
+  color: #ff8cc0;
+}
+
+/* --- Eğitmen --- */
+.instructor {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  padding: 16px;
+  border: 1.5px solid #e6dcf7;
+  border-radius: 24px;
+  background: var(--white);
+}
+
 .instructorPhoto {
-  width: 96px;
-  height: 120px;
+  width: 110px;
+  height: 140px;
   min-height: 0;
-  border-radius: 14px;
+  border-radius: 18px;
   object-fit: cover;
+}
+
+.instructorPhoto.photoEmpty {
+  padding: 10px;
 }
 
 .name {
@@ -180,7 +516,7 @@
 }
 
 .bio {
-  margin: 12px 0 0;
+  margin: 10px 0 0;
   color: var(--ink-soft);
 }
 
@@ -196,152 +532,266 @@
   color: var(--ink-soft);
 }
 
-/* Nasıl çalışır: gerçekten sıralı adımlar, numara serif ve pembe. */
-.steps {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  counter-reset: step;
+/* --- Ders saatleri --- */
+.hoursInner .button {
+  margin-top: 0;
 }
 
-.steps li {
-  display: flex;
-  gap: 14px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--line);
-  counter-increment: step;
-}
-
-.steps li:last-child {
-  border-bottom: 0;
-}
-
-.steps li::before {
-  content: counter(step);
-  flex: none;
-  width: 22px;
-  font-family: var(--font-brand);
-  font-size: 1.875rem;
-  line-height: 1;
-  color: var(--pink-text);
-}
-
-/* Ders saatleri: sayfadaki tek koyu bant */
-.hours {
-  padding: 32px 0;
-  background: var(--violet);
-  color: var(--white);
-}
-
-.hours p {
-  max-width: 46ch;
-  margin: 0;
-  color: #e4dcff;
-}
-
-.hoursHeading {
-  margin: 0 0 8px;
-  font-family: var(--font-brand);
-  font-weight: 500;
-  font-size: 1.75rem;
-}
-
-/* Fotoğraflar: ilki geniş */
-.photos {
+/* --- Galeri --- */
+.gallery {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 10px;
 }
 
-.photos > :first-child {
+.gallery > :first-child {
   grid-column: span 2;
-  min-height: 160px;
+  min-height: 200px;
 }
 
-.photos img {
-  width: 100%;
-  height: 100%;
-  min-height: 110px;
-  border-radius: 14px;
-  object-fit: cover;
+/* --- SSS --- */
+.faqItem {
+  border-bottom: 1px solid #e6dcf7;
 }
 
-/* İletişim */
-.contact {
-  background: var(--blush);
+.faqItem summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 0;
+  font-weight: 600;
+  list-style: none;
+  cursor: pointer;
 }
 
+.faqItem summary::-webkit-details-marker {
+  display: none;
+}
+
+.faqItem summary::after {
+  content: '+';
+  flex: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--violet);
+  transition: transform 0.25s var(--ease);
+}
+
+.faqItem[open] summary::after {
+  transform: rotate(45deg);
+}
+
+.faqItem p {
+  margin: 0 0 16px;
+  max-width: 60ch;
+  color: var(--ink-soft);
+}
+
+/* --- İletişim --- */
 .contact p {
   margin: 0 0 4px;
 }
 
+.contactInner {
+  display: grid;
+  gap: 18px;
+}
+
+.contactInner .heading {
+  margin-top: 18px;
+}
+
 .links {
   display: flex;
-  gap: 16px;
+  gap: 18px;
+  margin-top: 10px !important;
   font-size: var(--text-sm);
 }
 
 .links a {
-  color: var(--violet);
+  color: var(--white);
+}
+
+/* --- Telefonda alttaki sabit çubuk --- */
+.mobileBar {
+  position: fixed;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  z-index: 10;
+  display: flex;
+  gap: 6px;
+}
+
+.mobileBar a {
+  flex: 1;
+  padding: 12px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--white);
+  box-shadow: 0 0 0 1.5px #e6dcf7;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+  color: var(--aubergine);
+}
+
+.mobileBar .mobileBarMain {
+  background: var(--pink);
+  box-shadow: none;
+  color: var(--white);
+}
+
+/* --- Hareket tercihi --- */
+@media (prefers-reduced-motion: no-preference) {
+  html:has(.site) {
+    scroll-behavior: smooth;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .word {
+    font-variation-settings: 'wdth' 100;
+    transition: none;
+  }
+
+  .phonePress,
+  .faqItem summary::after {
+    animation: none;
+    transition: none;
+  }
 }
 
 /* --- Geniş ekran --- */
 @media (min-width: 900px) {
+  .site {
+    padding-bottom: 0;
+  }
+
+  .mobileBar,
+  .navToggle {
+    display: none;
+  }
+
+  .navLinks {
+    display: flex;
+    gap: 22px;
+    margin-left: 18px;
+  }
+
+  .navLinks a:hover {
+    color: var(--violet);
+  }
+
+  .band {
+    padding: 88px 0;
+  }
+
   .hero {
-    padding: 40px 0 72px;
+    padding: 24px 0 96px;
   }
 
-  .wordLine {
-    margin-top: 56px;
+  
+  .heroGrid {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    align-items: center;
+    gap: 48px;
+    margin-top: 72px;
   }
 
-  .hero .button {
+  .hero .button,
+  .hoursInner .button {
     display: inline-block;
-    margin-top: 20px;
   }
 
-  .section,
-  .hours {
-    padding: 64px 0;
+  .heroPhoto {
+    aspect-ratio: 4 / 5;
   }
 
-  .heading {
-    font-size: 2.5rem;
+  .fourUp {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
   }
 
-  .instructorBody {
-    grid-template-columns: 240px minmax(0, 1fr);
-    gap: 40px;
-    max-width: 820px;
-  }
-
-  .instructorPhoto {
-    width: 240px;
-    height: 300px;
-  }
-
-  .steps {
-    display: grid;
+  .threeUp {
     grid-template-columns: repeat(3, 1fr);
-    gap: 32px;
+    gap: 16px;
+  }
+
+  .card {
+    padding: 24px;
+  }
+
+  .howGrid {
+    grid-template-columns: 260px minmax(0, 1fr);
+    gap: 64px;
+    align-items: center;
+  }
+
+  .phone {
+    padding: 20px 16px;
+    border-width: 8px;
+    border-radius: 36px;
+  }
+
+  .phoneTitle {
+    font-size: 1.75rem;
+  }
+
+  .phoneLine,
+  .phoneNext,
+  .phoneCredit,
+  .phoneRow {
+    font-size: 12px;
+  }
+
+  .phoneDay {
+    font-size: 1.25rem;
   }
 
   .steps li {
-    flex-direction: column;
-    border-bottom: 0;
+    padding: 18px 0;
+    font-size: 1.125rem;
   }
 
-  .photos {
-    grid-template-columns: repeat(3, 1fr);
+  .instructor {
+    grid-template-columns: 260px minmax(0, 1fr);
+    gap: 40px;
+    max-width: 900px;
+    padding: 24px;
   }
 
-  .photos > :first-child {
-    grid-column: span 3;
-    min-height: 320px;
+  .instructorPhoto {
+    width: 260px;
+    height: 320px;
   }
 
-  .photos > * {
-    min-height: 200px;
+  .hoursInner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 40px;
+  }
+
+  .hoursInner .lead {
+    margin-bottom: 0;
+  }
+
+  .gallery {
+    grid-template-columns: 2fr 1fr;
+    grid-template-rows: 220px 220px;
+    gap: 16px;
+  }
+
+  .gallery > :first-child {
+    grid-column: auto;
+    grid-row: span 2;
+  }
+
+  .contactInner {
+    grid-template-columns: 1fr auto;
+    align-items: end;
   }
 
   .contactButtons {
