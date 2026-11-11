@@ -26,11 +26,11 @@
 }
 
 .primary:hover {
-  background: #f23c8b;
+  background: var(--pink-hover);
 }
 
 .primary:disabled {
-  background: #ff86ba;
+  background: var(--pink-disabled);
 }
 
 .quiet {

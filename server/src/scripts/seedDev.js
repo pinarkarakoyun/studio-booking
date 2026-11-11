@@ -2,9 +2,15 @@
 // kadar üye, önümüzdeki dersler ve giriş yapılabilecek bir deneme müşterisi + yönetici.
 //
 // Kullanım: npm run seed:dev
+//           DEMO_SEED_FILE=/yol/demo-seed.json npm run seed:dev   (bir stüdyoya özel sunum verisi)
+//
+// DEMO_SEED_FILE verilirse stüdyo adı, renk, logo, gruplar, üye adları ve örnek ücretler o dosyadan
+// gelir; verilmeyen her alan aşağıdaki varsayılanlarla dolar. Dosya repo dışında, stüdyonun marka
+// klasöründe durur (gerçek stüdyo bilgisi koda girmez).
 //
 // Buradaki şifreler sadece geliştirme bilgisayarındaki deneme hesapları içindir; gerçek bir
 // stüdyoda asla kullanılmaz. Script üretim ortamında ve dolu bir veritabanında çalışmayı reddeder.
+import { readFile } from 'node:fs/promises';
 import pool from '../db/pool.js';
 import { createUser } from '../services/auth.js';
 import { generateSessions } from '../services/sessionGenerator.js';
@@ -16,22 +22,36 @@ const DEV_ACCOUNTS = {
   admin: { fullName: 'Deneme Yönetici', phone: '0500 000 00 00', password: 'deneme-yonetici-1' },
 };
 
+const demo = process.env.DEMO_SEED_FILE ? JSON.parse(await readFile(process.env.DEMO_SEED_FILE, 'utf8')) : {};
+
+const STUDIO = { name: 'Deneme Pilates Stüdyosu', whatsappPhone: '+905000000000', brandColor: null, logoUrl: null, ...demo.studio };
+
 // Haftanın günleri: 1 = Pazartesi ... 7 = Pazar
-const GROUPS = [
+const DEFAULT_GROUPS = [
   { name: 'Pzt-Çar-Cum sabah', time: '09:00', days: [1, 3, 5], capacity: 8, members: 7 },
   { name: 'Sal-Per akşam', time: '18:30', days: [2, 4], capacity: 6, members: 6 },
   { name: 'Pzt-Çar-Cum akşam', time: '19:00', days: [1, 3, 5], capacity: 8, members: 4 },
 ];
 
 // Doluluğu gerçekçi göstermek için uydurma üye adları (kadınlara özel stüdyo).
-const MEMBER_NAMES = [
+const DEFAULT_MEMBER_NAMES = [
   'Elif Demir', 'Merve Şahin', 'Selin Aksoy', 'Derya Koç', 'Zeynep Kaya', 'Büşra Yıldız',
   'Gizem Arslan', 'Ece Çelik', 'Sena Öztürk', 'Damla Aydın', 'Esra Kılıç', 'Tuğba Polat',
   'Hande Kurt', 'İrem Doğan', 'Ceren Yalçın', 'Nazlı Güneş',
 ];
 
+const GROUPS = demo.groups ?? DEFAULT_GROUPS;
+const MEMBER_NAMES = demo.memberNames ?? DEFAULT_MEMBER_NAMES;
+
 if (process.env.NODE_ENV === 'production') {
   throw new Error('seed:dev üretim ortamında çalıştırılamaz.');
+}
+
+// Aşağıdaki "gerçekçi hareket" bölümü ilk üç grubun belirli üyelerini kullanır (sabah grubundan 4. üye
+// dondurulur vb.). Eksik grupla yarıda patlayıp anlaşılmaz bir hata vermek yerine baştan söylüyoruz.
+const MIN_MEMBERS = [4, 1, 2];
+if (GROUPS.length < MIN_MEMBERS.length || MIN_MEMBERS.some((min, i) => GROUPS[i].members < min)) {
+  throw new Error(`En az 3 grup gerekli; ilk üçünün üye sayısı en az ${MIN_MEMBERS.join(', ')} olmalı.`);
 }
 
 const client = await pool.connect();
@@ -43,7 +63,8 @@ try {
   await client.query('BEGIN');
 
   const { rows: [studio] } = await client.query(
-    `INSERT INTO studios (name, whatsapp_phone) VALUES ('Deneme Pilates Stüdyosu', '+905000000000') RETURNING id`,
+    `INSERT INTO studios (name, whatsapp_phone, brand_color, logo_url) VALUES ($1, $2, $3, $4) RETURNING id`,
+    [STUDIO.name, STUDIO.whatsappPhone, STUDIO.brandColor, STUDIO.logoUrl],
   );
   await client.query('INSERT INTO studio_settings (studio_id) VALUES ($1)', [studio.id]);
 
@@ -138,7 +159,7 @@ try {
     `INSERT INTO freezes (user_id, starts_on, ends_on) VALUES ($1, current_date, current_date + 10)`,
     [membersByGroup[0][3]],
   );
-  await seedDemoPayments(client, studio.id);
+  await seedDemoPayments(client, studio.id, { fees: demo.fees });
   await client.query('COMMIT');
 
   console.log(`Deneme verisi eklendi: ${GROUPS.length} grup, ${sessions} ders.`);

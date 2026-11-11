@@ -84,6 +84,14 @@ router.get('/api/site', async (req, res) => {
         certificates: Array.isArray(instructor.certificates) ? instructor.certificates.map(text).filter(Boolean) : [],
         photoUrl: brandFile(instructor.photo),
       },
+      // "Neden biz" kartları: her stüdyo kendi farkını yazar (ör. "Kadınlara özel" her stüdyo için doğru değil).
+      // Yoksa ya da geçersizse boş döner ve ekran kendi genel kartlarını gösterir. Düzen dört kart için.
+      reasons: Array.isArray(site.reasons)
+        ? site.reasons
+            .map((r) => ({ title: text(r?.title), text: text(r?.text) }))
+            .filter((r) => r.title && r.text)
+            .slice(0, 4)
+        : [],
       address: text(site.address),
       mapsUrl: text(site.mapsUrl),
       instagramUrl: text(site.instagramUrl),

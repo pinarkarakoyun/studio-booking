@@ -105,7 +105,7 @@
 }
 
 .optionUnavailable {
-  color: #9a90b3;
+  color: var(--ink-faint);
 }
 
 .time {
@@ -158,7 +158,7 @@
 
 .pick:disabled {
   cursor: progress;
-  background: #ff86ba;
+  background: var(--pink-disabled);
 }
 
 .confirm {

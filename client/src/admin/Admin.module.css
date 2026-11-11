@@ -97,7 +97,7 @@
 .ended {
   font-weight: 400;
   font-size: 0.75rem;
-  color: #9a90b3;
+  color: var(--ink-faint);
 }
 
 .sessionMiddle {
@@ -167,7 +167,7 @@
 }
 
 .inactive {
-  color: #9a90b3;
+  color: var(--ink-faint);
 }
 
 .tomorrow {
@@ -266,7 +266,7 @@
   width: 100%;
   margin-top: var(--space-4);
   padding: 13px 16px;
-  border: 1.5px solid #e8d9df;
+  border: 1.5px solid var(--line-strong);
   border-radius: 16px;
   background: var(--white);
   font: inherit;
@@ -297,7 +297,7 @@
   width: 100%;
   margin-top: var(--space-4);
   padding: 11px 14px;
-  border: 1.5px solid #e8d9df;
+  border: 1.5px solid var(--line-strong);
   border-radius: var(--radius-md);
   background: var(--white);
   font: inherit;
@@ -424,7 +424,7 @@
 }
 
 .actionRow span:last-child {
-  color: #9a90b3;
+  color: var(--ink-faint);
 }
 
 .danger,
@@ -475,7 +475,7 @@
 .credentials {
   margin: var(--space-6) 0 var(--space-4);
   padding: 14px 16px;
-  border: 1.5px solid #e8d9df;
+  border: 1.5px solid var(--line-strong);
   border-radius: 16px;
   background: var(--white);
 }
@@ -515,7 +515,7 @@
 .fineprint {
   margin: var(--space-4) 0;
   font-size: 0.75rem;
-  color: #9a90b3;
+  color: var(--ink-faint);
   text-align: center;
 }
 
@@ -553,7 +553,7 @@
   background: none;
   font: inherit;
   font-size: var(--text-sm);
-  color: #9a90b3;
+  color: var(--ink-faint);
   cursor: pointer;
 }
 
@@ -576,7 +576,7 @@
   background: var(--white);
   font: inherit;
   font-size: 0.75rem;
-  color: #9a90b3;
+  color: var(--ink-faint);
 }
 
 .dayLarge {
@@ -639,7 +639,7 @@
   justify-content: space-between;
   gap: var(--space-3);
   padding: 11px 0;
-  border-bottom: 1px solid #f0e3e8;
+  border-bottom: 1px solid var(--line);
 }
 
 .settingText {
@@ -665,7 +665,7 @@
 .settingNumber input {
   width: 56px;
   padding: 6px 4px;
-  border: 1.5px solid #e8d9df;
+  border: 1.5px solid var(--line-strong);
   border-radius: 10px;
   background: var(--white);
   font: inherit;
@@ -701,7 +701,7 @@
   height: 26px;
   margin: 0;
   border-radius: 13px;
-  background: #d9cfdc;
+  background: var(--switch-off);
   cursor: pointer;
   transition: background 0.15s;
 }
@@ -737,7 +737,7 @@
 .membershipCard {
   margin-top: var(--space-3);
   padding: 14px 16px;
-  border: 1.5px solid #e8d9df;
+  border: 1.5px solid var(--line-strong);
   border-radius: 16px;
   background: var(--white);
 }
@@ -759,7 +759,7 @@
   margin: 2px 0 0;
   font-size: var(--text-sm);
   font-weight: 600;
-  color: #c2185b;
+  color: var(--alert-text);
 }
 
 .paidBar {
@@ -796,7 +796,7 @@
   align-items: center;
   gap: var(--space-3);
   padding: 6px 0;
-  border-top: 1px solid #f6edf0;
+  border-top: 1px solid var(--line);
 }
 
 .paymentList small {
@@ -832,7 +832,7 @@
   display: flex;
   justify-content: space-between;
   padding: 10px 0;
-  border-bottom: 1px solid #f0e3e8;
+  border-bottom: 1px solid var(--line);
   font-size: var(--text-sm);
 }
 
@@ -857,7 +857,7 @@
 .choice {
   flex: 1;
   padding: 10px 0;
-  border: 1.5px solid #e8d9df;
+  border: 1.5px solid var(--line-strong);
   border-radius: 12px;
   background: var(--white);
   font: inherit;
@@ -915,7 +915,7 @@
 .dayArrow {
   width: 36px;
   height: 36px;
-  border: 1.5px solid #e8d9df;
+  border: 1.5px solid var(--line-strong);
   border-radius: 50%;
   background: var(--white);
   font: inherit;

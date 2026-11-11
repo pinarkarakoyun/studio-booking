@@ -163,7 +163,7 @@ export default function MySessionsPage({ user, studio, onLogout }) {
   return (
     <main className={styles.page}>
       <header className={styles.header}>
-        <Monogram size="small" logoUrl={studio.logoUrl} />
+        <Monogram size="small" logoUrl={studio.logoUrl} name={studio.name} />
         <button type="button" className={styles.account} onClick={() => setAccountOpen(true)}>
           {user.fullName.split(' ')[0]}
         </button>

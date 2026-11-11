@@ -77,7 +77,7 @@ export default function PublicSite() {
           PİLATES
         </span>
         <div className={styles.inner}>
-          <SiteNav logoUrl={site.logoUrl} loginPath={LOGIN_PATH} />
+          <SiteNav logoUrl={site.logoUrl} studioName={site.studioName} loginPath={LOGIN_PATH} />
           <div className={styles.heroGrid}>
             <div className={styles.heroText}>
               <h1 className={styles.srOnly}>{site.studioName}</h1>
@@ -102,7 +102,7 @@ export default function PublicSite() {
               Neden biz
             </h2>
             <ul className={`${styles.cards} ${styles.fourUp}`}>
-              {REASONS.map((reason) => (
+              {(site.reasons?.length ? site.reasons : REASONS).map((reason) => (
                 <li key={reason.title} className={`${styles.card} ${styles.accentCard}`}>
                   <h3>{reason.title}</h3>
                   <p>{reason.text}</p>
@@ -206,7 +206,7 @@ export default function PublicSite() {
         <section id="iletisim" className={`${styles.band} ${styles.dark} ${styles.contact}`} aria-labelledby="iletisim-baslik">
           <div className={`${styles.inner} ${styles.contactInner}`}>
             <div>
-              <Monogram size="hero" logoUrl={site.logoUrl} />
+              <Monogram size="hero" logoUrl={site.logoUrl} name={site.studioName} />
               <h2 id="iletisim-baslik" className={styles.heading}>
                 Bize ulaş
               </h2>

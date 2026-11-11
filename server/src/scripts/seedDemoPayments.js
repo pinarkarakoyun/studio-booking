@@ -7,19 +7,20 @@ import pool from '../db/pool.js';
 // Stüdyoda zaten üyelik dönemi varsa hiçbir şey eklemez; iki kez çalıştırmak zarar vermez.
 
 // Örnek fiyatlar (kuruş): uzun kayıtta aylık fiyat düşer, yönetici her dönemin ücretini elle yazar.
-const FEE = { 1: 350000, 2: 600000, 3: 900000 };
+// seed:dev bir stüdyoya özel demo dosyasıyla çalışırsa (DEMO_SEED_FILE) o stüdyonun fiyatları gelir.
+const DEFAULT_FEE = { 1: 350000, 2: 600000, 3: 900000 };
 const LENGTH_DAYS = { 1: 30, 2: 60, 3: 90 };
 const METHODS = ['transfer', 'cash', 'card'];
 
-// Bugüne göre gün farkıyla dönemler. paid: ücretin ne kadarı, hangi gün (başlangıca göre) ödendi.
+// Bugüne göre gün farkıyla dönemler. paid: [başlangıca göre gün, ücretin oranı, yöntem].
 const SCENARIOS = [
   { label: 'yaklaşan, önceki dönemi de var', periods: [{ start: -57, months: 1 }, { start: -27, months: 1 }] }, // 2 gün kaldı
   { label: 'yaklaşan, 2 aylık', periods: [{ start: -54, months: 2 }] }, // 5 gün kaldı
   { label: 'yaklaşan, 3 aylık', periods: [{ start: -82, months: 3 }] }, // 7 gün kaldı
   { label: 'bitti, 3 gün önce', periods: [{ start: -32, months: 1 }] },
   { label: 'bitti, 8 gün önce', periods: [{ start: -37, months: 1 }] },
-  { label: 'eksik, havale taksit', periods: [{ start: -20, months: 3, paid: [[0, 450000, 'transfer']] }] },
-  { label: 'eksik, nakit taksit', periods: [{ start: -5, months: 3, paid: [[0, 300000, 'cash']] }] },
+  { label: 'eksik, havale taksit', periods: [{ start: -20, months: 3, paid: [[0, 1 / 2, 'transfer']] }] },
+  { label: 'eksik, nakit taksit', periods: [{ start: -5, months: 3, paid: [[0, 1 / 3, 'cash']] }] },
   { label: 'dönemi girilmemiş', periods: [] },
 ];
 
@@ -29,7 +30,8 @@ function addDays(date, days) {
   return d.toISOString().slice(0, 10);
 }
 
-export async function seedDemoPayments(db, studioId) {
+export async function seedDemoPayments(db, studioId, { fees } = {}) {
+  const FEE = { ...DEFAULT_FEE, ...fees };
   const { rows: [existing] } = await db.query(
     `SELECT COUNT(*)::int AS n FROM memberships m JOIN users u ON u.id = m.user_id WHERE u.studio_id = $1`,
     [studioId],
@@ -58,7 +60,9 @@ export async function seedDemoPayments(db, studioId) {
       'INSERT INTO memberships (user_id, starts_on, ends_on, fee_kurus) VALUES ($1, $2, $3, $4) RETURNING id',
       [userId, startsOn, endsOn, FEE[months]],
     );
-    for (const [offset, amount, method] of paid ?? [[0, FEE[months], METHODS[index % METHODS.length]]]) {
+    for (const [offset, share, method] of paid ?? [[0, 1, METHODS[index % METHODS.length]]]) {
+      // Kısmi ödemeler tam liraya yuvarlanır (kuruşlu taksit gerçekçi görünmez).
+      const amount = Math.round((FEE[months] * share) / 100) * 100;
       await db.query('INSERT INTO payments (membership_id, amount_kurus, paid_on, method) VALUES ($1, $2, $3, $4)', [
         m.id, amount, addDays(startsOn, offset), method,
       ]);

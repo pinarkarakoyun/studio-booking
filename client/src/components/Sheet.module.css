@@ -27,7 +27,7 @@
   height: 4px;
   margin: 0 auto var(--space-4);
   border-radius: 2px;
-  background: #e8d9df;
+  background: var(--line-strong);
 }
 
 .title {
