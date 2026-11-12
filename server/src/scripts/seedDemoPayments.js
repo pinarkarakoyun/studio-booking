@@ -1,5 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import pool from '../db/pool.js';
+import { assertDemoSeedAllowed } from './demoSeedGuard.js';
 
 // Sunum için örnek üyelik dönemleri ve ödemeler. Ödemeler sekmesinde her durumdan bir örnek görünsün:
 // biten, yaklaşan, eksik ödemeli, dondurmayla uzamış, hiç girilmemiş.
@@ -85,7 +86,7 @@ export async function seedDemoPayments(db, studioId, { fees } = {}) {
 
 // Doğrudan çalıştırıldıysa: var olan (tek) demo stüdyosuna ekle.
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  if (process.env.NODE_ENV === 'production') throw new Error('seed:payments üretim ortamında çalıştırılamaz.');
+  assertDemoSeedAllowed('seed:payments');
   const client = await pool.connect();
   try {
     const { rows: studios } = await client.query('SELECT id FROM studios ORDER BY id');

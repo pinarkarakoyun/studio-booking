@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import Monogram from '../components/Monogram.jsx';
+import { PRIVACY_PATH } from './PrivacyPage.jsx';
 import Faq from './Faq.jsx';
 import HowItWorks from './HowItWorks.jsx';
 import RotatingWord from './RotatingWord.jsx';
@@ -223,6 +224,7 @@ export default function PublicSite() {
                     Instagram
                   </a>
                 )}
+                <a href={PRIVACY_PATH}>KVKK</a>
               </p>
             </div>
             <div className={styles.contactButtons}>

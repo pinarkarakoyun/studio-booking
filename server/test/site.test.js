@@ -27,8 +27,8 @@ describe('public site content', () => {
     assert.deepEqual(res.body.site.photos, []);
     const keys = Object.keys(res.body.site).sort();
     assert.deepEqual(keys, [
-      'address', 'equipment', 'groupSize', 'instagramUrl', 'instructor', 'logoUrl', 'mapsUrl', 'phone', 'photos', 'reasons',
-      'rules', 'studioName', 'subline', 'tagline', 'whatsappPhone', 'workingHours',
+      'address', 'equipment', 'groupSize', 'instagramUrl', 'instructor', 'logoUrl', 'mapsUrl', 'phone', 'photos', 'privacyNotice',
+      'reasons', 'rules', 'studioName', 'subline', 'tagline', 'whatsappPhone', 'workingHours',
     ]);
     // Sadece iki kural; diğer ayarlar (ör. aylık telafi sınırı) sızmaz.
     assert.deepEqual(res.body.site.rules, { cancellationDeadlineHours: 2, creditValidityDays: 7 });
@@ -49,6 +49,24 @@ describe('public site content', () => {
       name: 'Eğitmen', years: 8, bio: null, certificates: ['A'], photoUrl: '/brand/e.jpg',
     });
     assert.deepEqual(body.site.photos, [{ url: '/brand/s1.jpg', alt: 'Salon' }]);
+    await rm(dir, { recursive: true });
+  });
+
+  test('site.json privacy notice: sections without a title or text are dropped; none at all means null', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'site-'));
+    process.env.BRAND_DIR = dir;
+    await writeFile(path.join(dir, 'site.json'), JSON.stringify({
+      privacyNotice: { updatedOn: '2026-11-12', sections: [{ title: 'Veri sorumlusu', text: 'Stüdyo' }, { title: 'Boş' }] },
+    }));
+    await createStudio();
+    const { body } = await client().request('GET', '/api/site');
+    assert.deepEqual(body.site.privacyNotice, {
+      updatedOn: '2026-11-12', sections: [{ title: 'Veri sorumlusu', text: 'Stüdyo' }],
+    });
+
+    await writeFile(path.join(dir, 'site.json'), JSON.stringify({ privacyNotice: { sections: [{ title: 'Boş' }] } }));
+    const { body: empty } = await client().request('GET', '/api/site');
+    assert.equal(empty.site.privacyNotice, null);
     await rm(dir, { recursive: true });
   });
 

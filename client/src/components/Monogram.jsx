@@ -1,10 +1,10 @@
 import styles from './Monogram.module.css';
 
 // Logo yokken yuvarlağın içine yazılacak harfler, stüdyonun adından üretilir
-// ("Tua Pilates", "Deneme Pilates Stüdyosu", "İlknur Pilates" ...). Ad yoksa boş metin döner.
+// ("Ada Pilates", "Deneme Pilates Stüdyosu", "Ece Yoga" ...). Ad yoksa boş metin döner.
 // Not: Türkçe büyük harf için toLocaleUpperCase('tr') gerekir; yoksa "i" → "I" olur, "İ" değil.
 // Bu kelimeler stüdyonun kendisini değil işini anlatır; harf seçerken atlanır
-// ("Tua Pilates" → "TUA", "Deneme Pilates Stüdyosu" → "D").
+// ("Ada Pilates" → "ADA", "Deneme Pilates Stüdyosu" → "D").
 const GENERIC_WORDS = new Set(['pilates', 'reformer', 'yoga', 'fitness', 'stüdyo', 'stüdyosu', 'studio']);
 
 function initials(name) {
@@ -12,7 +12,7 @@ function initials(name) {
   const words = name.trim().split(/\s+/);
   const ownWords = words.filter((word) => !GENERIC_WORDS.has(word.toLocaleLowerCase('tr')));
   const picked = ownWords.length ? ownWords : words; // Ad sadece genel kelimelerden oluşuyorsa yine de bir şey yaz.
-  // Tek ve kısa bir ad (Tua, Ela) markanın kendisidir: harflere bölünmeden yazılır.
+  // Tek ve kısa bir ad (Ada, Ela) markanın kendisidir: harflere bölünmeden yazılır.
   if (picked.length === 1 && picked[0].length <= 3) return picked[0].toLocaleUpperCase('tr');
   return picked
     .slice(0, 2)

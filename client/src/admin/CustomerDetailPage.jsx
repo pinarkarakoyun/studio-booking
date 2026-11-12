@@ -4,6 +4,7 @@ import Button from '../components/Button.jsx';
 import Sheet from '../components/Sheet.jsx';
 import TextField from '../components/TextField.jsx';
 import fieldStyles from '../components/TextField.module.css';
+import { NO_HEALTH_DATA_HINT } from '../privacy.js';
 import { addDays, formatDateDayMonth, formatDay, formatDayMonth, formatPhone, formatTime, todayIn } from '../format.js';
 import MembershipCard from './MembershipCard.jsx';
 import styles from './Admin.module.css';
@@ -335,8 +336,9 @@ function GrantCreditsForm({ customerId, today, validityDays, onDone }) {
         label="Not (isteğe bağlı)"
         value={note}
         maxLength={200}
-        placeholder="26 Ekim, hastalık"
+        placeholder="26 Ekim, son dakika aksiliği"
         onChange={(e) => setNote(e.target.value)}
+        hint={NO_HEALTH_DATA_HINT}
       />
       {errors.form && <p className={styles.formError}>{errors.form}</p>}
       <div className={styles.formSubmit}>

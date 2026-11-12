@@ -37,10 +37,10 @@ router.get('/api/studio', async (req, res) => {
 // Gerçek stüdyonun metinleri (eğitmen, adres, fotoğraflar) koda girmez: BRAND_DIR/site.json'dan okunur
 // (repo ileride public; örnek dosya: server/site.example.json). Dosya yoksa ya da bir alan eksikse o alan
 // boş döner ve ekran yer tutucu gösterir. Fotoğraf adları "/brand/..." adresine çevrilir (logo gibi).
-async function readSiteFile() {
-  if (!process.env.BRAND_DIR) return {};
+export async function readSiteFile(brandDir = process.env.BRAND_DIR) {
+  if (!brandDir) return {};
   try {
-    return JSON.parse(await readFile(path.join(process.env.BRAND_DIR, 'site.json'), 'utf8'));
+    return JSON.parse(await readFile(path.join(brandDir, 'site.json'), 'utf8'));
   } catch (err) {
     if (err.code !== 'ENOENT') console.error('site.json okunamadı:', err.message);
     return {};
@@ -50,6 +50,20 @@ async function readSiteFile() {
 const text = (value) => (typeof value === 'string' && value.trim() ? value.trim() : null);
 // Sadece dosya adı kabul edilir ("foto1.jpg"): "../" ile marka klasörünün dışına çıkılamaz.
 const brandFile = (value) => (text(value) && path.basename(value) === value ? `/brand/${value}` : null);
+
+// KVKK aydınlatma metni (/aydinlatma sayfası). Metni veri sorumlusu olan stüdyo belirler, bu yüzden koda değil
+// stüdyonun site.json'ına yazılır; şablon: server/site.example.json. Bölümü olmayan metin "yok" sayılır.
+export function privacyNotice(value) {
+  const sections = Array.isArray(value?.sections)
+    ? value.sections
+        .map((s) => ({ title: text(s?.title), text: text(s?.text) }))
+        .filter((s) => s.title && s.text)
+        .slice(0, 30)
+    : [];
+  if (sections.length === 0) return null;
+  const updatedOn = /^\d{4}-\d{2}-\d{2}$/.test(value.updatedOn ?? '') ? value.updatedOn : null;
+  return { updatedOn, sections };
+}
 
 router.get('/api/site', async (req, res) => {
   const [{ rows: [studio] }, site] = await Promise.all([
@@ -92,6 +106,7 @@ router.get('/api/site', async (req, res) => {
             .filter((r) => r.title && r.text)
             .slice(0, 4)
         : [],
+      privacyNotice: privacyNotice(site.privacyNotice),
       address: text(site.address),
       mapsUrl: text(site.mapsUrl),
       instagramUrl: text(site.instagramUrl),

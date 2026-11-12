@@ -44,7 +44,7 @@
   }
 }
 
-/* Üç harfli kısa ad ("TUA"): iki harflik ölçü yuvarlağa sığmaz. Logo gibi düz ve aralıklı yazılır. */
+/* Üç harfli kısa ad ("ADA"): iki harflik ölçü yuvarlağa sığmaz. Logo gibi düz ve aralıklı yazılır. */
 .word {
   font-style: normal;
   letter-spacing: 0.08em;

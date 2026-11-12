@@ -1,7 +1,19 @@
 // Bu import en üstte olmalı: diğer modüller (ör. pool.js) yüklenmeden önce .env okunur.
 import 'dotenv/config';
 import { createApp } from './app.js';
+import pool from './db/pool.js';
 import { generateSessions } from './services/sessionGenerator.js';
+import { checkStartup } from './startupChecks.js';
+
+// Önce yapılandırma kontrolü: üretimde güvensiz bir ayar varsa sunucu açılmaz (bkz. startupChecks.js).
+const { problems, warnings } = await checkStartup({ db: pool });
+for (const warning of warnings) console.warn(`Uyarı: ${warning}`);
+if (problems.length > 0) {
+  console.error('Sunucu başlatılmadı:');
+  for (const problem of problems) console.error(`- ${problem}`);
+  await pool.end();
+  process.exit(1);
+}
 
 const app = createApp();
 
@@ -9,7 +21,7 @@ const app = createApp();
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
+  console.log(`Server running at http://localhost:${PORT} (${process.env.NODE_ENV})`);
 });
 
 // Ders üretimini açılışta ve sonra günde bir kez çalıştırıyoruz; pencere her gün bir gün ileri kayar.

@@ -4,6 +4,7 @@ import Button from '../components/Button.jsx';
 import Sheet from '../components/Sheet.jsx';
 import TextField from '../components/TextField.jsx';
 import { formatDay, formatTime } from '../format.js';
+import { NO_HEALTH_DATA_HINT } from '../privacy.js';
 import styles from './Admin.module.css';
 
 // Gelmeyen birinin yanında yazan sebep. Stüdyonun iptal ettiği derste "iptal etti" demeyiz.
@@ -211,9 +212,9 @@ function CancelSessionForm({ sessionId, onDone }) {
         label="Sebep (isteğe bağlı)"
         value={reason}
         maxLength={120}
-        placeholder="Hocamız hasta"
+        placeholder="Eğitmen izinli"
         onChange={(e) => setReason(e.target.value)}
-        hint="Müşteriler Derslerim'de iptal edilen dersin altında görür."
+        hint={`Müşteriler Derslerim'de iptal edilen dersin altında görür. ${NO_HEALTH_DATA_HINT}`}
       />
       {error && <p className={styles.formError}>{error}</p>}
       <div className={`${styles.formSubmit} ${styles.dangerButton}`}>

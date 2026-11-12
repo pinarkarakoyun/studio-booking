@@ -1,8 +1,8 @@
 // Geliştirme veritabanını gerçekçi deneme verisiyle doldurur: stüdyo, gruplar, dolu sayılabilecek
 // kadar üye, önümüzdeki dersler ve giriş yapılabilecek bir deneme müşterisi + yönetici.
 //
-// Kullanım: npm run seed:dev
-//           DEMO_SEED_FILE=/yol/demo-seed.json npm run seed:dev   (bir stüdyoya özel sunum verisi)
+// Kullanım: ALLOW_DEMO_SEED=1 npm run seed:dev
+//           ALLOW_DEMO_SEED=1 DEMO_SEED_FILE=/yol/demo-seed.json npm run seed:dev   (bir stüdyoya özel sunum verisi)
 //
 // DEMO_SEED_FILE verilirse stüdyo adı, renk, logo, gruplar, üye adları ve örnek ücretler o dosyadan
 // gelir; verilmeyen her alan aşağıdaki varsayılanlarla dolar. Dosya repo dışında, stüdyonun marka
@@ -14,6 +14,7 @@ import { readFile } from 'node:fs/promises';
 import pool from '../db/pool.js';
 import { createUser } from '../services/auth.js';
 import { generateSessions } from '../services/sessionGenerator.js';
+import { assertDemoSeedAllowed } from './demoSeedGuard.js';
 import { seedDemoPayments } from './seedDemoPayments.js';
 
 // Bu dosya import edilince değil, çalıştırılınca iş yapar; o yüzden buradan bir şey dışarı açılmıyor.
@@ -21,6 +22,8 @@ const DEV_ACCOUNTS = {
   customer: { fullName: 'Ayşe Deneme', phone: '0500 000 00 01', password: 'deneme-musteri-1' },
   admin: { fullName: 'Deneme Yönetici', phone: '0500 000 00 00', password: 'deneme-yonetici-1' },
 };
+
+assertDemoSeedAllowed('seed:dev');
 
 const demo = process.env.DEMO_SEED_FILE ? JSON.parse(await readFile(process.env.DEMO_SEED_FILE, 'utf8')) : {};
 
@@ -42,10 +45,6 @@ const DEFAULT_MEMBER_NAMES = [
 
 const GROUPS = demo.groups ?? DEFAULT_GROUPS;
 const MEMBER_NAMES = demo.memberNames ?? DEFAULT_MEMBER_NAMES;
-
-if (process.env.NODE_ENV === 'production') {
-  throw new Error('seed:dev üretim ortamında çalıştırılamaz.');
-}
 
 // Aşağıdaki "gerçekçi hareket" bölümü ilk üç grubun belirli üyelerini kullanır (sabah grubundan 4. üye
 // dondurulur vb.). Eksik grupla yarıda patlayıp anlaşılmaz bir hata vermek yerine baştan söylüyoruz.
