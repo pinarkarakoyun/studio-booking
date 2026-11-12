@@ -1,5 +1,6 @@
-// .env, pool.js yüklenmeden önce okunmalı (index.js'teki gibi).
+// .env, pool.js yüklenmeden önce okunmalı (index.js'teki gibi). Migration tablo sahibi rolle çalışır.
 import 'dotenv/config';
+import './useOwnerCredentials.js';
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

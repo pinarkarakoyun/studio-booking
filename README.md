@@ -79,8 +79,8 @@ docker compose up -d
 cd server
 npm install
 npm run migrate
-npm run seed:dev        # demo studio, groups, members and sessions
-npm run seed:payments   # optional: demo memberships and payments
+ALLOW_DEMO_SEED=1 npm run seed:dev        # demo studio, groups, members and sessions
+ALLOW_DEMO_SEED=1 npm run seed:payments   # optional: demo memberships and payments
 npm run dev             # http://localhost:3000
 
 # 4. Client (in a second terminal)
@@ -89,7 +89,9 @@ npm install
 npm run dev             # http://localhost:5173
 ```
 
-The demo login accounts (one customer, one admin) are listed in `DEV_ACCOUNTS` at the top of `server/src/scripts/seedDev.js`. They exist only on a development machine; the seed script refuses to run in production or on a database that already has data.
+The demo login accounts (one customer, one admin) are listed in `DEV_ACCOUNTS` at the top of `server/src/scripts/seedDev.js`. They exist only on a development machine. Because their passwords are public, the seed scripts need an explicit `ALLOW_DEMO_SEED=1` on every run and refuse to run in production or on a database that already has data.
+
+`server/.env` must set `NODE_ENV=development` (or `production`); the server does not start without it.
 
 ## Tests
 
@@ -99,6 +101,19 @@ npm test
 ```
 
 Tests run against a separate `studio_booking_test` database that is created automatically. As a safety check, the test setup refuses any database whose name does not end in `_test`. About 130 tests cover authentication, booking and make-up rules, concurrency, the admin endpoints and phone number normalization.
+
+## Production and security
+
+The server checks its configuration on startup (`server/src/startupChecks.js`). With `NODE_ENV=production` it refuses to start, and says why, if any of these is missing:
+
+- **Least-privilege database role.** The app must not connect as a superuser. Create a role that can only read and write with `server/db/roles/app-role.sql`; migrations run as the table owner (`DB_OWNER_USER`).
+- **HTTPS proxy.** Run behind Caddy or Nginx, which handles HTTPS, and set `TRUST_PROXY` (for example `loopback`) so rate limits see real client IPs. The session cookie is `Secure` in production.
+- **Built client.** `CLIENT_DIR` points to `client/dist`; the site and the API share one origin.
+- **Privacy notice (KVKK).** `BRAND_DIR/site.json` must contain `privacyNotice`. A draft template is in `server/site.example.json`; it is a starting point, not legal advice.
+
+Also built in: per-IP rate limits on the API and on failed logins (`middleware/rateLimits.js`), on top of the per-phone login limit; security headers with a strict Content-Security-Policy (`helmet`); input size limits on login.
+
+**Backups.** `server/scripts/backup.sh` writes an encrypted (`openssl`, AES-256) daily dump and deletes old ones; `server/scripts/restore.sh` restores a backup into a *new* database and never overwrites an existing one. Schedule the backup with cron, copy the files off the server, keep the passphrase somewhere else, and test a restore every month.
 
 ## Project structure
 
@@ -134,7 +149,7 @@ Online payments (payments are collected in person and only recorded in the syste
 - [x] Customer interface
 - [x] Admin panel: customers, groups, sessions, settings, memberships and payments
 - [x] Public landing page
-- [ ] Security review (rate limiting, input validation pass)
+- [x] Security review and first hardening pass (rate limits, security headers, least-privilege role, startup checks, backups)
 - [ ] Deployment and production setup
 - [ ] Pilot with a real studio
 

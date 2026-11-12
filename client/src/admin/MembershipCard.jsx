@@ -4,6 +4,7 @@ import Button from '../components/Button.jsx';
 import Sheet from '../components/Sheet.jsx';
 import TextField from '../components/TextField.jsx';
 import { addMonthsInclusive, formatDateDayMonth, formatMoney, parseMoney } from '../format.js';
+import { NO_HEALTH_DATA_HINT } from '../privacy.js';
 import styles from './Admin.module.css';
 
 const METHODS = [
@@ -255,7 +256,7 @@ function PaymentForm({ membership, today, onDone }) {
         </div>
         {errors.method && <p className={styles.formError}>{errors.method}</p>}
       </fieldset>
-      <TextField label="Not (isteğe bağlı)" value={note} maxLength={200} onChange={(e) => setNote(e.target.value)} />
+      <TextField label="Not (isteğe bağlı)" value={note} maxLength={200} onChange={(e) => setNote(e.target.value)} hint={NO_HEALTH_DATA_HINT} />
       {errors.form && <p className={styles.formError}>{errors.form}</p>}
       <div className={styles.formSubmit}>
         <Button type="submit" busy={busy} busyLabel="Kaydediliyor…">
@@ -348,7 +349,7 @@ function PeriodForm({ customerId, suggestedStartsOn, lastFeeKurus, onDone }) {
         }}
         error={errors.fee}
       />
-      <TextField label="Not (isteğe bağlı)" value={note} maxLength={200} onChange={(e) => setNote(e.target.value)} />
+      <TextField label="Not (isteğe bağlı)" value={note} maxLength={200} onChange={(e) => setNote(e.target.value)} hint={NO_HEALTH_DATA_HINT} />
       {errors.form && <p className={styles.formError}>{errors.form}</p>}
       <div className={styles.formSubmit}>
         <Button type="submit" busy={busy} busyLabel="Kaydediliyor…">

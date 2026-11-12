@@ -21,6 +21,23 @@
   --white: #ffffff;
   --danger: #b4233c;
 
+  /* Ara tonlar: bileşenlerde sabit renk yazılmasın, her stüdyo BRAND_DIR/theme.css ile hepsini ezebilsin. */
+  --line-strong: #e8d9df; /* alan ve kart kenarlıkları */
+  --ink-faint: #9a90b3; /* pasif, soluk yazı */
+  --pink-hover: #f23c8b;
+  --pink-disabled: #ff86ba;
+  --alert-text: #c2185b; /* dikkat isteyen kısa uyarı yazısı */
+  --switch-off: #d9cfdc; /* kapalı anahtar */
+  --lavender-line: #e6dcf7; /* tanıtım sitesi kart kenarlıkları */
+  --lavender-strong: #c9b8f0; /* boş fotoğraf alanının kesikli çerçevesi */
+  --ghost-hero: #d6c9f5; /* arka plandaki dev soluk kelimeler: giriş bandı */
+  --ghost-lilac: #e9e0fa; /* … açık bant */
+  --ghost-dark: #30185f; /* … koyu bant */
+  --on-dark-soft: #d9cff5; /* koyu bantta paragraf */
+  --on-dark-muted: #cfc4ee; /* koyu bantta ikincil yazı */
+  --pink-on-dark: #ff8cc0; /* koyu bantta numaralar */
+  --phone-frame: #120826; /* "İşleyişimiz"deki telefon çizimi */
+
   /* Yazı tipleri */
   --font-brand: 'Cormorant Garamond', Georgia, serif;
   --font-ui: 'Archivo Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;

@@ -41,9 +41,24 @@ function hashToken(token) {
 // şifreleri tek tek deneyebilirdi (brute force).
 // Bellekte tutuluyor: sunucu yeniden başlarsa sıfırlanır ve birden fazla sunucuda ortak değildir.
 // Tek sunuculu küçük bir stüdyo için yeterli; büyürse veritabanına taşınır.
+// Tek bir kaynaktan gelen saldırıya karşı ayrıca IP sınırı var (middleware/rateLimits.js).
 const MAX_FAILED_ATTEMPTS = 5;
 const ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
-const failedAttempts = new Map(); // anahtar: telefon -> { count, firstAt }
+// Sayaç sınırsız büyüyüp belleği doldurmasın: üst sınıra gelince önce süresi dolanlar, yetmezse en eskiler silinir.
+const MAX_TRACKED_PHONES = 10000;
+const failedAttempts = new Map(); // anahtar: normalleştirilmiş telefon -> { count, firstAt }
+
+function pruneFailedAttempts() {
+  const now = Date.now();
+  for (const [key, entry] of failedAttempts) {
+    if (now - entry.firstAt > ATTEMPT_WINDOW_MS) failedAttempts.delete(key);
+  }
+  // Map ekleme sırasını korur: ilk anahtarlar en eski kayıtlardır.
+  for (const key of failedAttempts.keys()) {
+    if (failedAttempts.size < MAX_TRACKED_PHONES) break;
+    failedAttempts.delete(key);
+  }
+}
 
 function assertNotRateLimited(key) {
   const entry = failedAttempts.get(key);
@@ -62,6 +77,8 @@ function recordFailedAttempt(key) {
   if (entry && Date.now() - entry.firstAt <= ATTEMPT_WINDOW_MS) {
     entry.count += 1;
   } else {
+    failedAttempts.delete(key); // süresi dolmuş kayıt sona eklensin (en yeni sırası)
+    if (failedAttempts.size >= MAX_TRACKED_PHONES) pruneFailedAttempts();
     failedAttempts.set(key, { count: 1, firstAt: Date.now() });
   }
 }
@@ -120,33 +137,38 @@ export async function revokeAllSessions(userId, { exceptSessionId = null, db = p
 
 // --- Giriş --------------------------------------------------------------------------------------
 
-export async function login({ phone, password }, { db = pool } = {}) {
-  const normalized = normalizePhone(phone);
-  // Geçersiz numaralar da sayaca girsin diye ham değeri anahtar olarak kullanıyoruz.
-  const attemptKey = normalized ?? String(phone);
-  assertNotRateLimited(attemptKey);
+// Telefon ve şifre alanları için üst sınır: aşırı uzun değerler hiç işlenmez (bellek ve bcrypt işi harcanmaz).
+// 1024: en uzun parola yöneticisi şifresinden bile çok uzun; bcrypt zaten ilk 72 baytı kullanır.
+const MAX_PHONE_INPUT = 32;
+const MAX_PASSWORD_INPUT = 1024;
 
-  const { rows: [user] } = normalized
-    ? await db.query(
-      'SELECT id, password_hash, status FROM users WHERE phone = $1',
-      [normalized],
-    )
-    : { rows: [] };
+export async function login({ phone, password }, { db = pool } = {}) {
+  const normalized = typeof phone === 'string' && phone.length <= MAX_PHONE_INPUT ? normalizePhone(phone) : null;
+  const passwordText = typeof password === 'string' && password.length <= MAX_PASSWORD_INPUT ? password : null;
+
+  // Biçimi geçersiz numara ya da şifre: veritabanına ve bcrypt'e hiç gitmeden reddet. Bu hiçbir hesap hakkında
+  // bilgi vermez (biçim kuralı herkesçe bilinir), sayaca da yazılmaz: rastgele metinlerle sayacı şişirip
+  // belleği doldurmak mümkün olmasın. Böyle istekleri IP sınırı (rateLimits.js) yavaşlatır.
+  if (!normalized || passwordText === null) throw INVALID_CREDENTIALS();
+
+  assertNotRateLimited(normalized);
+
+  const { rows: [user] } = await db.query(
+    'SELECT id, password_hash, status FROM users WHERE phone = $1',
+    [normalized],
+  );
 
   // Kullanıcı yoksa da bir bcrypt karşılaştırması yapıyoruz. Yapmasaydık "kayıtlı olmayan numara"
   // cevabı ~0 ms, "kayıtlı numara, yanlış şifre" cevabı ~250 ms sürerdi; saldırgan cevap süresine
   // bakarak hangi numaraların kayıtlı olduğunu öğrenebilirdi (timing attack).
-  const passwordOk = await bcrypt.compare(
-    typeof password === 'string' ? password : '',
-    user?.password_hash ?? DUMMY_HASH,
-  );
+  const passwordOk = await bcrypt.compare(passwordText, user?.password_hash ?? DUMMY_HASH);
 
   if (!user || !passwordOk) {
-    recordFailedAttempt(attemptKey);
+    recordFailedAttempt(normalized);
     // Hangisinin yanlış olduğunu söylemiyoruz: kayıtlı numaralar sızmasın.
     throw INVALID_CREDENTIALS();
   }
-  failedAttempts.delete(attemptKey);
+  failedAttempts.delete(normalized);
 
   // Şifre doğruysa kişi kimliğini kanıtladı; hesabın kapalı olduğunu söylemek artık bilgi sızdırmaz.
   if (user.status === 'left') {

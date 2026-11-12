@@ -8,10 +8,14 @@ import { SESSION_COOKIE } from '../src/middleware/auth.js';
 let server;
 let baseUrl;
 
+// Testler aynı IP'den çok sayıda istek atar; IP sınırları burada pratikte kapalı.
+// Sınırların kendisi rateLimits.test.js'te küçük değerlerle sınanır.
+const TEST_RATE_LIMITS = { loginFailuresPer15Min: 100000, apiRequestsPerMinute: 100000 };
+
 // Bu dosyayı import eden test dosyası için sunucuyu açıp kapatır.
-export function useServer() {
+export function useServer({ rateLimits = TEST_RATE_LIMITS } = {}) {
   before(async () => {
-    server = createApp().listen(0);
+    server = createApp({ rateLimits }).listen(0);
     await new Promise((resolve) => server.once('listening', resolve));
     baseUrl = `http://localhost:${server.address().port}`;
   });

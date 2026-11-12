@@ -27,8 +27,8 @@ describe('public site content', () => {
     assert.deepEqual(res.body.site.photos, []);
     const keys = Object.keys(res.body.site).sort();
     assert.deepEqual(keys, [
-      'address', 'equipment', 'groupSize', 'instagramUrl', 'instructor', 'logoUrl', 'mapsUrl', 'phone', 'photos', 'rules',
-      'studioName', 'subline', 'tagline', 'whatsappPhone', 'workingHours',
+      'address', 'equipment', 'groupSize', 'instagramUrl', 'instructor', 'logoUrl', 'mapsUrl', 'phone', 'photos', 'privacyNotice',
+      'reasons', 'rules', 'studioName', 'subline', 'tagline', 'whatsappPhone', 'workingHours',
     ]);
     // Sadece iki kural; diğer ayarlar (ör. aylık telafi sınırı) sızmaz.
     assert.deepEqual(res.body.site.rules, { cancellationDeadlineHours: 2, creditValidityDays: 7 });
@@ -49,6 +49,37 @@ describe('public site content', () => {
       name: 'Eğitmen', years: 8, bio: null, certificates: ['A'], photoUrl: '/brand/e.jpg',
     });
     assert.deepEqual(body.site.photos, [{ url: '/brand/s1.jpg', alt: 'Salon' }]);
+    await rm(dir, { recursive: true });
+  });
+
+  test('site.json privacy notice: sections without a title or text are dropped; none at all means null', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'site-'));
+    process.env.BRAND_DIR = dir;
+    await writeFile(path.join(dir, 'site.json'), JSON.stringify({
+      privacyNotice: { updatedOn: '2026-11-12', sections: [{ title: 'Veri sorumlusu', text: 'Stüdyo' }, { title: 'Boş' }] },
+    }));
+    await createStudio();
+    const { body } = await client().request('GET', '/api/site');
+    assert.deepEqual(body.site.privacyNotice, {
+      updatedOn: '2026-11-12', sections: [{ title: 'Veri sorumlusu', text: 'Stüdyo' }],
+    });
+
+    await writeFile(path.join(dir, 'site.json'), JSON.stringify({ privacyNotice: { sections: [{ title: 'Boş' }] } }));
+    const { body: empty } = await client().request('GET', '/api/site');
+    assert.equal(empty.site.privacyNotice, null);
+    await rm(dir, { recursive: true });
+  });
+
+  test("site.json reasons: incomplete cards are dropped, at most four, other fields don't leak", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'site-'));
+    process.env.BRAND_DIR = dir;
+    const card = (n) => ({ title: `Başlık ${n}`, text: `Metin ${n}` });
+    await writeFile(path.join(dir, 'site.json'), JSON.stringify({
+      reasons: [card(1), { title: 'Metinsiz' }, { ...card(2), extra: 'x' }, card(3), card(4), card(5)],
+    }));
+    await createStudio();
+    const { body } = await client().request('GET', '/api/site');
+    assert.deepEqual(body.site.reasons, [card(1), card(2), card(3), card(4)]);
     await rm(dir, { recursive: true });
   });
 });

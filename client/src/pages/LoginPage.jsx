@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { PRIVACY_PATH } from '../site/PrivacyPage.jsx';
 import { api } from '../api.js';
 import Button from '../components/Button.jsx';
 import Monogram from '../components/Monogram.jsx';
@@ -53,7 +54,7 @@ export default function LoginPage({ studio, onLoggedIn }) {
   return (
     <main className={styles.page}>
       <div className={styles.brand}>
-        <Monogram logoUrl={studio?.logoUrl} />
+        <Monogram logoUrl={studio?.logoUrl} name={studio?.name} />
         <h1 className={styles.studioName}>{studio?.name}</h1>
         <p className={styles.lead}>Derslerini görmek için giriş yap</p>
       </div>
@@ -93,6 +94,9 @@ export default function LoginPage({ studio, onLoggedIn }) {
         ) : (
           'Şifreni unuttuysan stüdyoya haber ver.'
         )}
+      </p>
+      <p className={styles.footer}>
+        <a href={PRIVACY_PATH}>Kişisel verilerin korunması (KVKK)</a>
       </p>
     </main>
   );

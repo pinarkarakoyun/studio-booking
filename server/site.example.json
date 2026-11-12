@@ -18,5 +18,47 @@
   "photos": [
     { "file": "studyo-1.jpg", "alt": "Reformer aletleri ve aydınlık salon" },
     { "file": "studyo-2.jpg", "alt": "Grup dersi" }
-  ]
+  ],
+  "reasons": [
+    { "title": "Küçük gruplar", "text": "Eğitmen herkesi tek tek görür." },
+    { "title": "Telafi hakkı", "text": "Kaçırdığın dersi başka bir güne al." }
+  ],
+  "privacyNotice": {
+    "_not": "TASLAK ŞABLON. Aydınlatma Yükümlülüğü Tebliği m.4'teki unsurlara göre hazırlandı: veri sorumlusunun kimliği, işleme amaçları, aktarılan alıcılar ve aktarım amacı, toplama yöntemi ve hukuki sebep, m.11 hakları. Yayına almadan önce köşeli parantezleri stüdyonun bilgileriyle doldur, sistemin gerçekte tuttuğu verilerle karşılaştır ve mümkünse bir hukukçuya kontrol ettir. Bu alan sitede gösterilmez.",
+    "updatedOn": "2026-11-12",
+    "sections": [
+      {
+        "title": "Veri sorumlusu",
+        "text": "Bu metin, 6698 sayılı Kişisel Verilerin Korunması Kanunu (KVKK) uyarınca, veri sorumlusu sıfatıyla [Stüdyonun ticari unvanı] ([adres], [vergi dairesi / no]) tarafından hazırlanmıştır."
+      },
+      {
+        "title": "İşlenen kişisel veriler",
+        "text": "Kimlik ve iletişim: ad soyad, cep telefonu numarası.\n\nÜyelik ve ders bilgileri: kayıtlı olduğunuz grup, ders katılımlarınız, iptal ettiğiniz ve telafiye geldiğiniz dersler, dondurma tarihleri.\n\nÖdeme bilgileri: üyelik dönemleriniz, ücret, ödeme tutarı, tarihi ve yöntemi (nakit, havale, kart). Kart bilgileriniz sistemde tutulmaz.\n\nGüvenlik: hesabınıza giriş için şifrenizin geri döndürülemez özeti ve oturum kayıtları. Art arda hatalı giriş denemelerini engellemek için IP adresiniz sunucunun belleğinde en fazla 15 dakika tutulur; kalıcı olarak kaydedilmez.\n\nÇerez: oturumunuzu açık tutmak için tarayıcınıza yalnızca zorunlu bir oturum çerezi yerleştirilir. Reklam, analiz veya takip çerezi kullanılmaz.\n\nSağlık bilginiz (hamilelik, sakatlık, hastalık vb.) bu sistemde işlenmez. Derse katılımınızla ilgili sağlık bilgisi paylaşmanız gerekiyorsa bunu eğitmeninizle yüz yüze konuşun."
+      },
+      {
+        "title": "İşleme amaçları",
+        "text": "Üyeliğinizin ve ders programınızın yürütülmesi, ders iptali ve telafi haklarınızın takibi, ödemelerin kaydı, sizinle ders ve üyelik konularında iletişim kurulması ve yasal yükümlülüklerin yerine getirilmesi."
+      },
+      {
+        "title": "Toplama yöntemi ve hukuki sebepler",
+        "text": "Verileriniz iki yolla, elektronik ortamda toplanır: kayıt sırasında stüdyoya bildirdiğiniz bilgilerin stüdyo tarafından bu sisteme girilmesiyle ve sonrasında sistemi kullanmanızla (giriş yapma, ders iptali, telafi dersi seçme). Ödeme bilgileri, ödemeyi aldığında stüdyo tarafından sisteme işlenir.\n\nKimlik, iletişim, üyelik, ders ve ödeme bilgileriniz, üyelik sözleşmesinin kurulması ve yürütülmesi için KVKK m.5/2-c (sözleşmenin kurulması veya ifasıyla doğrudan ilgili olması) hukuki sebebine dayanılarak işlenir.\n\nÖdeme kayıtları, vergi ve muhasebe mevzuatından doğan yükümlülükler için m.5/2-ç (veri sorumlusunun hukuki yükümlülüğü) kapsamında saklanır.\n\nŞifre özeti, oturum kayıtları ve IP adresi, hesabınızın ve sistemin güvenliğini sağlamak için m.5/2-f (veri sorumlusunun meşru menfaati) kapsamında işlenir.\n\nAçık rızanıza dayanan bir işleme yoktur."
+      },
+      {
+        "title": "Aktarım",
+        "text": "Verileriniz şu alıcılara, yalnızca belirtilen amaç için gerekli ölçüde aktarılır:\n\nSistemin barındırıldığı hizmet sağlayıcı ([sağlayıcının adı], sunucu [ülke]): verilerin saklanması ve sistemin çalışması için.\n\nSistemin bakımını yapan yazılım geliştirici ([geliştiricinin adı]): sistemin bakımı, hataların giderilmesi ve yedekleme için, veri sorumlusu adına ve onun talimatlarıyla.\n\nYetkili kamu kurum ve kuruluşları: yalnızca kanunen talep edilmesi hâlinde, hukuki yükümlülük kapsamında.\n\n[Sunucu yurt dışındaysa: KVKK m.9 kapsamındaki aktarım dayanağı burada belirtilmeli. Sunucu Türkiye'deyse bu cümleyi sil.]\n\n\"WhatsApp'tan yaz\" bağlantısını kullanırsanız mesajınız WhatsApp (Meta) üzerinden iletilir; bu, sizin tercihinizle gerçekleşir ve bu sistemin dışındadır."
+      },
+      {
+        "title": "Saklama süresi",
+        "text": "Üyeliğiniz süresince ve üyeliğinizin sona ermesinden sonra [süre, ör. muhasebe kayıtları için yasal süre] boyunca saklanır; bu sürenin sonunda silinir veya anonim hale getirilir."
+      },
+      {
+        "title": "Haklarınız",
+        "text": "KVKK m.11 uyarınca şu haklara sahipsiniz:\n\nKişisel verilerinizin işlenip işlenmediğini öğrenme; işlenmişse buna ilişkin bilgi talep etme; işlenme amacını ve amacına uygun kullanılıp kullanılmadığını öğrenme; yurt içinde veya yurt dışında aktarıldığı üçüncü kişileri bilme; eksik veya yanlış işlenmişse düzeltilmesini isteme; KVKK m.7'deki şartlar çerçevesinde silinmesini veya yok edilmesini isteme; düzeltme, silme ve yok etme işlemlerinin verilerin aktarıldığı üçüncü kişilere bildirilmesini isteme; işlenen verilerin münhasıran otomatik sistemler vasıtasıyla analiz edilmesi suretiyle aleyhinize bir sonucun ortaya çıkmasına itiraz etme; kanuna aykırı işleme sebebiyle zarara uğramanız hâlinde zararın giderilmesini talep etme."
+      },
+      {
+        "title": "Başvuru",
+        "text": "Taleplerinizi Türkçe ve yazılı olarak; [adres] adresine şahsen veya noter aracılığıyla, [KEP adresi, varsa] adresine kayıtlı elektronik posta ile ya da daha önce stüdyoya bildirdiğiniz ve sistemimizde kayıtlı e-posta adresinizden [e-posta adresi] adresine iletebilirsiniz. Başvurunuzda adınız soyadınız, iletişim bilginiz ve talebiniz yer almalıdır.\n\nBaşvurunuz en geç 30 gün içinde sonuçlandırılır ve kural olarak ücretsizdir. Başvurunuz reddedilirse veya yanıtı yetersiz bulursanız Kişisel Verileri Koruma Kurulu'na şikâyette bulunabilirsiniz."
+      }
+    ]
+  }
 }

@@ -54,7 +54,7 @@ export default function TodayPage({ user, studio, date, onChangeDate, onOpenSess
 
   const header = (
     <header className={styles.header}>
-      <Monogram size="small" logoUrl={studio.logoUrl} />
+      <Monogram size="small" logoUrl={studio.logoUrl} name={studio.name} />
       <button type="button" className={styles.account} onClick={onOpenAccount}>
         {user.fullName.split(' ')[0]}
       </button>

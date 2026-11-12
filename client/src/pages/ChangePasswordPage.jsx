@@ -68,7 +68,7 @@ export default function ChangePasswordPage({ user, studio, currentPassword, onCh
 
   return (
     <main className={styles.page}>
-      <Monogram size="small" logoUrl={studio?.logoUrl} />
+      <Monogram size="small" logoUrl={studio?.logoUrl} name={studio?.name} />
       <h1 className={styles.title}>Hoş geldin, {firstName}</h1>
       <p className={styles.lead}>
         Stüdyonun verdiği geçici şifreyi kendi şifrenle değiştir. Bundan sonra bununla gireceksin.

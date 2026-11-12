@@ -43,3 +43,28 @@
     font-size: 62px;
   }
 }
+
+/* Üç harfli kısa ad ("ADA"): iki harflik ölçü yuvarlağa sığmaz. Logo gibi düz ve aralıklı yazılır. */
+.word {
+  font-style: normal;
+  letter-spacing: 0.08em;
+  padding-left: 0.08em; /* son harften sonraki aralık yazıyı sola kaydırmasın */
+}
+
+.large.word {
+  font-size: 24px;
+}
+
+.small.word {
+  font-size: 15px;
+}
+
+.hero.word {
+  font-size: 30px;
+}
+
+@media (min-width: 900px) {
+  .hero.word {
+    font-size: 40px;
+  }
+}

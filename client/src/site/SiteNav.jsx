@@ -11,12 +11,12 @@ const SECTIONS = [
 ];
 
 // Hap şeklinde üst menü. Geniş ekranda bağlantılar görünür; telefonda menü düğmesi açılır bir liste açar.
-export default function SiteNav({ logoUrl, loginPath }) {
+export default function SiteNav({ logoUrl, studioName, loginPath }) {
   const [open, setOpen] = useState(false);
   return (
     <nav className={styles.nav} aria-label="Sayfa bölümleri">
       <a href="#ust" className={styles.navLogo} aria-label="Sayfanın başına dön">
-        <Monogram size="small" logoUrl={logoUrl} />
+        <Monogram size="small" logoUrl={logoUrl} name={studioName} />
       </a>
       <ul className={`${styles.navLinks} ${open ? styles.navOpen : ''}`} id="site-menu">
         {SECTIONS.map((section) => (
