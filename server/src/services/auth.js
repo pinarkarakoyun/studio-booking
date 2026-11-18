@@ -37,7 +37,7 @@ function hashToken(token) {
 }
 
 // --- Giriş denemesi sınırı ----------------------------------------------------------------------
-// Aynı telefon için 15 dakikada en fazla 5 hatalı deneme. Yoksa biri bir numarayı alıp
+// Aynı stüdyoda aynı telefon için 15 dakikada en fazla 5 hatalı deneme. Yoksa biri bir numarayı alıp
 // şifreleri tek tek deneyebilirdi (brute force).
 // Bellekte tutuluyor: sunucu yeniden başlarsa sıfırlanır ve birden fazla sunucuda ortak değildir.
 // Tek sunuculu küçük bir stüdyo için yeterli; büyürse veritabanına taşınır.
@@ -46,7 +46,8 @@ const MAX_FAILED_ATTEMPTS = 5;
 const ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
 // Sayaç sınırsız büyüyüp belleği doldurmasın: üst sınıra gelince önce süresi dolanlar, yetmezse en eskiler silinir.
 const MAX_TRACKED_PHONES = 10000;
-const failedAttempts = new Map(); // anahtar: normalleştirilmiş telefon -> { count, firstAt }
+// Anahtar "<studioId>:<telefon>": bir stüdyodaki denemeler aynı numaranın başka stüdyodaki hesabını kilitlemez.
+const failedAttempts = new Map(); // anahtar -> { count, firstAt }
 
 function pruneFailedAttempts() {
   const now = Date.now();
@@ -106,18 +107,21 @@ export async function createSession(userId, db = pool) {
 // Cookie'deki token'a ait geçerli oturumun kullanıcısını döndürür (yoksa null).
 // Kullanıcının durumu HER istekte kontrol ediliyor: müşteri "ayrıldı" yapıldığı anda,
 // açık oturumu olsa bile bir sonraki isteği reddedilir (BR-22).
-export async function findSessionUser(token, { db = pool } = {}) {
-  if (!token) return null;
+// studioId zorunlu: oturum yalnızca kullanıcının kendi stüdyosunun adresinde geçerli. Parametre olarak
+// istendiği için stüdyo denetimini unutmak zorlaşır; stüdyo yoksa (kök ya da bilinmeyen adres) oturum da yok.
+export async function findSessionUser(token, studioId, { db = pool } = {}) {
+  if (!token || !studioId) return null;
   const { rows: [user] } = await db.query(
     `
     SELECT u.id, u.studio_id, u.role, u.full_name, u.must_change_password, us.id AS session_id
     FROM user_sessions us
     JOIN users u ON u.id = us.user_id
     WHERE us.token_hash = $1
+      AND u.studio_id = $2
       AND us.expires_at > now()
       AND u.status <> 'left'
     `,
-    [hashToken(token)],
+    [hashToken(token), studioId],
   );
   return user ?? null;
 }
@@ -142,7 +146,9 @@ export async function revokeAllSessions(userId, { exceptSessionId = null, db = p
 const MAX_PHONE_INPUT = 32;
 const MAX_PASSWORD_INPUT = 1024;
 
-export async function login({ phone, password }, { db = pool } = {}) {
+// studioId: isteğin geldiği stüdyo (adresten). Aynı numara başka stüdyoda kayıtlıysa o hesap hiç aranmaz;
+// yanıt "kayıtlı olmayan numara" ile aynıdır, numaranın başka yerde kayıtlı olduğu sızmaz.
+export async function login({ studioId, phone, password }, { db = pool } = {}) {
   const normalized = typeof phone === 'string' && phone.length <= MAX_PHONE_INPUT ? normalizePhone(phone) : null;
   const passwordText = typeof password === 'string' && password.length <= MAX_PASSWORD_INPUT ? password : null;
 
@@ -151,11 +157,12 @@ export async function login({ phone, password }, { db = pool } = {}) {
   // belleği doldurmak mümkün olmasın. Böyle istekleri IP sınırı (rateLimits.js) yavaşlatır.
   if (!normalized || passwordText === null) throw INVALID_CREDENTIALS();
 
-  assertNotRateLimited(normalized);
+  const attemptKey = `${studioId}:${normalized}`;
+  assertNotRateLimited(attemptKey);
 
   const { rows: [user] } = await db.query(
-    'SELECT id, password_hash, status FROM users WHERE phone = $1',
-    [normalized],
+    'SELECT id, password_hash, status FROM users WHERE studio_id = $1 AND phone = $2',
+    [studioId, normalized],
   );
 
   // Kullanıcı yoksa da bir bcrypt karşılaştırması yapıyoruz. Yapmasaydık "kayıtlı olmayan numara"
@@ -164,11 +171,11 @@ export async function login({ phone, password }, { db = pool } = {}) {
   const passwordOk = await bcrypt.compare(passwordText, user?.password_hash ?? DUMMY_HASH);
 
   if (!user || !passwordOk) {
-    recordFailedAttempt(normalized);
+    recordFailedAttempt(attemptKey);
     // Hangisinin yanlış olduğunu söylemiyoruz: kayıtlı numaralar sızmasın.
     throw INVALID_CREDENTIALS();
   }
-  failedAttempts.delete(normalized);
+  failedAttempts.delete(attemptKey);
 
   // Şifre doğruysa kişi kimliğini kanıtladı; hesabın kapalı olduğunu söylemek artık bilgi sızdırmaz.
   if (user.status === 'left') {
@@ -176,7 +183,7 @@ export async function login({ phone, password }, { db = pool } = {}) {
   }
 
   const token = await createSession(user.id, db);
-  return { token, user: await findSessionUser(token, { db }) };
+  return { token, user: await findSessionUser(token, studioId, { db }) };
 }
 
 // --- Şifre --------------------------------------------------------------------------------------

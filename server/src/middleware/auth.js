@@ -7,7 +7,8 @@ export const SESSION_COOKIE = 'sid';
 // engellemeyi requireAuth yapar. Her isteğin başında bir kez çalışır.
 export async function loadUser(req, res, next) {
   req.sessionToken = req.cookies?.[SESSION_COOKIE] ?? null;
-  req.user = await findSessionUser(req.sessionToken);
+  // Oturum yalnızca adresteki stüdyoda geçerli: A stüdyosunun çerezi B'nin adresinde "giriş yok" sayılır.
+  req.user = await findSessionUser(req.sessionToken, req.studio?.id);
   next();
 }
 
