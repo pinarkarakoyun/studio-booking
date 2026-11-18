@@ -49,6 +49,8 @@ Small neighborhood studios often manage group attendance through messaging apps 
 - **Admin-created accounts:** No public sign-up. The studio owner creates accounts, which fits a small studio and avoids unwanted registrations.
 - **Sessions generated ahead of time:** Upcoming sessions are created from the group templates on startup and once a day.
 - **Server-side sessions:** Login uses httpOnly cookies backed by a sessions table, so a member who leaves can be logged out instantly.
+- **One studio per subdomain:** Several studios share one installation. Each studio has its own address (`ornek.example.com`), and the server picks the studio from the request's host. An unknown address never falls back to another studio; it gets a 404. The session cookie has no `Domain`, so it stays on its own studio's address.
+- **Separate accounts per studio:** The same phone number can be a separate account, with its own password, in two studios. A studio resets only its own members' passwords. Data isolation between studios is proven by tests that try every endpoint with another studio's ids (`server/test/studioIsolation.test.js`).
 
 ## Tech stack
 
@@ -79,15 +81,26 @@ docker compose up -d
 cd server
 npm install
 npm run migrate
-ALLOW_DEMO_SEED=1 npm run seed:dev        # demo studio, groups, members and sessions
+ALLOW_DEMO_SEED=1 npm run seed:dev        # demo studio (address "demo"), groups, members and sessions
 ALLOW_DEMO_SEED=1 npm run seed:payments   # optional: demo memberships and payments
-npm run dev             # http://localhost:3000
+npm run dev             # API on 127.0.0.1:3000
 
 # 4. Client (in a second terminal)
 cd client
 npm install
-npm run dev             # http://localhost:5173
+npm run dev             # open http://demo.localhost:5173
 ```
+
+Each studio is opened at its own address: `<slug>.BASE_DOMAIN`. In development `server/.env` sets `BASE_DOMAIN=localhost`, so the demo studio is at `http://demo.localhost:5173` (browsers resolve `*.localhost` to your own machine). `http://localhost:5173` is the product's root address, not a studio. The server does not start without `BASE_DOMAIN`.
+
+To add a studio, or an admin to an existing studio:
+
+```bash
+cd server
+npm run create-admin -- <slug> "Full Name" "0532 123 45 67" ["Studio Name"]
+```
+
+The slug is the studio's address: lowercase letters, digits and hyphens, 3–63 characters, not starting or ending with a hyphen. A few names (`www`, `api`, `admin`, `app`, `mail`, `static`, `assets`) are reserved. The database enforces the same rules.
 
 The demo login accounts (one customer, one admin) are listed in `DEV_ACCOUNTS` at the top of `server/src/scripts/seedDev.js`. They exist only on a development machine. Because their passwords are public, the seed scripts need an explicit `ALLOW_DEMO_SEED=1` on every run and refuse to run in production or on a database that already has data.
 
@@ -100,7 +113,7 @@ cd server
 npm test
 ```
 
-Tests run against a separate `studio_booking_test` database that is created automatically. As a safety check, the test setup refuses any database whose name does not end in `_test`. About 130 tests cover authentication, booking and make-up rules, concurrency, the admin endpoints and phone number normalization.
+Tests run against a separate `studio_booking_test` database that is created automatically. As a safety check, the test setup refuses any database whose name does not end in `_test`. About 210 tests cover authentication, booking and make-up rules, concurrency, the admin endpoints, phone number normalization and isolation between studios. HTTP tests talk to real studio subdomains (`test-1.localhost`).
 
 ## Production and security
 
@@ -110,7 +123,7 @@ The server checks its configuration on startup (`server/src/startupChecks.js`). 
 - **HTTPS proxy.** Run behind Caddy or Nginx, which handles HTTPS, and set `TRUST_PROXY` so rate limits see real client IPs. Values Express cannot use (`true`, `*`) are refused. The session cookie is `Secure` in production.
 - **Not reachable directly.** The server listens on `127.0.0.1` by default (`HOST`), so only the local proxy can reach it. With the proxy on the same machine, leave `HOST` empty and use `TRUST_PROXY=loopback`. If a platform needs `HOST=0.0.0.0`, make sure the port is open only to the platform's proxy: with a hop count such as `TRUST_PROXY=1` and a public port, anyone could fake `X-Forwarded-For` and bypass the rate limits (the server warns about this combination).
 - **Built client.** `CLIENT_DIR` points to `client/dist`; the site and the API share one origin.
-- **Privacy notice (KVKK).** `BRAND_DIR/site.json` must contain `privacyNotice`. A draft template is in `server/site.example.json`; it is a starting point, not legal advice.
+- **Privacy notice (KVKK).** Each studio's `BRAND_DIR/<slug>/site.json` must contain `privacyNotice` (each studio is the data controller for its members). A draft template is in `server/site.example.json`; it is a starting point, not legal advice.
 
 Also built in: per-IP rate limits on the API and on failed logins (`middleware/rateLimits.js`), on top of the per-phone login limit; security headers with a strict Content-Security-Policy (`helmet`); input size limits on login.
 
@@ -134,11 +147,21 @@ docker-compose.yml  local PostgreSQL
 
 ### Studio branding
 
-A studio's own content (logo, instructor, address, photos) is kept outside the repository in a folder set by `BRAND_DIR` and served under `/brand`. The public page reads `BRAND_DIR/site.json`; see `server/site.example.json` for the format. Missing fields show placeholders.
+A studio's own content (logo, colours, instructor, address, photos) is kept outside the repository. `BRAND_DIR` points to a folder with one subfolder per studio, named after its slug:
+
+```
+BRAND_DIR/
+  demo/
+    site.json    texts for the public page (format: server/site.example.json)
+    theme.css    colour overrides
+    logo.png     photos and other public files
+```
+
+`/brand/...` is served from the folder of the studio the request came to, so one studio can never load another's files. Every file in a studio's folder is public. Missing fields show placeholders.
 
 ## Not in the first version
 
-Online payments (payments are collected in person and only recorded in the system), class packs (memberships are time-based only), WhatsApp/SMS reminders, waiting list, self sign-up, instructor role, reporting, multi-studio screens, native mobile app. The data model leaves room for multiple studios later.
+Online payments (payments are collected in person and only recorded in the system), class packs (memberships are time-based only), WhatsApp/SMS reminders, waiting list, self sign-up, instructor role, reporting, native mobile app. Several studios already run on one installation, each on its own subdomain; there is no screen yet for opening a studio or changing its address (studios are created with `create-admin`).
 
 ## Roadmap
 

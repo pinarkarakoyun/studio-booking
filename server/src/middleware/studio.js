@@ -1,9 +1,7 @@
 import pool from '../db/pool.js';
 import { AppError } from '../errors.js';
-
-// Slug biçimi: migration 013'teki studios_slug_format kısıtıyla aynı. Burada da denetlenir ki
-// "a.b" gibi çok seviyeli ya da geçersiz bir etiket veritabanına hiç sorulmasın.
-const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/;
+// Slug biçimi burada da denetlenir ki "a.b" gibi çok seviyeli ya da geçersiz bir etiket veritabanına hiç sorulmasın.
+import { SLUG_PATTERN } from '../slug.js';
 
 // İsteğin adresini (hostname) sınıflandırır. baseDomain: ürünün ana alan adı (ör. "siteadi.com").
 //   siteadi.com, www.siteadi.com -> { kind: 'root' }               (ürün sayfası)
