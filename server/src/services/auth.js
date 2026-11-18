@@ -227,7 +227,7 @@ export async function createUser({ studioId, role, fullName, phone, temporaryPas
     `
     INSERT INTO users (studio_id, role, full_name, phone, password_hash, must_change_password)
     VALUES ($1, $2, $3, $4, $5, true)
-    ON CONFLICT (phone) DO NOTHING
+    ON CONFLICT (studio_id, phone) DO NOTHING
     RETURNING id
     `,
     [studioId, role, fullName, normalized, await hashPassword(temporaryPassword)],

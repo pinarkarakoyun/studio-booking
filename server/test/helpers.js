@@ -17,8 +17,15 @@ export async function resetDb() {
   `);
 }
 
+// Her test stüdyosunun kendi adresi (slug) olur: verilmezse "test-<sıra>". resetDb kimlikleri sıfırladığı için
+// her testin ilk stüdyosu "test-1" olur; HTTP testleri varsayılan olarak test-1.localhost adresine gider.
 export async function createStudio(settings = {}) {
-  const { rows: [studio] } = await pool.query(`INSERT INTO studios (name) VALUES ('Test') RETURNING id`);
+  const { rows: [{ count }] } = await pool.query('SELECT count(*)::int AS count FROM studios');
+  const slug = settings.slug ?? `test-${count + 1}`;
+  const { rows: [studio] } = await pool.query(
+    `INSERT INTO studios (name, slug) VALUES ('Test', $1) RETURNING id`,
+    [slug],
+  );
   await pool.query(
     `
     INSERT INTO studio_settings (studio_id, credit_validity_days, cancellation_deadline_hours,
