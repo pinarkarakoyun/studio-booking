@@ -6,19 +6,12 @@ import helmet from 'helmet';
 import { AppError } from './errors.js';
 import { loadUser } from './middleware/auth.js';
 import { createRateLimiters, DEFAULT_RATE_LIMITS } from './middleware/rateLimits.js';
+import { trustProxySetting } from './network.js';
 import adminRouter from './routes/admin.js';
 import authRouter from './routes/auth.js';
 import healthRouter from './routes/health.js';
 import sessionsRouter from './routes/sessions.js';
 import studioRouter from './routes/studio.js';
-
-// TRUST_PROXY: uygulama bir ters vekil sunucunun (Caddy, Nginx) arkasındaysa, gerçek ziyaretçi IP'sini
-// X-Forwarded-For başlığından okumak için. Ayarlanmazsa IP sınırları herkesi proxy'nin IP'si sanır.
-// Örnekler: "1" (önünde tek proxy var), "loopback" (proxy aynı makinede). Boşsa kapalı.
-function trustProxySetting(value) {
-  if (!value) return false;
-  return /^\d+$/.test(value) ? Number(value) : value;
-}
 
 // Uygulama burada kuruluyor ama dinlemeye (listen) başlamıyor. Böylece testler uygulamayı
 // rastgele bir portta kendileri başlatabiliyor; index.js ise gerçek sunucuyu başlatıyor.
@@ -26,6 +19,7 @@ function trustProxySetting(value) {
 export function createApp({ rateLimits = DEFAULT_RATE_LIMITS } = {}) {
   const app = express();
   const isProduction = process.env.NODE_ENV === 'production';
+  // Gerçek ziyaretçi IP'si (IP sınırları için); ayrıntı network.js'te. Ayarlanmazsa herkes proxy'nin IP'si sanılır.
   app.set('trust proxy', trustProxySetting(process.env.TRUST_PROXY));
 
   // Güvenlik başlıkları. CSP: sayfa yalnızca kendi adresinden script, stil, yazı tipi ve görsel yükler;

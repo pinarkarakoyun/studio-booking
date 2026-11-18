@@ -2,6 +2,7 @@
 import 'dotenv/config';
 import { createApp } from './app.js';
 import pool from './db/pool.js';
+import { DEFAULT_HOST } from './network.js';
 import { generateSessions } from './services/sessionGenerator.js';
 import { checkStartup } from './startupChecks.js';
 
@@ -17,11 +18,12 @@ if (problems.length > 0) {
 
 const app = createApp();
 
-// PORT tanımlı değilse 3000 kullanılır.
+// PORT tanımlı değilse 3000 kullanılır. HOST tanımlı değilse yalnızca bu makineden bağlanılır (bkz. network.js).
 const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || DEFAULT_HOST;
 
-app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT} (${process.env.NODE_ENV})`);
+app.listen(PORT, HOST, () => {
+  console.log(`Server running at http://${HOST}:${PORT} (${process.env.NODE_ENV})`);
 });
 
 // Ders üretimini açılışta ve sonra günde bir kez çalıştırıyoruz; pencere her gün bir gün ileri kayar.
