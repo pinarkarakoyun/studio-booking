@@ -1,0 +1,36 @@
+/* Kök adres ve "Stüdyo bulunamadı" için sade, tek mesajlık sayfa. Geçici görünüm: arayüz yenilenirken
+   (yol haritası 4. adım) yeni tasarıma geçecek. Yalnızca index.css'teki değişkenler kullanılır. */
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8) var(--space-4);
+  background: var(--paper);
+}
+
+.card {
+  max-width: 440px;
+  text-align: center;
+}
+
+.title {
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-brand);
+  font-size: var(--text-xl);
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--violet);
+}
+
+.text {
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.6;
+}
+
+.address {
+  color: var(--ink);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
