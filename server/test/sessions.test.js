@@ -32,6 +32,8 @@ const statusOf = (sessions, id) => sessions.find((s) => s.id === id)?.myStatus;
 
 describe('access', () => {
   test('requires login', async () => {
+    // Adres bir stüdyoya ait olmalı (test-1.localhost); yoksa her uç 404 STUDIO_NOT_FOUND döner.
+    await createStudio();
     for (const [method, path] of [
       ['GET', '/api/me/sessions'], ['GET', '/api/sessions'], ['POST', '/api/sessions/1/cancel'],
     ]) {

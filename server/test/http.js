@@ -4,9 +4,14 @@ import { after, before } from 'node:test';
 import { createApp } from '../src/app.js';
 import { createSession } from '../src/services/auth.js';
 import { SESSION_COOKIE } from '../src/middleware/auth.js';
+import { pool } from './helpers.js';
 
 let server;
-let baseUrl;
+let port;
+
+// Testler stüdyoya gerçek alt alan adlarıyla gider (test-1.localhost): Node fetch özel Host başlığını
+// dikkate almıyor, *.localhost adresleri ise bu makineye çözülüyor. resetDb sonrası ilk stüdyo "test-1".
+const DEFAULT_HOST = 'test-1.localhost';
 
 // Testler aynı IP'den çok sayıda istek atar; IP sınırları burada pratikte kapalı.
 // Sınırların kendisi rateLimits.test.js'te küçük değerlerle sınanır.
@@ -17,18 +22,20 @@ export function useServer({ rateLimits = TEST_RATE_LIMITS } = {}) {
   before(async () => {
     server = createApp({ rateLimits }).listen(0);
     await new Promise((resolve) => server.once('listening', resolve));
-    baseUrl = `http://localhost:${server.address().port}`;
+    port = server.address().port;
   });
   after(() => new Promise((resolve) => server.close(resolve)));
 }
 
-export function getBaseUrl() {
-  return baseUrl;
+export function getBaseUrl(host = DEFAULT_HOST) {
+  return `http://${host}:${port}`;
 }
 
 // Set-Cookie'yi saklayıp sonraki isteklere ekleyen istemci (tarayıcının yaptığı gibi).
-export function client(initialCookie = null) {
+// host: isteğin gideceği adres (stüdyonun alt alan adı, kök için "localhost").
+export function client(initialCookie = null, { host = DEFAULT_HOST } = {}) {
   let cookie = initialCookie;
+  const baseUrl = getBaseUrl(host);
   return {
     async request(method, path, body) {
       const res = await fetch(baseUrl + path, {
@@ -47,8 +54,13 @@ export function client(initialCookie = null) {
   };
 }
 
-// Şifre adımını atlayıp kullanıcı adına doğrudan oturum açar.
+// Şifre adımını atlayıp kullanıcı adına doğrudan oturum açar. İstekler kullanıcının kendi stüdyosunun
+// adresine gider; böylece iki stüdyolu testlerde her kullanıcı doğru adresten konuşur.
 export async function clientFor(userId) {
   const token = await createSession(userId);
-  return client(`${SESSION_COOKIE}=${token}`);
+  const { rows: [{ slug }] } = await pool.query(
+    'SELECT st.slug FROM users u JOIN studios st ON st.id = u.studio_id WHERE u.id = $1',
+    [userId],
+  );
+  return client(`${SESSION_COOKIE}=${token}`, { host: `${slug}.localhost` });
 }

@@ -86,12 +86,17 @@ export async function checkStartup({ env = process.env, db }) {
   if (env.ALLOW_DEMO_SEED) {
     problems.push('ALLOW_DEMO_SEED üretimde tanımlı olmamalı.');
   }
-  // KVKK: kişisel veri toplayan bir sistem aydınlatma metni olmadan yayına girmesin.
-  if (!privacyNotice((await readSiteFile(env.BRAND_DIR)).privacyNotice)) {
-    problems.push(
-      'KVKK aydınlatma metni yok: BRAND_DIR/site.json içine "privacyNotice" ekle (şablon: server/site.example.json; '
-        + 'metni bir hukukçuya onaylat).',
-    );
+  // KVKK: kişisel veri toplayan bir sistem aydınlatma metni olmadan yayına girmesin. Veri sorumlusu her
+  // stüdyonun kendisi olduğu için her stüdyonun kendi metni olmalı: BRAND_DIR/<slug>/site.json.
+  // Not: sunucu açıkken yeni açılan stüdyo bir sonraki açılışta denetlenir.
+  const { rows: studios } = await db.query('SELECT slug FROM studios ORDER BY id');
+  for (const { slug } of studios) {
+    if (!privacyNotice((await readSiteFile(slug, env.BRAND_DIR)).privacyNotice)) {
+      problems.push(
+        `KVKK aydınlatma metni yok (stüdyo "${slug}"): BRAND_DIR/${slug}/site.json içine "privacyNotice" ekle `
+          + '(şablon: server/site.example.json; metni bir hukukçuya onaylat).',
+      );
+    }
   }
   return { problems, warnings };
 }

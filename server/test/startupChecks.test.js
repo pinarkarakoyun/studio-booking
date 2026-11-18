@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { after, describe, test } from 'node:test';
@@ -9,7 +9,10 @@ import { pool } from './helpers.js';
 after(() => pool.end());
 
 // Rolün yetkilerini taklit eden sahte veritabanı: gerçek test rolü süper kullanıcı olduğu için.
-const fakeDb = (role) => ({ query: async () => ({ rows: [role] }) });
+// Stüdyo listesi sorgusuna tek bir stüdyo ("ornek") döner; aydınlatma metni BRAND_DIR/ornek/site.json'da.
+const fakeDb = (role) => ({
+  query: async (sql) => ({ rows: sql.includes('FROM studios') ? [{ slug: 'ornek' }] : [role] }),
+});
 const LIMITED = { rolsuper: false, rolcreatedb: false, rolcreaterole: false, owns_objects: false };
 
 // Derlenmiş istemci (index.html) ve aydınlatma metni olan bir marka klasörü.
@@ -17,7 +20,8 @@ async function withClientAndBrand(work, { privacy = true } = {}) {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'deploy-'));
   await writeFile(path.join(dir, 'index.html'), '<!doctype html>');
   const notice = { updatedOn: '2026-11-12', sections: [{ title: 'Veri sorumlusu', text: 'Örnek Stüdyo' }] };
-  await writeFile(path.join(dir, 'site.json'), JSON.stringify(privacy ? { privacyNotice: notice } : {}));
+  await mkdir(path.join(dir, 'ornek'));
+  await writeFile(path.join(dir, 'ornek', 'site.json'), JSON.stringify(privacy ? { privacyNotice: notice } : {}));
   try {
     return await work(dir);
   } finally {
@@ -98,6 +102,7 @@ describe('startup checks', () => {
       const { problems } = await checkStartup({ env, db: fakeDb(LIMITED) });
       assert.equal(problems.length, 1);
       assert.match(problems[0], /aydınlatma metni/);
+      assert.match(problems[0], /ornek/);
     }, { privacy: false });
   });
 });
