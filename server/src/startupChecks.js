@@ -18,6 +18,11 @@ export async function checkStartup({ env = process.env, db }) {
     return { problems, warnings };
   }
 
+  // Ürünün alan adı: her iki modda da biçimi denetlenir. Yanlış yazılırsa (ör. "https://siteadi.com") hiçbir adres
+  // eşleşmez ve her sayfa sebebi görünmeden "Stüdyo bulunamadı" der.
+  const domainProblem = baseDomainProblem(env.BASE_DOMAIN, mode);
+  if (domainProblem) problems.push(domainProblem);
+
   // owns_objects: rol tabloların (ya da veritabanının) sahibi mi? Sahip rol süper kullanıcı olmasa da tabloları
   // silebilir (DROP) ve yapısını değiştirebilir. Uygulama bu rolle bağlanırsa en az yetki ilkesi sessizce bozulur:
   // tablolar migration'ları çalıştıran rolündür, uygulamanın rolü yalnızca okuyup yazar (db/roles/app-role.sql).
@@ -89,14 +94,39 @@ export async function checkStartup({ env = process.env, db }) {
   // KVKK: kişisel veri toplayan bir sistem aydınlatma metni olmadan yayına girmesin. Veri sorumlusu her
   // stüdyonun kendisi olduğu için her stüdyonun kendi metni olmalı: BRAND_DIR/<slug>/site.json.
   // Not: sunucu açıkken yeni açılan stüdyo bir sonraki açılışta denetlenir.
+  // Sunucu açıkken açılan stüdyoyu create-admin aynı fonksiyonla uyarır.
   const { rows: studios } = await db.query('SELECT slug FROM studios ORDER BY id');
   for (const { slug } of studios) {
-    if (!privacyNotice((await readSiteFile(slug, env.BRAND_DIR)).privacyNotice)) {
-      problems.push(
-        `KVKK aydınlatma metni yok (stüdyo "${slug}"): BRAND_DIR/${slug}/site.json içine "privacyNotice" ekle `
-          + '(şablon: server/site.example.json; metni bir hukukçuya onaylat).',
-      );
-    }
+    const problem = await studioPrivacyProblem(slug, env.BRAND_DIR);
+    if (problem) problems.push(problem);
   }
   return { problems, warnings };
+}
+
+// Stüdyonun KVKK aydınlatma metni (BRAND_DIR/<slug>/site.json içinde "privacyNotice") var mı?
+// Varsa null, yoksa ne yapılması gerektiğini anlatan metin.
+export async function studioPrivacyProblem(slug, brandDir) {
+  if (privacyNotice((await readSiteFile(slug, brandDir)).privacyNotice)) return null;
+  return `KVKK aydınlatma metni yok (stüdyo "${slug}"): BRAND_DIR/${slug}/site.json içine "privacyNotice" ekle `
+    + '(şablon: server/site.example.json; metni bir hukukçuya onaylat).';
+}
+
+// Alan adı etiketi: küçük harf, rakam ve tire; tireyle başlayıp bitmez; en fazla 63 karakter.
+const DOMAIN_LABEL = '[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?';
+const BARE_DOMAIN = new RegExp(`^${DOMAIN_LABEL}(?:\\.${DOMAIN_LABEL})*$`);
+
+// BASE_DOMAIN düz bir alan adı mı ("siteadi.com")? Şema, port, yol, baştaki/sondaki nokta ve büyük harf kabul
+// edilmez; üretimde "localhost" olamaz (stüdyolar gerçek alt alan adlarında açılır). Sorun yoksa null.
+export function baseDomainProblem(value, mode) {
+  if (!value) {
+    return 'BASE_DOMAIN tanımlı değil: ürünün alan adını yaz (geliştirmede "localhost", üretimde ör. "siteadi.com").';
+  }
+  if (value.length > 253 || !BARE_DOMAIN.test(value)) {
+    return `BASE_DOMAIN geçersiz ("${value}"): yalnızca alan adını küçük harfle yaz; "https://", port, yol ya da `
+      + 'baştaki/sondaki nokta olmadan (ör. "siteadi.com").';
+  }
+  if (mode === 'production' && value === 'localhost') {
+    return 'BASE_DOMAIN üretimde "localhost" olamaz: ürünün gerçek alan adını yaz (ör. "siteadi.com").';
+  }
+  return null;
 }

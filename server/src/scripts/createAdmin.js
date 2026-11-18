@@ -11,6 +11,7 @@ import { randomBytes } from 'node:crypto';
 import pool from '../db/pool.js';
 import { createUser } from '../services/auth.js';
 import { slugProblem } from '../slug.js';
+import { studioPrivacyProblem } from '../startupChecks.js';
 
 const USAGE = 'Kullanım: npm run create-admin -- <slug> "Ad Soyad" "0532 123 45 67" ["Stüdyo Adı"]';
 const [slug, fullName, phone, studioName = 'Stüdyo'] = process.argv.slice(2);
@@ -56,6 +57,14 @@ try {
   console.log(`Adres: ${slug}.${process.env.BASE_DOMAIN || '<BASE_DOMAIN>'}`);
   console.log(`Geçici şifre: ${temporaryPassword}`);
   console.log('İlk girişte yeni şifre belirlemeniz istenecek.');
+
+  // KVKK: açılış kontrolü yalnızca sunucu başlarken çalışır. Sunucu açıkken açılan stüdyo, aydınlatma metni
+  // olmadan bir sonraki yeniden başlatmaya kadar yayında kalmasın diye burada hemen uyarıyoruz.
+  const privacy = await studioPrivacyProblem(slug, process.env.BRAND_DIR);
+  if (privacy) {
+    console.warn(`\nUyarı: ${privacy}`);
+    console.warn('Üretimde sunucu bu metin olmadan yeniden açılmaz; stüdyonun sitesini yayına almadan önce ekle.');
+  }
 } catch (err) {
   await client.query('ROLLBACK');
   console.error(err.message);

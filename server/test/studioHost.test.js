@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { after, afterEach, beforeEach, describe, test } from 'node:test';
 import { createApp } from '../src/app.js';
-import { classifyHost } from '../src/middleware/studio.js';
+import { classifyHost, hostnameFromHeader } from '../src/middleware/studio.js';
 import { createStudio, pool, resetDb } from './helpers.js';
 import { client, getBaseUrl, useServer } from './http.js';
 
@@ -56,6 +56,19 @@ describe('classifyHost', () => {
     ['127.0.0.1', { kind: 'unknown' }],
     ['', { kind: 'unknown' }],
   ];
+  // Host başlığından ad çıkarma: port atılır, IPv6 köşeli parantezli adres bozulmaz.
+  const headerCases = [
+    ['ornek.siteadi.com:5173', 'ornek.siteadi.com'],
+    ['ornek.siteadi.com', 'ornek.siteadi.com'],
+    ['[::1]:3000', '[::1]'],
+    ['', ''],
+    [undefined, ''],
+  ];
+  for (const [header, expected] of headerCases) {
+    test(`hostnameFromHeader(${JSON.stringify(header)}) -> ${JSON.stringify(expected)}`, () => {
+      assert.equal(hostnameFromHeader(header), expected);
+    });
+  }
   for (const [hostname, expected] of cases) {
     test(`${hostname || '(boş)'} -> ${expected.kind}`, () => {
       assert.deepEqual(classifyHost(hostname, base), expected);
@@ -101,6 +114,28 @@ describe('studio from the request host', () => {
     for (const host of ['localhost', 'yok.localhost']) {
       const res = await client(null, { host }).request('GET', '/api/health');
       assert.equal(res.status, 200, host);
+    }
+  });
+
+  // Proxy'ye güvenildiğinde (TRUST_PROXY) Express'in req.hostname'i X-Forwarded-Host'u tercih eder. Nginx bu başlığı
+  // istemciden olduğu gibi geçirebilir: stüdyo, proxy'nin denetlediği Host'tan bağımsız seçilirdi (önbellekte
+  // A'nın adresine B'nin yanıtı yazılabilirdi). Stüdyo her zaman Host başlığından belirlenmeli.
+  test('the studio comes from Host, not from X-Forwarded-Host, even behind a trusted proxy', async () => {
+    await namedStudio('test-1', 'Birinci');
+    await namedStudio('ikinci', 'İkinci');
+    const saved = process.env.TRUST_PROXY;
+    process.env.TRUST_PROXY = 'loopback';
+    const proxied = createApp().listen(0);
+    try {
+      await new Promise((resolve) => proxied.once('listening', resolve));
+      const res = await fetch(`http://test-1.localhost:${proxied.address().port}/api/studio`, {
+        headers: { 'x-forwarded-host': 'ikinci.localhost' },
+      });
+      assert.equal((await res.json()).studio.name, 'Birinci');
+    } finally {
+      await new Promise((resolve) => proxied.close(resolve));
+      if (saved === undefined) delete process.env.TRUST_PROXY;
+      else process.env.TRUST_PROXY = saved;
     }
   });
 

@@ -22,10 +22,22 @@ export function classifyHost(hostname, baseDomain) {
   return { kind: 'unknown' };
 }
 
+// Host başlığından (ör. "ornek.siteadi.com:5173") alan adını çıkarır: port atılır. IPv6 adresi köşeli parantez
+// içinde gelir ("[::1]:3000"); parantezdeki iki noktalar port sanılmasın diye ayrı ele alınır.
+export function hostnameFromHeader(value) {
+  const host = String(value ?? '');
+  if (host.startsWith('[')) return host.slice(0, host.indexOf(']') + 1);
+  const colon = host.indexOf(':');
+  return colon === -1 ? host : host.slice(0, colon);
+}
+
 // Her isteğin başında çalışır; kimseyi engellemez, sadece req.hostKind ve req.studio'yu doldurur.
 // Engellemeyi requireStudio yapar. Slug kayıtlı değilse adres "bilinmeyen" sayılır.
+// Adres her zaman Host başlığından okunur, req.hostname'den değil: proxy'ye güvenildiğinde (TRUST_PROXY)
+// Express X-Forwarded-Host'u tercih eder ve bazı proxy'ler (ör. Nginx) bu başlığı istemciden olduğu gibi geçirir.
+// Host'u ise proxy kendi denetler; önündeki proxy özgün Host'u korumalıdır (Caddy varsayılan, Nginx: proxy_set_header Host $host).
 export async function resolveStudio(req, res, next) {
-  const host = classifyHost(req.hostname, process.env.BASE_DOMAIN);
+  const host = classifyHost(hostnameFromHeader(req.get('host')), process.env.BASE_DOMAIN);
   req.hostKind = host.kind;
   req.studio = null;
 
