@@ -106,8 +106,9 @@ Tests run against a separate `studio_booking_test` database that is created auto
 
 The server checks its configuration on startup (`server/src/startupChecks.js`). With `NODE_ENV=production` it refuses to start, and says why, if any of these is missing:
 
-- **Least-privilege database role.** The app must not connect as a superuser. Create a role that can only read and write with `server/db/roles/app-role.sql`; migrations run as the table owner (`DB_OWNER_USER`).
-- **HTTPS proxy.** Run behind Caddy or Nginx, which handles HTTPS, and set `TRUST_PROXY` (for example `loopback`) so rate limits see real client IPs. The session cookie is `Secure` in production.
+- **Least-privilege database role.** The app must not connect as a superuser or as the role that owns the tables (an owner can drop them). Create a role that can only read and write with `server/db/roles/app-role.sql`, running it as the owner role; migrations run as the table owner (`DB_OWNER_USER`).
+- **HTTPS proxy.** Run behind Caddy or Nginx, which handles HTTPS, and set `TRUST_PROXY` so rate limits see real client IPs. Values Express cannot use (`true`, `*`) are refused. The session cookie is `Secure` in production.
+- **Not reachable directly.** The server listens on `127.0.0.1` by default (`HOST`), so only the local proxy can reach it. With the proxy on the same machine, leave `HOST` empty and use `TRUST_PROXY=loopback`. If a platform needs `HOST=0.0.0.0`, make sure the port is open only to the platform's proxy: with a hop count such as `TRUST_PROXY=1` and a public port, anyone could fake `X-Forwarded-For` and bypass the rate limits (the server warns about this combination).
 - **Built client.** `CLIENT_DIR` points to `client/dist`; the site and the API share one origin.
 - **Privacy notice (KVKK).** `BRAND_DIR/site.json` must contain `privacyNotice`. A draft template is in `server/site.example.json`; it is a starting point, not legal advice.
 
@@ -150,7 +151,16 @@ Online payments (payments are collected in person and only recorded in the syste
 - [x] Admin panel: customers, groups, sessions, settings, memberships and payments
 - [x] Public landing page
 - [x] Security review and first hardening pass (rate limits, security headers, least-privilege role, startup checks, backups)
-- [ ] Deployment and production setup
+
+Next: turning the app into a product several studios can use. Order and decisions: `docs/superpowers/specs/2026-11-18-roadmap-and-decisions.md`.
+
+- [ ] Multi-studio foundation: each studio on its own subdomain, separate accounts per studio, data isolation proven by tests
+- [ ] Branches: a studio can have several locations; groups belong to a branch
+- [ ] Class packs (e.g. 8 or 12 sessions) as a second membership model, chosen per studio at setup
+- [ ] New look for the customer and admin panels
+- [ ] Appearance settings: brand and accent colours (other shades derived automatically) and logo
+- [ ] Instructor role and panel
+- [ ] Deployment and production setup (data stays in Turkey)
 - [ ] Pilot with a real studio
 
 ## License
