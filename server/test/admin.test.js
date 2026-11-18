@@ -45,6 +45,8 @@ async function setupToday() {
 
 describe('access', () => {
   test('requires login and the admin role', async () => {
+    // Adres bir stüdyoya ait olmalı (test-1.localhost); yoksa her uç 404 STUDIO_NOT_FOUND döner.
+    await createStudio();
     assert.equal((await client().request('GET', '/api/admin/today')).status, 401);
 
     const studio = await createStudio();

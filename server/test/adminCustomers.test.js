@@ -80,7 +80,7 @@ describe('list and detail', () => {
 
 describe('create', () => {
   test('creates a customer in a group and returns a readable temporary password that works once', async () => {
-    const { group, c } = await setup();
+    const { studio, group, c } = await setup();
 
     const res = await c.request('POST', '/api/admin/customers', {
       fullName: '  Nazlı   Güneş ', phone: '0533 444 55 66', groupId: group, startsOn: await today(),
@@ -92,7 +92,7 @@ describe('create', () => {
     assert.equal(body.customer.fullName, 'Nazlı Güneş');
     assert.equal(body.customer.group.id, group);
 
-    const loggedIn = await login({ phone: '+905334445566', password: res.body.temporaryPassword });
+    const loggedIn = await login({ studioId: studio, phone: '+905334445566', password: res.body.temporaryPassword });
     assert.equal(loggedIn.user.must_change_password, true);
   });
 

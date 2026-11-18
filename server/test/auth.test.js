@@ -94,6 +94,8 @@ describe('login', () => {
 
 describe('session', () => {
   test('/me requires login', async () => {
+    // Adres bir stüdyoya ait olmalı (test-1.localhost); yoksa her uç 404 STUDIO_NOT_FOUND döner.
+    await createStudio();
     const res = await client().request('GET', '/api/auth/me');
     assert.equal(res.status, 401);
   });

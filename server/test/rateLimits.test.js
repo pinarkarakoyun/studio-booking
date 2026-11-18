@@ -28,6 +28,8 @@ describe('security headers', () => {
   });
 
   test('an unknown API address gets a JSON 404, not the web page', async () => {
+    // Adres bir stüdyoya ait olmalı (test-1.localhost); yoksa her uç 404 STUDIO_NOT_FOUND döner.
+    await createStudio();
     const res = await client().request('GET', '/api/does-not-exist');
     assert.equal(res.status, 404);
     assert.equal(res.body.error.code, 'NOT_FOUND');

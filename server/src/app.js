@@ -6,26 +6,25 @@ import helmet from 'helmet';
 import { AppError } from './errors.js';
 import { loadUser } from './middleware/auth.js';
 import { createRateLimiters, DEFAULT_RATE_LIMITS } from './middleware/rateLimits.js';
+import { requireStudio, resolveStudio } from './middleware/studio.js';
+import { trustProxySetting } from './network.js';
 import adminRouter from './routes/admin.js';
 import authRouter from './routes/auth.js';
 import healthRouter from './routes/health.js';
 import sessionsRouter from './routes/sessions.js';
 import studioRouter from './routes/studio.js';
 
-// TRUST_PROXY: uygulama bir ters vekil sunucunun (Caddy, Nginx) arkasındaysa, gerçek ziyaretçi IP'sini
-// X-Forwarded-For başlığından okumak için. Ayarlanmazsa IP sınırları herkesi proxy'nin IP'si sanır.
-// Örnekler: "1" (önünde tek proxy var), "loopback" (proxy aynı makinede). Boşsa kapalı.
-function trustProxySetting(value) {
-  if (!value) return false;
-  return /^\d+$/.test(value) ? Number(value) : value;
-}
-
 // Uygulama burada kuruluyor ama dinlemeye (listen) başlamıyor. Böylece testler uygulamayı
 // rastgele bir portta kendileri başlatabiliyor; index.js ise gerçek sunucuyu başlatıyor.
 // rateLimits: testler kendi sınırlarını verir (aynı IP'den yüzlerce istek atıyorlar).
 export function createApp({ rateLimits = DEFAULT_RATE_LIMITS } = {}) {
+  // Stüdyo adresten belirlenir (ornek.BASE_DOMAIN). Kodda varsayılan alan adı yok: eksikse sunucu açılmaz.
+  if (!process.env.BASE_DOMAIN) {
+    throw new Error('BASE_DOMAIN tanımlı değil (geliştirmede "localhost", üretimde ürünün alan adı). Bkz. server/.env.example.');
+  }
   const app = express();
   const isProduction = process.env.NODE_ENV === 'production';
+  // Gerçek ziyaretçi IP'si (IP sınırları için); ayrıntı network.js'te. Ayarlanmazsa herkes proxy'nin IP'si sanılır.
   app.set('trust proxy', trustProxySetting(process.env.TRUST_PROXY));
 
   // Güvenlik başlıkları. CSP: sayfa yalnızca kendi adresinden script, stil, yazı tipi ve görsel yükler;
@@ -61,18 +60,33 @@ export function createApp({ rateLimits = DEFAULT_RATE_LIMITS } = {}) {
   app.use(express.json());
   // Cookie başlığını çözüp req.cookies içine koyar.
   app.use(cookieParser());
+  // Önce stüdyo (adresten), sonra kullanıcı: oturum ileride stüdyoyla eşleştirilecek.
+  app.use(resolveStudio);
   app.use(loadUser);
 
   // Stüdyonun marka dosyaları (logo vb.) repo dışındaki bir klasörden sunulur: gerçek stüdyonun markası
-  // koda girmez, her kurulum kendi klasörünü BRAND_DIR ile gösterir. studios.logo_url "/brand/logo.png" gibi
-  // bu adrese işaret eder. Klasördeki HER dosya herkese açıktır: oraya yalnızca sitede görünecek dosyalar
-  // konmalı (demo verisi, notlar vb. başka bir yerde durmalı).
-  if (process.env.BRAND_DIR) {
-    app.use('/brand', express.static(process.env.BRAND_DIR, { maxAge: '1d', fallthrough: false }));
-  }
+  // koda girmez, her stüdyonun klasörü BRAND_DIR/<slug>/. studios.logo_url "/brand/logo.png" gibi bu adrese
+  // işaret eder ve isteğin geldiği stüdyonun klasöründen sunulur. Klasör yolu yalnızca veritabanındaki slug'dan
+  // kurulur (biçimi CHECK ile sınırlı), istekten gelen bir değer yol oluşturmaz. Klasördeki HER dosya herkese
+  // açıktır: oraya yalnızca sitede görünecek dosyalar konmalı (demo verisi, notlar vb. başka bir yerde durmalı).
+  const brandHandlers = new Map();
+  app.use('/brand', (req, res, next) => {
+    if (!process.env.BRAND_DIR || !req.studio) {
+      throw new AppError('NOT_FOUND', 'Bulunamadı.', 404);
+    }
+    const dir = path.join(process.env.BRAND_DIR, req.studio.slug);
+    // Her klasör için tek bir static middleware'i saklıyoruz; her istekte yeniden kurmaya gerek yok.
+    if (!brandHandlers.has(dir)) {
+      brandHandlers.set(dir, express.static(dir, { maxAge: '1d', fallthrough: false }));
+    }
+    return brandHandlers.get(dir)(req, res, next);
+  });
 
   app.use(healthRouter);
   app.use(studioRouter);
+  // Bundan sonraki bütün API uçları (giriş, müşteri, yönetici) bir stüdyo adresi ister. Yalnızca /api altında:
+  // kök adreste de derlenmiş React uygulaması (ürün sayfası) sunulabilmeli.
+  app.use('/api', requireStudio);
   app.use(authRouter);
   app.use(sessionsRouter);
   app.use(adminRouter);

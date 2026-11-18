@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { after, afterEach, beforeEach, describe, test } from 'node:test';
@@ -37,7 +37,9 @@ describe('public site content', () => {
   test("reads the brand folder's site.json; photo names become /brand addresses, paths outside are ignored", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), 'site-'));
     process.env.BRAND_DIR = dir;
-    await writeFile(path.join(dir, 'site.json'), JSON.stringify({
+    // Marka dosyaları stüdyo klasöründe: BRAND_DIR/<slug>/ (ilk test stüdyosu test-1).
+    await mkdir(path.join(dir, 'test-1'));
+    await writeFile(path.join(dir, 'test-1', 'site.json'), JSON.stringify({
       tagline: 'Merhaba',
       instructor: { name: 'Eğitmen', years: 8, certificates: ['A', ''], photo: 'e.jpg' },
       photos: [{ file: 's1.jpg', alt: 'Salon' }, { file: '../secret.txt' }],
@@ -55,7 +57,9 @@ describe('public site content', () => {
   test('site.json privacy notice: sections without a title or text are dropped; none at all means null', async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), 'site-'));
     process.env.BRAND_DIR = dir;
-    await writeFile(path.join(dir, 'site.json'), JSON.stringify({
+    // Marka dosyaları stüdyo klasöründe: BRAND_DIR/<slug>/ (ilk test stüdyosu test-1).
+    await mkdir(path.join(dir, 'test-1'));
+    await writeFile(path.join(dir, 'test-1', 'site.json'), JSON.stringify({
       privacyNotice: { updatedOn: '2026-11-12', sections: [{ title: 'Veri sorumlusu', text: 'Stüdyo' }, { title: 'Boş' }] },
     }));
     await createStudio();
@@ -64,7 +68,7 @@ describe('public site content', () => {
       updatedOn: '2026-11-12', sections: [{ title: 'Veri sorumlusu', text: 'Stüdyo' }],
     });
 
-    await writeFile(path.join(dir, 'site.json'), JSON.stringify({ privacyNotice: { sections: [{ title: 'Boş' }] } }));
+    await writeFile(path.join(dir, 'test-1', 'site.json'), JSON.stringify({ privacyNotice: { sections: [{ title: 'Boş' }] } }));
     const { body: empty } = await client().request('GET', '/api/site');
     assert.equal(empty.site.privacyNotice, null);
     await rm(dir, { recursive: true });
@@ -73,8 +77,10 @@ describe('public site content', () => {
   test("site.json reasons: incomplete cards are dropped, at most four, other fields don't leak", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), 'site-'));
     process.env.BRAND_DIR = dir;
+    // Marka dosyaları stüdyo klasöründe: BRAND_DIR/<slug>/ (ilk test stüdyosu test-1).
+    await mkdir(path.join(dir, 'test-1'));
     const card = (n) => ({ title: `Başlık ${n}`, text: `Metin ${n}` });
-    await writeFile(path.join(dir, 'site.json'), JSON.stringify({
+    await writeFile(path.join(dir, 'test-1', 'site.json'), JSON.stringify({
       reasons: [card(1), { title: 'Metinsiz' }, { ...card(2), extra: 'x' }, card(3), card(4), card(5)],
     }));
     await createStudio();

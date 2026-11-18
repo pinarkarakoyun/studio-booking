@@ -26,7 +26,8 @@ function publicUser(user) {
 }
 
 router.post('/api/auth/login', async (req, res) => {
-  const { token, user } = await login({ phone: req.body?.phone, password: req.body?.password });
+  // req.studio burada her zaman dolu: /api altındaki bu uç requireStudio'dan sonra gelir (app.js).
+  const { token, user } = await login({ studioId: req.studio.id, phone: req.body?.phone, password: req.body?.password });
   res.cookie(SESSION_COOKIE, token, { ...cookieOptions, maxAge: SESSION_DAYS * 24 * 60 * 60 * 1000 });
   res.json({ user: publicUser(user) });
 });

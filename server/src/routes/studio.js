@@ -2,22 +2,31 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { Router } from 'express';
 import pool from '../db/pool.js';
+import { AppError } from '../errors.js';
+import { requireStudio } from '../middleware/studio.js';
 
 const router = Router();
 
 // Herkese açık stüdyo bilgisi: giriş ekranı, müşteri ekranı ve tanıtım sitesi kullanır (giriş gerektirmez).
 // Sadece zaten herkese açık olan bilgiler döner: isim, logo, WhatsApp hattı, marka rengi, saat dilimi ve
 // müşterinin bilmesi gereken kural (iptal edince hakkın kaç gün geçerli olduğu).
-// Şimdilik tek stüdyo var; çoklu stüdyoda hangi stüdyo olduğu alan adından (domain) belirlenecek.
+// Hangi stüdyo olduğu adresten belirlenir (middleware/studio.js). İstemci bu uçla üç durumu ayırır:
+// stüdyo adresi (stüdyo bilgisi), kök adres ({ studio: null }, ürün sayfası), bilinmeyen adres (404).
 router.get('/api/studio', async (req, res) => {
+  if (req.hostKind === 'unknown') {
+    throw new AppError('STUDIO_NOT_FOUND', 'Stüdyo bulunamadı.', 404);
+  }
+  if (req.hostKind === 'root') {
+    return res.json({ studio: null });
+  }
   const { rows: [studio] } = await pool.query(
     `
     SELECT st.name, st.whatsapp_phone, st.brand_color, st.logo_url, st.timezone, ss.credit_validity_days
     FROM studios st
     LEFT JOIN studio_settings ss ON ss.studio_id = st.id
-    ORDER BY st.id
-    LIMIT 1
+    WHERE st.id = $1
     `,
+    [req.studio.id],
   );
   res.json({
     studio: studio
@@ -34,13 +43,14 @@ router.get('/api/studio', async (req, res) => {
 });
 
 // --- Tanıtım sitesi -----------------------------------------------------------------------------
-// Gerçek stüdyonun metinleri (eğitmen, adres, fotoğraflar) koda girmez: BRAND_DIR/site.json'dan okunur
+// Gerçek stüdyonun metinleri (eğitmen, adres, fotoğraflar) koda girmez: BRAND_DIR/<slug>/site.json'dan okunur
 // (repo ileride public; örnek dosya: server/site.example.json). Dosya yoksa ya da bir alan eksikse o alan
 // boş döner ve ekran yer tutucu gösterir. Fotoğraf adları "/brand/..." adresine çevrilir (logo gibi).
-export async function readSiteFile(brandDir = process.env.BRAND_DIR) {
-  if (!brandDir) return {};
+// slug yalnızca veritabanından gelir (biçimi CHECK ile sınırlı); istekten gelen bir değer yol oluşturmaz.
+export async function readSiteFile(slug, brandDir = process.env.BRAND_DIR) {
+  if (!brandDir || !slug) return {};
   try {
-    return JSON.parse(await readFile(path.join(brandDir, 'site.json'), 'utf8'));
+    return JSON.parse(await readFile(path.join(brandDir, slug, 'site.json'), 'utf8'));
   } catch (err) {
     if (err.code !== 'ENOENT') console.error('site.json okunamadı:', err.message);
     return {};
@@ -65,14 +75,15 @@ export function privacyNotice(value) {
   return { updatedOn, sections };
 }
 
-router.get('/api/site', async (req, res) => {
+router.get('/api/site', requireStudio, async (req, res) => {
   const [{ rows: [studio] }, site] = await Promise.all([
     pool.query(
       `SELECT st.name, st.whatsapp_phone, st.logo_url, ss.cancellation_deadline_hours, ss.credit_validity_days
        FROM studios st LEFT JOIN studio_settings ss ON ss.studio_id = st.id
-       ORDER BY st.id LIMIT 1`,
+       WHERE st.id = $1`,
+      [req.studio.id],
     ),
-    readSiteFile(),
+    readSiteFile(req.studio.slug),
   ]);
   const instructor = site.instructor ?? {};
   res.json({
