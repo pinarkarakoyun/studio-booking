@@ -1,0 +1,87 @@
+# Otomatik testler (CI): her PR'da ve main'e her push'ta GitHub'ın sunucusunda çalışır.
+# Sonuç PR sayfasında yeşil tik ya da kırmızı çarpı olarak görünür.
+name: Testler
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# İş akışı yalnızca kodu okuyabilir; repoya yazamaz.
+permissions:
+  contents: read
+
+jobs:
+  server:
+    name: Sunucu testleri
+    runs-on: ubuntu-latest
+
+    # Testler gerçek bir PostgreSQL'e karşı çalışır (sahte veritabanı yok). GitHub, iş süresince
+    # yerel docker-compose.yml'deki ile aynı sürümde geçici bir veritabanı açar ve sonra siler.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: studio_user
+          # Yalnızca bu geçici CI veritabanı için; gerçek bir sırrı değil.
+          POSTGRES_PASSWORD: ci-yalnizca-test
+          POSTGRES_DB: studio_booking
+        ports:
+          - 5432:5432
+        # Veritabanı bağlantı kabul edene kadar testler başlamasın.
+        options: >-
+          --health-cmd "pg_isready -U studio_user"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_USER: studio_user
+      DB_PASSWORD: ci-yalnizca-test
+
+    defaults:
+      run:
+        working-directory: server
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      # HTTP testleri stüdyolara gerçek alt alan adlarıyla gider (test-1.localhost). Bu adların her
+      # makinede bu makineye çözülmesine güvenmek yerine açıkça yazıyoruz.
+      - name: Test stüdyolarının adreslerini tanıt
+        run: echo "127.0.0.1 test-1.localhost ikinci.localhost yok.localhost" | sudo tee -a /etc/hosts
+
+      # npm ci: package-lock.json'daki sürümleri birebir kurar (npm install gibi güncellemez).
+      - run: npm ci
+
+      # "npm test" önce pretest'i çalıştırır: test veritabanını oluşturur ve migration'ları uygular.
+      - run: npm test
+
+  client:
+    name: İstemci lint ve build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: client
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
