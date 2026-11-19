@@ -22,6 +22,8 @@ const BOOLEAN_RULES = {
   refundCreditOnMakeupCancel: 'refund_credit_on_makeup_cancel',
   creditOnStudioCancel: 'credit_on_studio_cancel',
   showPaymentsToCustomers: 'show_payments_to_customers',
+  // Çok şubeli stüdyoda: üyeler diğer şubelerdeki derslere telafiye gelebilir mi (varsayılan açık).
+  makeupOtherBranches: 'makeup_other_branches',
 };
 
 function toDto(row) {
@@ -29,6 +31,8 @@ function toDto(row) {
     studioName: row.name,
     whatsappPhone: row.whatsapp_phone,
     maxMakeupsPerMonth: row.max_makeups_per_month,
+    // Yalnızca okunur: ekran şube ayarlarını açık şube sayısı 1'den fazlaysa gösterir.
+    branchCount: row.branch_count,
   };
   for (const [key, rule] of Object.entries(NUMBER_RULES)) dto[key] = row[rule.column];
   for (const [key, column] of Object.entries(BOOLEAN_RULES)) dto[key] = row[column];
@@ -70,7 +74,8 @@ function validate(input) {
 }
 
 const SELECT = `
-  SELECT st.name, st.whatsapp_phone, ss.*
+  SELECT st.name, st.whatsapp_phone, ss.*,
+         (SELECT count(*)::int FROM branches b WHERE b.studio_id = st.id AND b.is_active) AS branch_count
   FROM studios st JOIN studio_settings ss ON ss.studio_id = st.id
   WHERE st.id = $1`;
 

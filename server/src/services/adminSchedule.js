@@ -26,12 +26,13 @@ async function sessionsOn(studioId, date, db) {
   const { rows } = await db.query(
     `
     SELECT s.id, s.date, s.starts_at, s.status,
-           g.name AS group_name, g.duration_minutes,
+           g.name AS group_name, g.duration_minutes, g.branch_id, b.name AS branch_name,
            o.capacity, o.booked_count, o.makeup_count,
            (SELECT count(*)::int FROM credits c WHERE c.source_session_id = s.id) AS cancelled_count,
            s.starts_at + make_interval(mins => g.duration_minutes) <= now() AS has_ended
     FROM sessions s
     JOIN groups g            ON g.id = s.group_id
+    JOIN branches b          ON b.id = g.branch_id
     JOIN session_occupancy o ON o.session_id = s.id
     WHERE g.studio_id = $1 AND s.date = $2
     ORDER BY s.starts_at
@@ -50,6 +51,8 @@ async function sessionsOn(studioId, date, db) {
     makeupCount: row.makeup_count,
     cancelledCount: row.cancelled_count,
     hasEnded: row.has_ended,
+    // Dersin şubesi grubundan gelir. Ekran yalnızca çok şubeli stüdyoda gösterir ve şubeye göre süzer.
+    branch: { id: row.branch_id, name: row.branch_name },
   }));
 }
 
