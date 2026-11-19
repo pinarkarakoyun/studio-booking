@@ -178,7 +178,7 @@ Online payments (payments are collected in person and only recorded in the syste
 
 Next: turning the app into a product several studios can use. Order and decisions: `docs/superpowers/specs/2026-11-18-roadmap-and-decisions.md`.
 
-- [ ] Multi-studio foundation: each studio on its own subdomain, separate accounts per studio, data isolation proven by tests
+- [x] Multi-studio foundation: each studio on its own subdomain, separate accounts per studio, data isolation proven by tests
 - [ ] Branches: a studio can have several locations; groups belong to a branch
 - [ ] Class packs (e.g. 8 or 12 sessions) as a second membership model, chosen per studio at setup
 - [ ] New look for the customer and admin panels
