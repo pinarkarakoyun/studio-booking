@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { after, describe, test } from 'node:test';
-import { checkStartup } from '../src/startupChecks.js';
+import { checkStartup, studioPrivacyProblem } from '../src/startupChecks.js';
 import { pool } from './helpers.js';
 
 after(() => pool.end());
@@ -37,7 +37,7 @@ describe('startup checks', () => {
   });
 
   test('development starts with a powerful role, with a warning', async () => {
-    const { problems, warnings } = await checkStartup({ env: { NODE_ENV: 'development' }, db: pool });
+    const { problems, warnings } = await checkStartup({ env: { NODE_ENV: 'development', BASE_DOMAIN: 'localhost' }, db: pool });
     assert.deepEqual(problems, []);
     assert.equal(warnings.length, 1);
   });
@@ -45,7 +45,7 @@ describe('startup checks', () => {
   // Gerçek veritabanıyla: test rolü hem süper kullanıcı hem de tabloların sahibi (migration'ları o çalıştırdı).
   // Böylece sahiplik sorgusunun kendisi de gerçek PostgreSQL'e karşı denenmiş olur.
   test('production refuses a superuser, a table owner, weak bcrypt, missing proxy and client, and the demo seed flag', async () => {
-    const env = { NODE_ENV: 'production', BCRYPT_COST: '4', ALLOW_DEMO_SEED: '1' };
+    const env = { NODE_ENV: 'production', BASE_DOMAIN: 'siteadi.com', BCRYPT_COST: '4', ALLOW_DEMO_SEED: '1' };
     const { problems } = await checkStartup({ env, db: pool });
     const text = problems.join('\n');
     for (const word of ['süper kullanıcı', 'tabloların sahibi', 'BCRYPT_COST', 'TRUST_PROXY', 'CLIENT_DIR', 'ALLOW_DEMO_SEED']) {
@@ -55,7 +55,7 @@ describe('startup checks', () => {
 
   test('production starts with a limited role and complete settings', async () => {
     await withClientAndBrand(async (dir) => {
-      const env = { NODE_ENV: 'production', TRUST_PROXY: 'loopback', CLIENT_DIR: dir, BRAND_DIR: dir };
+      const env = { NODE_ENV: 'production', BASE_DOMAIN: 'siteadi.com', TRUST_PROXY: 'loopback', CLIENT_DIR: dir, BRAND_DIR: dir };
       const { problems } = await checkStartup({ env, db: fakeDb(LIMITED) });
       assert.deepEqual(problems, []);
     });
@@ -63,7 +63,7 @@ describe('startup checks', () => {
 
   test('production refuses a role that owns the tables, even without superuser rights', async () => {
     await withClientAndBrand(async (dir) => {
-      const env = { NODE_ENV: 'production', TRUST_PROXY: 'loopback', CLIENT_DIR: dir, BRAND_DIR: dir };
+      const env = { NODE_ENV: 'production', BASE_DOMAIN: 'siteadi.com', TRUST_PROXY: 'loopback', CLIENT_DIR: dir, BRAND_DIR: dir };
       const { problems } = await checkStartup({ env, db: fakeDb({ ...LIMITED, owns_objects: true }) });
       assert.equal(problems.length, 1);
       assert.match(problems[0], /tabloların sahibi/);
@@ -73,7 +73,7 @@ describe('startup checks', () => {
   test('production refuses a TRUST_PROXY value Express cannot use, with a clear message', async () => {
     await withClientAndBrand(async (dir) => {
       for (const value of ['true', '*', 'yes']) {
-        const env = { NODE_ENV: 'production', TRUST_PROXY: value, CLIENT_DIR: dir, BRAND_DIR: dir };
+        const env = { NODE_ENV: 'production', BASE_DOMAIN: 'siteadi.com', TRUST_PROXY: value, CLIENT_DIR: dir, BRAND_DIR: dir };
         const { problems } = await checkStartup({ env, db: fakeDb(LIMITED) });
         assert.equal(problems.length, 1, value);
         assert.match(problems[0], /TRUST_PROXY/);
@@ -85,7 +85,7 @@ describe('startup checks', () => {
   // herkes kendini proxy gibi gösterip sahte X-Forwarded-For ile IP sınırını aşabilir.
   test('production warns when a proxy hop count is trusted while listening on all interfaces', async () => {
     await withClientAndBrand(async (dir) => {
-      const base = { NODE_ENV: 'production', TRUST_PROXY: '1', CLIENT_DIR: dir, BRAND_DIR: dir };
+      const base = { NODE_ENV: 'production', BASE_DOMAIN: 'siteadi.com', TRUST_PROXY: '1', CLIENT_DIR: dir, BRAND_DIR: dir };
       const exposed = await checkStartup({ env: { ...base, HOST: '0.0.0.0' }, db: fakeDb(LIMITED) });
       assert.deepEqual(exposed.problems, []);
       assert.equal(exposed.warnings.length, 1);
@@ -98,11 +98,66 @@ describe('startup checks', () => {
 
   test('production refuses to start without a privacy notice', async () => {
     await withClientAndBrand(async (dir) => {
-      const env = { NODE_ENV: 'production', TRUST_PROXY: 'loopback', CLIENT_DIR: dir, BRAND_DIR: dir };
+      const env = { NODE_ENV: 'production', BASE_DOMAIN: 'siteadi.com', TRUST_PROXY: 'loopback', CLIENT_DIR: dir, BRAND_DIR: dir };
       const { problems } = await checkStartup({ env, db: fakeDb(LIMITED) });
       assert.equal(problems.length, 1);
       assert.match(problems[0], /aydınlatma metni/);
       assert.match(problems[0], /ornek/);
+    }, { privacy: false });
+  });
+});
+
+// BASE_DOMAIN yanlış yazılırsa (ör. "https://siteadi.com") hiçbir adres eşleşmez ve her sayfa sessizce
+// "Stüdyo bulunamadı" der. Açılışta yakalanmalı: değer düz bir alan adı olmalı, üretimde localhost olamaz.
+describe('BASE_DOMAIN', () => {
+  const production = (dir, baseDomain) => ({
+    NODE_ENV: 'production', BASE_DOMAIN: baseDomain, TRUST_PROXY: 'loopback', CLIENT_DIR: dir, BRAND_DIR: dir,
+  });
+
+  test('a bare domain is accepted in production', async () => {
+    await withClientAndBrand(async (dir) => {
+      for (const value of ['siteadi.com', 'app.siteadi.com.tr']) {
+        const { problems } = await checkStartup({ env: production(dir, value), db: fakeDb(LIMITED) });
+        assert.deepEqual(problems, [], value);
+      }
+    });
+  });
+
+  test('a missing or malformed BASE_DOMAIN is refused in both modes, with a clear message', async () => {
+    await withClientAndBrand(async (dir) => {
+      for (const value of [undefined, '', 'https://siteadi.com', 'siteadi.com:443', '.siteadi.com', 'siteadi.com.', 'SiteAdi.com', 'site adi.com', 'siteadi.com/']) {
+        const prod = await checkStartup({ env: production(dir, value), db: fakeDb(LIMITED) });
+        assert.equal(prod.problems.length, 1, String(value));
+        assert.match(prod.problems[0], /BASE_DOMAIN/, String(value));
+        const dev = await checkStartup({ env: { NODE_ENV: 'development', BASE_DOMAIN: value }, db: fakeDb(LIMITED) });
+        assert.match(dev.problems.join('\n'), /BASE_DOMAIN/, String(value));
+      }
+    });
+  });
+
+  test('localhost is fine in development but refused in production', async () => {
+    await withClientAndBrand(async (dir) => {
+      const dev = await checkStartup({ env: { NODE_ENV: 'development', BASE_DOMAIN: 'localhost' }, db: fakeDb(LIMITED) });
+      assert.deepEqual(dev.problems, []);
+      const prod = await checkStartup({ env: production(dir, 'localhost'), db: fakeDb(LIMITED) });
+      assert.equal(prod.problems.length, 1);
+      assert.match(prod.problems[0], /BASE_DOMAIN/);
+    });
+  });
+});
+
+// create-admin de kullanır: sunucu açıkken açılan stüdyo, bir sonraki açılışı beklemeden uyarılsın.
+describe('studioPrivacyProblem', () => {
+  test('no problem when the studio folder has a privacy notice', async () => {
+    await withClientAndBrand(async (dir) => {
+      assert.equal(await studioPrivacyProblem('ornek', dir), null);
+    });
+  });
+
+  test('explains what is missing, naming the studio, when there is no notice or no folder', async () => {
+    await withClientAndBrand(async (dir) => {
+      assert.match((await studioPrivacyProblem('ornek', dir)) ?? '', /aydınlatma metni.*ornek/);
+      assert.match((await studioPrivacyProblem('baska', dir)) ?? '', /aydınlatma metni.*baska/);
     }, { privacy: false });
   });
 });

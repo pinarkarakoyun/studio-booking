@@ -19,8 +19,10 @@ const MESSAGES = {
   hours: 'Merhaba, ders saatleri hakkında bilgi alabilir miyim?',
 };
 
+// Stüdyonun site.json'ında "reasons" yoksa gösterilen genel kartlar. Her stüdyo için doğru olmayan bir iddia
+// (hedef kitle, şehir) içermez; stüdyoya özel farklar site.json'a yazılır.
 const REASONS = [
-  { title: 'Kadınlara özel', text: 'Rahat ve güvenli bir ortam.' },
+  { title: 'Rahat ortam', text: 'Rahat ve güvenli bir ortam.' },
   { title: 'Küçük gruplar', text: 'Eğitmen herkesi tek tek görür.' },
   { title: 'Telafi hakkı', text: 'Kaçırdığın dersi başka bir güne al.' },
   { title: 'Seviyene göre', text: 'Program sana göre ilerler.' },
@@ -83,7 +85,7 @@ export default function PublicSite() {
             <div className={styles.heroText}>
               <h1 className={styles.srOnly}>{site.studioName}</h1>
               <RotatingWord />
-              <p className={styles.tagline}>{site.tagline ?? "Antalya'da kadınlara özel reformer pilates"}</p>
+              <p className={styles.tagline}>{site.tagline ?? 'Küçük gruplarla pilates'}</p>
               <p className={styles.subline}>{site.subline ?? 'Küçük gruplar, sana göre bir program.'}</p>
               {hello && (
                 <a className={`${styles.button} ${styles.primary}`} href={hello} target="_blank" rel="noreferrer">
@@ -211,7 +213,7 @@ export default function PublicSite() {
               <h2 id="iletisim-baslik" className={styles.heading}>
                 Bize ulaş
               </h2>
-              <p>{site.address ?? 'Adres buraya gelecek, Antalya'}</p>
+              <p>{site.address ?? 'Adres buraya gelecek'}</p>
               {site.workingHours && <p className={styles.mutedLight}>{site.workingHours}</p>}
               <p className={styles.links}>
                 {site.mapsUrl && (

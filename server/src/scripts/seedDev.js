@@ -16,6 +16,7 @@ import { createUser } from '../services/auth.js';
 import { generateSessions } from '../services/sessionGenerator.js';
 import { assertDemoSeedAllowed } from './demoSeedGuard.js';
 import { seedDemoPayments } from './seedDemoPayments.js';
+import { slugProblem } from '../slug.js';
 
 // Bu dosya import edilince değil, çalıştırılınca iş yapar; o yüzden buradan bir şey dışarı açılmıyor.
 const DEV_ACCOUNTS = {
@@ -27,7 +28,10 @@ assertDemoSeedAllowed('seed:dev');
 
 const demo = process.env.DEMO_SEED_FILE ? JSON.parse(await readFile(process.env.DEMO_SEED_FILE, 'utf8')) : {};
 
-const STUDIO = { name: 'Deneme Pilates Stüdyosu', whatsappPhone: '+905000000000', brandColor: null, logoUrl: null, ...demo.studio };
+// slug: stüdyonun adresi (demo -> demo.localhost:5173). Marka dosyaları BRAND_DIR/<slug>/ klasöründen gelir.
+const STUDIO = { name: 'Deneme Pilates Stüdyosu', slug: 'demo', whatsappPhone: '+905000000000', brandColor: null, logoUrl: null, ...demo.studio };
+const slugError = slugProblem(STUDIO.slug);
+if (slugError) throw new Error(slugError);
 
 // Haftanın günleri: 1 = Pazartesi ... 7 = Pazar
 const DEFAULT_GROUPS = [
@@ -62,8 +66,8 @@ try {
   await client.query('BEGIN');
 
   const { rows: [studio] } = await client.query(
-    `INSERT INTO studios (name, whatsapp_phone, brand_color, logo_url) VALUES ($1, $2, $3, $4) RETURNING id`,
-    [STUDIO.name, STUDIO.whatsappPhone, STUDIO.brandColor, STUDIO.logoUrl],
+    `INSERT INTO studios (name, slug, whatsapp_phone, brand_color, logo_url) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+    [STUDIO.name, STUDIO.slug, STUDIO.whatsappPhone, STUDIO.brandColor, STUDIO.logoUrl],
   );
   await client.query('INSERT INTO studio_settings (studio_id) VALUES ($1)', [studio.id]);
 
@@ -163,6 +167,7 @@ try {
 
   console.log(`Deneme verisi eklendi: ${GROUPS.length} grup, ${sessions} ders.`);
   console.log('Giriş bilgileri: server/src/scripts/seedDev.js içindeki DEV_ACCOUNTS.');
+  console.log(`Adres: http://${STUDIO.slug}.${process.env.BASE_DOMAIN || '<BASE_DOMAIN>'}:5173/`);
 } catch (err) {
   await client.query('ROLLBACK').catch(() => {});
   console.error(err.message);
