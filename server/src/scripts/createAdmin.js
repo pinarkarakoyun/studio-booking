@@ -9,6 +9,7 @@
 // üretip ekrana yazar; yönetici ilk girişte kendi şifresini belirlemek zorundadır.
 import { randomBytes } from 'node:crypto';
 import pool from '../db/pool.js';
+import { openFirstBranch } from '../services/adminBranches.js';
 import { createUser } from '../services/auth.js';
 import { slugProblem } from '../slug.js';
 import { studioPrivacyProblem } from '../startupChecks.js';
@@ -42,6 +43,8 @@ try {
     ));
     // Ayarların hepsi varsayılan değerleriyle başlar; yönetici sonra panelden değiştirir.
     await client.query('INSERT INTO studio_settings (studio_id) VALUES ($1)', [studio.id]);
+    // Her stüdyo bir şubeyle açılır; yönetici sonra panelden yeni şube ekleyebilir.
+    await openFirstBranch(studio.id, client);
     console.log(`Stüdyo oluşturuldu: ${studio.name}`);
   }
 

@@ -163,8 +163,10 @@ export async function createGroup(admin, input, { db = pool } = {}) {
   const group = validateGroupInput(input);
   return withTransaction(db, async (client) => {
     const { rows: [row] } = await client.query(
-      `INSERT INTO groups (studio_id, name, start_time, duration_minutes, capacity)
-       VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+      // Şube şimdilik stüdyonun ilk açık şubesi; şube seçimi Task 3'te (branchId) gelir.
+      `INSERT INTO groups (studio_id, branch_id, name, start_time, duration_minutes, capacity)
+       VALUES ($1, (SELECT id FROM branches WHERE studio_id = $1 AND is_active ORDER BY id LIMIT 1), $2, $3, $4, $5)
+       RETURNING id`,
       [admin.studio_id, group.name, group.startTime, group.durationMinutes, group.capacity],
     );
     for (const day of group.weekdays) {
