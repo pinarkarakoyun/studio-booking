@@ -201,6 +201,21 @@ describe('ids in the request body cannot point to another studio', () => {
       ['/api/admin/customers', { ...body, groupId: B.group }], ['/api/admin/customers', { ...body, groupId: MISSING.group }]);
   });
 
+  test("moving A's group into B's branch", async () => {
+    const { A, B, adminA } = await twoStudios();
+    const url = `/api/admin/groups/${A.group}`;
+    const effectiveFrom = await day(7);
+    await assertRejectedWithoutTrace(adminA, 'PUT',
+      [url, { ...groupBody(effectiveFrom), branchId: B.branch }], [url, { ...groupBody(effectiveFrom), branchId: MISSING.branch }]);
+  });
+
+  test("creating a group in B's branch", async () => {
+    const { B, adminA } = await twoStudios();
+    const body = groupBody(await day(7));
+    await assertRejectedWithoutTrace(adminA, 'POST',
+      ['/api/admin/groups', { ...body, branchId: B.branch }], ['/api/admin/groups', { ...body, branchId: MISSING.branch }]);
+  });
+
   test("customer swaps into B's session", async () => {
     const { A, B, customerA } = await twoStudios();
     const url = `/api/sessions/${A.laterSession}/swap`;

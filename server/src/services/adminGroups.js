@@ -1,5 +1,6 @@
 import pool from '../db/pool.js';
 import { AppError } from '../errors.js';
+import { countActiveBranches, findOpenBranch } from './adminBranches.js';
 import { generateSessions } from './sessionGenerator.js';
 
 // Yönetici panelinin "Gruplar" bölümü ve müşterinin grubunu değiştirme.
@@ -55,12 +56,36 @@ function validateGroupInput({ name, weekdays, startTime, durationMinutes, capaci
   return { name: cleanName, weekdays: days, startTime, durationMinutes: duration, capacity: cap };
 }
 
+// Grubun şubesi. branchId: undefined = istekte hiç yok, null = boş bırakılmış.
+//   - Düzenlemede gönderilmezse şube değişmez (current).
+//   - Stüdyonun tek açık şubesi varsa seçmeye gerek yok, o şube kullanılır (tek şubeli stüdyoda seçim görünmez).
+//   - Çok şubeli stüdyoda şube seçmek zorunlu.
+//   - Şube bu stüdyonun açık bir şubesi olmalı (findOpenBranch). Veritabanındaki birleşik yabancı anahtar da
+//     başka stüdyonun şubesini reddeder; bu kontrol kullanıcıya anlaşılır bir hata vermek için.
+async function resolveBranch(admin, branchId, db, { current = null } = {}) {
+  if (branchId === undefined && current) return current;
+  if (branchId === undefined || branchId === null) {
+    if ((await countActiveBranches(admin.studio_id, db)) === 1) {
+      const { rows: [only] } = await db.query(
+        'SELECT id, name FROM branches WHERE studio_id = $1 AND is_active',
+        [admin.studio_id],
+      );
+      return only;
+    }
+    throw new AppError('BRANCH_REQUIRED', 'Şube seç.', 400);
+  }
+  if (!Number.isSafeInteger(branchId) || branchId <= 0) {
+    throw new AppError('BRANCH_NOT_FOUND', 'Şube bulunamadı.', 404);
+  }
+  return findOpenBranch(admin.studio_id, branchId, db);
+}
+
 // --- Okuma --------------------------------------------------------------------------------------
 
 // Gruplar (açık ve kapalı) + bugünkü üye sayısı (dondurulmuşlar yer tutmaz, BR-12).
 const GROUP_SELECT = `
   SELECT g.id, g.name, to_char(g.start_time, 'HH24:MI') AS start_time, g.duration_minutes, g.capacity,
-         g.is_active, g.schedule_starts_on,
+         g.is_active, g.schedule_starts_on, g.branch_id, b.name AS branch_name,
          ARRAY(SELECT gd.weekday FROM group_days gd WHERE gd.group_id = g.id ORDER BY gd.weekday) AS weekdays,
          (SELECT count(*)::int FROM group_members gm
           WHERE gm.group_id = g.id
@@ -70,6 +95,7 @@ const GROUP_SELECT = `
                               AND daterange(f.starts_on, f.ends_on, '[]') @> today.date)) AS member_count
   FROM groups g
   JOIN studios st ON st.id = g.studio_id
+  JOIN branches b ON b.id = g.branch_id
   CROSS JOIN LATERAL (SELECT (now() AT TIME ZONE st.timezone)::date AS date) AS today
   WHERE g.studio_id = $1
 `;
@@ -85,6 +111,7 @@ function toGroupDto(row) {
     weekdays: row.weekdays,
     scheduleStartsOn: row.schedule_starts_on,
     memberCount: row.member_count,
+    branch: { id: row.branch_id, name: row.branch_name },
   };
 }
 
@@ -162,12 +189,11 @@ async function removeSession(client, sessionId) {
 export async function createGroup(admin, input, { db = pool } = {}) {
   const group = validateGroupInput(input);
   return withTransaction(db, async (client) => {
+    const branch = await resolveBranch(admin, input.branchId, client);
     const { rows: [row] } = await client.query(
-      // Şube şimdilik stüdyonun ilk açık şubesi; şube seçimi Task 3'te (branchId) gelir.
       `INSERT INTO groups (studio_id, branch_id, name, start_time, duration_minutes, capacity)
-       VALUES ($1, (SELECT id FROM branches WHERE studio_id = $1 AND is_active ORDER BY id LIMIT 1), $2, $3, $4, $5)
-       RETURNING id`,
-      [admin.studio_id, group.name, group.startTime, group.durationMinutes, group.capacity],
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+      [admin.studio_id, branch.id, group.name, group.startTime, group.durationMinutes, group.capacity],
     );
     for (const day of group.weekdays) {
       await client.query('INSERT INTO group_days (group_id, weekday) VALUES ($1, $2)', [row.id, day]);
@@ -198,10 +224,19 @@ export async function updateGroup(admin, groupId, input, { preview = false, db =
       const current = await findGroup(admin, groupId, client, { lock: true });
       if (!current.is_active) throw new AppError('GROUP_CLOSED', 'Bu grup kapalı.', 409);
 
+      // Şube değişikliği hemen uygulanır: dersin şubesi her zaman grubundan okunduğu için geçmiş dersler de
+      // yeni şubede görünür (tasarımdaki yaklaşım A; rapor ekranı olmadığı için bilinçli bir bedel).
+      const branch = await resolveBranch(admin, input.branchId, client, {
+        current: { id: current.branch_id, name: current.branch_name },
+      });
+
       const today = await studioToday(admin.studio_id, client);
       const scheduleChanged =
         next.startTime !== current.start_time || next.weekdays.join(',') !== current.weekdays.join(',');
-      const summary = { scheduleChanged, movedSessions: 0, removedSessions: 0, addedSessions: 0, refundedMakeups: 0 };
+      const summary = {
+        scheduleChanged, movedSessions: 0, removedSessions: 0, addedSessions: 0, refundedMakeups: 0,
+        branchChange: branch.id === current.branch_id ? null : { from: current.branch_name, to: branch.name },
+      };
 
       let effectiveFrom = null;
       if (scheduleChanged) {
@@ -244,9 +279,9 @@ export async function updateGroup(admin, groupId, input, { preview = false, db =
       await client.query(
         `UPDATE groups
          SET name = $2, start_time = $3, duration_minutes = $4, capacity = $5,
-             schedule_starts_on = COALESCE($6::date, schedule_starts_on)
+             schedule_starts_on = COALESCE($6::date, schedule_starts_on), branch_id = $7
          WHERE id = $1`,
-        [groupId, next.name, next.startTime, next.durationMinutes, next.capacity, effectiveFrom],
+        [groupId, next.name, next.startTime, next.durationMinutes, next.capacity, effectiveFrom, branch.id],
       );
 
       // Kapasite bugünden sonraki bütün derslere (azaltılırsa kayıtlılar çıkarılmaz; yeni telafi alınmaz).

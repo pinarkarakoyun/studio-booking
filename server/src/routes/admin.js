@@ -61,6 +61,8 @@ const groupInput = (body) => ({
   durationMinutes: body?.durationMinutes,
   capacity: body?.capacity,
   effectiveFrom: body?.effectiveFrom,
+  // undefined = gönderilmedi (düzenlemede şube değişmez); null = seçilmedi.
+  branchId: body?.branchId,
 });
 
 // --- Bugün --------------------------------------------------------------------------------------
