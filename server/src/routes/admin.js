@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { AppError } from '../errors.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
+import { closeBranch, createBranch, listBranches, reopenBranch, updateBranch } from '../services/adminBranches.js';
 import {
   createCustomer,
   endFreeze,
@@ -47,6 +48,10 @@ const customerId = (req) => parseId(req.params.id, 'CUSTOMER_NOT_FOUND', 'Müşt
 const membershipId = (req) => parseId(req.params.id, 'MEMBERSHIP_NOT_FOUND', 'Üyelik dönemi bulunamadı.');
 const paymentId = (req) => parseId(req.params.id, 'PAYMENT_NOT_FOUND', 'Ödeme bulunamadı.');
 const groupId = (req) => parseId(req.params.id, 'GROUP_NOT_FOUND', 'Grup bulunamadı.');
+const branchId = (req) => parseId(req.params.id, 'BRANCH_NOT_FOUND', 'Şube bulunamadı.');
+
+// Şube formundan gelen alanlar (ekleme ve düzenleme aynı gövdeyi kullanır).
+const branchInput = (body) => ({ name: body?.name, address: body?.address, mapsUrl: body?.mapsUrl });
 
 // Grup formundan gelen alanlar (düzenleme ve önizleme aynı gövdeyi kullanır).
 const groupInput = (body) => ({
@@ -182,6 +187,30 @@ router.post('/api/admin/groups/:id/preview', async (req, res) => {
 
 router.post('/api/admin/groups/:id/close', async (req, res) => {
   res.json(await closeGroup(req.user, groupId(req)));
+});
+
+// --- Şubeler ------------------------------------------------------------------------------------
+
+router.get('/api/admin/branches', async (req, res) => {
+  res.json({ branches: await listBranches(req.user) });
+});
+
+router.post('/api/admin/branches', async (req, res) => {
+  res.status(201).json(await createBranch(req.user, branchInput(req.body)));
+});
+
+router.put('/api/admin/branches/:id', async (req, res) => {
+  res.json({ branch: await updateBranch(req.user, branchId(req), branchInput(req.body)) });
+});
+
+router.post('/api/admin/branches/:id/close', async (req, res) => {
+  await closeBranch(req.user, branchId(req));
+  res.json({ branches: await listBranches(req.user) });
+});
+
+router.post('/api/admin/branches/:id/reopen', async (req, res) => {
+  await reopenBranch(req.user, branchId(req));
+  res.json({ branches: await listBranches(req.user) });
 });
 
 // --- Üyelik ve ödemeler -------------------------------------------------------------------------

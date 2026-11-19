@@ -4,7 +4,7 @@ import adminRouter from '../src/routes/admin.js';
 import sessionsRouter from '../src/routes/sessions.js';
 import { createUser, resetLoginAttempts } from '../src/services/auth.js';
 import {
-  createAdmin, createCustomer, createGroup, createSession, createSessionToday, createStudio,
+  createAdmin, createBranch, createCustomer, createGroup, createSession, createSessionToday, createStudio,
   grantCredit, insertMakeup, pool, resetDb,
 } from './helpers.js';
 import { client, clientFor, useServer } from './http.js';
@@ -65,6 +65,8 @@ async function buildStudio(slug, label) {
   return {
     studio, group, admin, customer, guest, todaySession, session, laterSession,
     membership: membership.id, payment: payment.id,
+    // İkinci şube (grubu yok): kapatma isteği "açık grup var" yüzünden değil, başka stüdyonun olduğu için reddedilmeli.
+    branch: await createBranch(studio, { name: `${label}-Şube`, address: `${label}-adres` }),
   };
 }
 
@@ -92,7 +94,7 @@ async function snapshot() {
 // Hiç var olmayan kimlikler: "B'nin kaydı" ile "olmayan kayıt" yanıtlarını karşılaştırmak için B'nin yerine geçer.
 const MISSING = {
   session: 999001, laterSession: 999002, todaySession: 999003, customer: 999004,
-  guest: 999005, group: 999006, membership: 999007, payment: 999008,
+  guest: 999005, group: 999006, membership: 999007, payment: 999008, branch: 999009,
 };
 
 // Başka stüdyonun kaydına yapılan isteğin dört koşulu: istemci hatası (4xx, 500 değil), yanıt olmayan kayıtla
@@ -136,6 +138,9 @@ const ADMIN_MATRIX = [
   ['POST', '/api/admin/customers/:id/memberships', async (B) => [`/api/admin/customers/${B.customer}/memberships`, { startsOn: await day(60), endsOn: await day(90), feeKurus: 100000 }]],
   ['POST', '/api/admin/memberships/:id/payments', async (B) => [`/api/admin/memberships/${B.membership}/payments`, { amountKurus: 1000, paidOn: await day(0), method: 'cash' }]],
   ['DELETE', '/api/admin/payments/:id', async (B) => [`/api/admin/payments/${B.payment}`]],
+  ['PUT', '/api/admin/branches/:id', async (B) => [`/api/admin/branches/${B.branch}`, { name: 'Yeni ad', address: 'x' }]],
+  ['POST', '/api/admin/branches/:id/close', async (B) => [`/api/admin/branches/${B.branch}/close`, {}]],
+  ['POST', '/api/admin/branches/:id/reopen', async (B) => [`/api/admin/branches/${B.branch}/reopen`, {}]],
 ];
 
 const CUSTOMER_MATRIX = [
@@ -210,7 +215,7 @@ describe('lists only contain the own studio', () => {
     const { B, adminA } = await twoStudios();
     for (const path of [
       '/api/admin/today', `/api/admin/day?date=${await day(2)}`, `/api/admin/day?date=${await day(4)}`,
-      '/api/admin/customers', '/api/admin/groups', '/api/admin/payments', '/api/admin/settings',
+      '/api/admin/customers', '/api/admin/groups', '/api/admin/payments', '/api/admin/settings', '/api/admin/branches',
     ]) {
       const res = await adminA.request('GET', path);
       assert.equal(res.status, 200, path);
