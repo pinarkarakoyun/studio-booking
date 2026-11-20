@@ -58,6 +58,8 @@ export default function MySessionsPage({ user, studio, onLogout }) {
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState(null);
   const timeZone = studio.timezone;
+  // Seans paketi modelinde telafi yok: iptal paketten düşmeyi belirler, telafi seçme ve hak metinleri gizli.
+  const packageModel = studio.membershipModel === 'package';
 
   function reload() {
     return fetchMyData().then(setData, (err) => setLoadError(err.message));
@@ -95,7 +97,12 @@ export default function MySessionsPage({ user, studio, onLogout }) {
   const cancelOnly = (session) =>
     perform(
       () => api(`/api/sessions/${session.id}/cancel`, { method: 'POST' }),
-      (result) => `İptal edildi. Telafi hakkın ${formatDayMonth(result.expiresAt, timeZone)} tarihine kadar geçerli.`,
+      (result) => {
+        if (!packageModel) return `İptal edildi. Telafi hakkın ${formatDayMonth(result.expiresAt, timeZone)} tarihine kadar geçerli.`;
+        return result.late && studio.lateCancelBurnsSession
+          ? 'İptal edildi. Son saat geçtiği için bu seans paketinden düşecek.'
+          : 'İptal edildi. Bu seans paketinden düşmez.';
+      },
     );
 
   const undoCancel = (session) =>
@@ -171,6 +178,7 @@ export default function MySessionsPage({ user, studio, onLogout }) {
       <h1 className={styles.title}>Derslerim</h1>
       {/* Bitiş tarihi her zaman; tutarlar sadece stüdyo ayarı açıksa (sunucu kapalıyken hiç göndermez, BR-37). */}
       {data.membership && <MembershipInfo membership={data.membership} />}
+      {packageModel && !data.membership && <p className={styles.membershipLine}>Henüz bir paketin yok.</p>}
 
       {next ? (
         <section className={styles.next} aria-label="Sıradaki dersin">
@@ -192,7 +200,7 @@ export default function MySessionsPage({ user, studio, onLogout }) {
         </p>
       )}
 
-      {credits.length > 0 && (
+      {!packageModel && credits.length > 0 && (
         <section className={styles.credits}>
           <p>
             <strong>
@@ -217,6 +225,7 @@ export default function MySessionsPage({ user, studio, onLogout }) {
             {group.sessions.map((session) => (
               <SessionRow
                 multiBranch={studio.branchCount > 1}
+                packageModel={packageModel}
                 key={session.id}
                 session={session}
                 timeZone={timeZone}
@@ -266,7 +275,7 @@ export default function MySessionsPage({ user, studio, onLogout }) {
   );
 }
 
-function SessionRow({ session, multiBranch, timeZone, now, busy, onOpen, onUndo }) {
+function SessionRow({ session, multiBranch, packageModel, timeZone, now, busy, onOpen, onUndo }) {
   // Çok şubeli stüdyoda dersin şubesi günün yanında ("Pazartesi 24 Kasım · Kuzey").
   const dayText = `${formatDay(session.date)}${multiBranch && session.branchName ? ` · ${session.branchName}` : ''}`;
   const time = <span className={styles.time}>{formatTime(session.startsAt, timeZone)}</span>;
@@ -279,7 +288,7 @@ function SessionRow({ session, multiBranch, timeZone, now, busy, onOpen, onUndo 
           {day}
           <p className={styles.rowNote}>
             Stüdyo bu dersi iptal etti{session.cancelReason ? ` (${session.cancelReason})` : ''}.
-            {session.myStatus === 'cancelled' && ' Yerine telafi hakkın var.'}
+            {session.myStatus === 'cancelled' && !packageModel && ' Yerine telafi hakkın var.'}
           </p>
         </div>
         {time}
@@ -333,6 +342,42 @@ function CantComeOptions({ session, studio, now, busy, onSwap, onCancelOnly, onD
   const timeZone = studio.timezone;
   const deadline = formatWeekdayTime(session.cancelDeadlineAt, timeZone);
 
+  // Paket modeli: ders başlayana kadar iptal edilebilir; son saatten sonrası geç iptal. "Yerine gel" yok.
+  if (studio.membershipModel === 'package' && session.myStatus !== 'makeup') {
+    if (isPast(session.startsAt, now)) {
+      return (
+        <>
+          <p className={styles.sheetNote}>Ders başladı, artık iptal edilemez.</p>
+          <button type="button" className={styles.closeLink} onClick={onClose}>
+            Tamam
+          </button>
+        </>
+      );
+    }
+    const late = isPast(session.cancelDeadlineAt, now);
+    let effect = 'Bu seans paketinden düşmez.';
+    if (late) effect = studio.lateCancelBurnsSession ? 'Bu seans düşecek.' : 'Geç iptal, ama bu seans paketinden düşmez.';
+    return (
+      <>
+        <p className={styles.sheetNote}>
+          {late ? `İptal için son saat geçti (${deadline}).` : `Paketinden düşmeden iptal için son saat: ${deadline}`}
+        </p>
+        <button
+          type="button"
+          className={`${styles.option} ${late ? '' : styles.optionPrimary}`}
+          onClick={onCancelOnly}
+          disabled={busy}
+        >
+          <span className={styles.optionTitle}>İptal et</span>
+          <span className={styles.optionText}>{effect}</span>
+        </button>
+        <button type="button" className={styles.closeLink} onClick={onClose}>
+          Vazgeç, geliyorum
+        </button>
+      </>
+    );
+  }
+
   if (isPast(session.cancelDeadlineAt, now)) {
     return (
       <>
@@ -383,8 +428,19 @@ function CantComeOptions({ session, studio, now, busy, onSwap, onCancelOnly, onD
 const METHOD_LABELS = { cash: 'nakit', transfer: 'havale', card: 'kart' };
 
 // Üyelik bilgisi. Sakin kalır: kalan tutar uyarı rengiyle gösterilmez (müşteriye baskı hissi vermesin).
+// Paket satırı: "Paketin: 12 seans · 7 kaldı · son gün 15 Ocak"; bitmişse ne olduğunu söyler.
+function packageLine(m) {
+  if (m.ended) return `Paketinin son günü ${formatDateDayMonth(m.endsOn)} tarihinde geçti.`;
+  if (m.remaining === 0) return `Paketindeki ${m.sessionCount} seans bitti.`;
+  return `Paketin: ${m.sessionCount} seans · ${m.remaining} kaldı · son gün ${formatDateDayMonth(m.endsOn)}`;
+}
+
 function MembershipInfo({ membership }) {
-  const line = `Üyeliğin ${formatDateDayMonth(membership.endsOn)} tarihinde ${membership.ended ? 'bitti' : 'bitiyor'}.`;
+  let line = `Üyeliğin ${formatDateDayMonth(membership.endsOn)} tarihinde ${membership.ended ? 'bitti' : 'bitiyor'}.`;
+  if (membership.sessionCount) {
+    line = packageLine(membership);
+    if (membership.unpackaged > 0) line += ` ${membership.unpackaged} ders yeni paketinden düşecek.`;
+  }
   const period = membership.period;
   if (!period) return <p className={styles.membershipLine}>{line}</p>;
 

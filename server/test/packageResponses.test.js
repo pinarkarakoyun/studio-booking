@@ -133,5 +133,7 @@ describe('package info in responses', () => {
     await setup();
     const { body } = await client().request('GET', '/api/studio');
     assert.equal(body.studio.membershipModel, 'package');
+    // Üye ekranı geç iptalde "Bu seans düşecek" uyarısını buna göre gösterir.
+    assert.equal(body.studio.lateCancelBurnsSession, true);
   });
 });
