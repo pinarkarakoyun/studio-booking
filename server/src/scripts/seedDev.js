@@ -40,6 +40,12 @@ const BRANCHES = demo.branches ?? [{ name: DEFAULT_BRANCH_NAME }];
 const unknownBranch = (demo.groups ?? []).find((g) => g.branch && !BRANCHES.some((br) => br.name === g.branch));
 if (unknownBranch) throw new Error(`"${unknownBranch.name}" grubunun şubesi ("${unknownBranch.branch}") branches listesinde yok.`);
 
+// Üyelik modeli: demo dosyası "membershipModel": "package" ve "packages": [{ "name", "sessionCount", "priceKurus",
+// "validityDays" }] verebilir. Verilmezse grup + telafi modeli, paket kataloğu boş.
+const MEMBERSHIP_MODEL = demo.membershipModel ?? 'group';
+if (!['group', 'package'].includes(MEMBERSHIP_MODEL)) throw new Error('membershipModel "group" ya da "package" olmalı.');
+const PACKAGES = demo.packages ?? [];
+
 // Haftanın günleri: 1 = Pazartesi ... 7 = Pazar
 const DEFAULT_GROUPS = [
   { name: 'Pzt-Çar-Cum sabah', time: '09:00', days: [1, 3, 5], capacity: 8, members: 7 },
@@ -76,7 +82,16 @@ try {
     `INSERT INTO studios (name, slug, whatsapp_phone, brand_color, logo_url) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
     [STUDIO.name, STUDIO.slug, STUDIO.whatsappPhone, STUDIO.brandColor, STUDIO.logoUrl],
   );
-  await client.query('INSERT INTO studio_settings (studio_id) VALUES ($1)', [studio.id]);
+  await client.query(
+    'INSERT INTO studio_settings (studio_id, membership_model) VALUES ($1, $2)',
+    [studio.id, MEMBERSHIP_MODEL],
+  );
+  for (const pkg of PACKAGES) {
+    await client.query(
+      `INSERT INTO packages (studio_id, name, session_count, price_kurus, validity_days) VALUES ($1, $2, $3, $4, $5)`,
+      [studio.id, pkg.name, pkg.sessionCount, pkg.priceKurus, pkg.validityDays],
+    );
+  }
 
   const branchIds = new Map();
   for (const branch of BRANCHES) {

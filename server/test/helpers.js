@@ -13,7 +13,7 @@ export { pool };
 export async function resetDb() {
   await pool.query(`
     TRUNCATE studios, studio_settings, branches, users, groups, group_days, group_members,
-             sessions, credits, freezes, user_sessions, memberships, payments
+             sessions, credits, freezes, user_sessions, memberships, payments, packages, attendance
     RESTART IDENTITY CASCADE
   `);
 }
@@ -31,8 +31,9 @@ export async function createStudio(settings = {}) {
     `
     INSERT INTO studio_settings (studio_id, credit_validity_days, cancellation_deadline_hours,
                                  booking_window_days, refund_credit_on_makeup_cancel, max_makeups_per_month,
-                                 allow_undo_cancel, allow_makeup_before_missed, makeup_booking_cutoff_minutes)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                                 allow_undo_cancel, allow_makeup_before_missed, makeup_booking_cutoff_minutes,
+                                 membership_model, late_cancel_burns_session)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
     `,
     [
       studio.id,
@@ -44,6 +45,8 @@ export async function createStudio(settings = {}) {
       settings.allowUndoCancel ?? true,
       settings.allowMakeupBeforeMissed ?? true,
       settings.makeupBookingCutoffMinutes ?? 0,
+      settings.membershipModel ?? 'group',
+      settings.lateCancelBurnsSession ?? true,
     ],
   );
   // Uygulamadaki gibi her stüdyo bir şubeyle ("Merkez") açılır.
