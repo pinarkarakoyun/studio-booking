@@ -23,6 +23,8 @@ export default function SessionRosterPage({ studio, sessionId, backLabel = 'Bug�
   // Açık panel: 'cancel' | 'add' | { remove: kişi } | null
   const [panel, setPanel] = useState(null);
   const [notice, setNotice] = useState(null);
+  const [absentError, setAbsentError] = useState(null);
+  const [absentBusy, setAbsentBusy] = useState(null); // işaretlenmekte olan kişinin id'si
 
   // "Ders başladı mı?" için şimdiki zaman, veri geldiği anda bir kez alınır (render sırasında değil).
   function load() {
@@ -41,6 +43,22 @@ export default function SessionRosterPage({ studio, sessionId, backLabel = 'Bug�
     setPanel(null);
     setNotice(message);
     await load();
+  }
+
+  // Yoklama: "gelmedi" işaretini aç/kapat. Yalnızca kayıt; seans sayısını değiştirmez.
+  async function toggleAbsent(person) {
+    setAbsentBusy(person.id);
+    setAbsentError(null);
+    try {
+      const result = await api(`/api/admin/sessions/${sessionId}/attendance/${person.id}`, {
+        method: person.absent ? 'DELETE' : 'PUT',
+      });
+      setData({ ...result, loadedAt: Date.now() });
+    } catch (err) {
+      setAbsentError(err.message);
+    } finally {
+      setAbsentBusy(null);
+    }
   }
 
   const back = (
@@ -64,6 +82,8 @@ export default function SessionRosterPage({ studio, sessionId, backLabel = 'Bug�
   const canCancel = !isCancelled && startsAt > data.loadedAt;
   // Kişi ders bitene kadar eklenebilir (kapıdan gelen de kaydedilsin).
   const canEdit = !isCancelled && startsAt + session.durationMinutes * 60000 > data.loadedAt;
+  // Ders başladıysa yoklama alınabilir (iki modelde de).
+  const canMarkAbsent = !isCancelled && startsAt <= data.loadedAt;
   const fill = Math.min(100, Math.round((session.bookedCount / session.capacity) * 100));
 
   return (
@@ -94,29 +114,45 @@ export default function SessionRosterPage({ studio, sessionId, backLabel = 'Bug�
         <span className={styles.muted}>{session.freeSpots > 0 ? `${session.freeSpots} boş` : 'dolu'}</span>
       </div>
 
-      <h2 className={styles.listLabel}>Gelecekler</h2>
+      <h2 className={styles.listLabel}>{canMarkAbsent ? 'Gelenler' : 'Gelecekler'}</h2>
+      {canMarkAbsent && attending.length > 0 && (
+        <p className={styles.muted}>Gelmeyeni “Gelmedi” ile işaretle. Yalnızca kayıt için.</p>
+      )}
+      {absentError && <p className={styles.formError}>{absentError}</p>}
       {attending.length === 0 ? (
         <p className={styles.muted}>Bu derse gelecek kimse yok.</p>
       ) : (
         <ul className={styles.people}>
           {attending.map((person) => (
             <li key={person.id} className={styles.person}>
-              <span>{person.fullName}</span>
-              {person.state === 'makeup' && (
-                <span className={styles.personEnd}>
+              <span className={person.absent ? styles.inactive : undefined}>{person.fullName}</span>
+              <span className={styles.personEnd}>
+                {person.state === 'makeup' && (
                   <span className={styles.tagMakeup}>{person.creditState === 'added' ? 'Yönetici ekledi' : 'Telafi'}</span>
-                  {canEdit && (
-                    <button
-                      type="button"
-                      className={styles.paymentDelete}
-                      aria-label={`${person.fullName} dersten çıkar`}
-                      onClick={() => setPanel({ remove: person })}
-                    >
-                      Çıkar
-                    </button>
-                  )}
-                </span>
-              )}
+                )}
+                {canMarkAbsent && (
+                  <button
+                    type="button"
+                    className={`${styles.absentToggle} ${person.absent ? styles.absentOn : ''}`}
+                    aria-pressed={person.absent}
+                    aria-label={`${person.fullName} gelmedi`}
+                    disabled={absentBusy === person.id}
+                    onClick={() => toggleAbsent(person)}
+                  >
+                    Gelmedi
+                  </button>
+                )}
+                {person.state === 'makeup' && canEdit && (
+                  <button
+                    type="button"
+                    className={styles.paymentDelete}
+                    aria-label={`${person.fullName} dersten çıkar`}
+                    onClick={() => setPanel({ remove: person })}
+                  >
+                    Çıkar
+                  </button>
+                )}
+              </span>
             </li>
           ))}
         </ul>

@@ -95,14 +95,16 @@ export default function CustomerDetailPage({ studio, customerId, onBack, onCrede
             </dd>
           </div>
         )}
-        <div>
-          <dt>Telafi hakkı</dt>
-          <dd>
-            {customer.credits.length === 0
-              ? 'yok'
-              : `${customer.credits.length}, ilki ${formatDayMonth(customer.credits[0].expiresAt, timeZone)} tarihine kadar`}
-          </dd>
-        </div>
+        {studio.membershipModel !== 'package' && (
+          <div>
+            <dt>Telafi hakkı</dt>
+            <dd>
+              {customer.credits.length === 0
+                ? 'yok'
+                : `${customer.credits.length}, ilki ${formatDayMonth(customer.credits[0].expiresAt, timeZone)} tarihine kadar`}
+            </dd>
+          </div>
+        )}
         {customer.nextSession && (
           <div>
             <dt>Sıradaki dersi</dt>
@@ -114,14 +116,22 @@ export default function CustomerDetailPage({ studio, customerId, onBack, onCrede
         )}
       </dl>
 
-      <MembershipCard customerId={customerId} today={todayIn(timeZone)} canStartPeriod={!left} />
+      <MembershipCard
+        customerId={customerId}
+        today={todayIn(timeZone)}
+        canStartPeriod={!left}
+        packageModel={studio.membershipModel === 'package'}
+      />
 
       {!left && (
         <>
           <h2 className={styles.listLabel}>İşlemler</h2>
           <ul className={styles.people}>
             <ActionRow label="Grubunu değiştir" onClick={() => setAction('group')} />
-            <ActionRow label="Telafi hakkı ver" onClick={() => setAction('credits')} />
+            {/* Paket modelinde telafi yok: kaçırılan ders paketten düşmez, telafi hakkı da verilmez. */}
+            {studio.membershipModel !== 'package' && (
+              <ActionRow label="Telafi hakkı ver" onClick={() => setAction('credits')} />
+            )}
             {customer.freeze ? (
               <ActionRow label="Dondurmayı bitir" onClick={() => setAction('endFreeze')} />
             ) : (
