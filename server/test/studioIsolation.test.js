@@ -250,6 +250,22 @@ describe('ids in the request body cannot point to another studio', () => {
       ['/api/admin/groups', { ...body, branchId: B.branch }], ['/api/admin/groups', { ...body, branchId: MISSING.branch }]);
   });
 
+  test("selling B's package to A's customer", async () => {
+    const { A, B, adminA } = await twoPackageStudios();
+    const url = `/api/admin/customers/${A.guest}/memberships`;
+    const startsOn = await day(60);
+    await assertRejectedWithoutTrace(adminA, 'POST',
+      [url, { packageId: B.package, startsOn }], [url, { packageId: MISSING.package, startsOn }]);
+  });
+
+  // Paket modelinde müşteri kimliği de denetlenmeli (matristeki satır grup modelinin gövdesini sınar).
+  test("selling A's package to B's customer", async () => {
+    const { A, B, adminA } = await twoPackageStudios();
+    const body = { packageId: A.package, startsOn: await day(60) };
+    await assertRejectedWithoutTrace(adminA, 'POST',
+      [`/api/admin/customers/${B.guest}/memberships`, body], [`/api/admin/customers/${MISSING.guest}/memberships`, body]);
+  });
+
   test("customer swaps into B's session", async () => {
     const { A, B, customerA } = await twoStudios();
     const url = `/api/sessions/${A.laterSession}/swap`;

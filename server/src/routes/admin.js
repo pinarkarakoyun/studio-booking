@@ -256,8 +256,11 @@ router.get('/api/admin/customers/:id/memberships', async (req, res) => {
 });
 
 router.post('/api/admin/customers/:id/memberships', async (req, res) => {
-  const { startsOn, endsOn, feeKurus, note } = req.body ?? {};
-  res.status(201).json({ membership: await createMembership(req.user, customerId(req), { startsOn, endsOn, feeKurus, note }) });
+  // Paket modelinde packageId (endsOn yok); grup modelinde startsOn-endsOn. Hangisinin geçerli olduğuna servis karar verir.
+  const { packageId, startsOn, endsOn, feeKurus, note } = req.body ?? {};
+  res.status(201).json({
+    membership: await createMembership(req.user, customerId(req), { packageId, startsOn, endsOn, feeKurus, note }),
+  });
 });
 
 router.get('/api/admin/payments', async (req, res) => {
