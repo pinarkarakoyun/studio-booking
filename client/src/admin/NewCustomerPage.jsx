@@ -89,7 +89,8 @@ export default function NewCustomerPage({ studio, onCancel, onCreated }) {
               <option value="">Grup seç</option>
               {groups?.map((group) => (
                 <option key={group.id} value={group.id}>
-                  {group.name} ({group.memberCount}/{group.capacity}
+                  {group.name}
+                  {studio.branchCount > 1 && ` · ${group.branch.name}`} ({group.memberCount}/{group.capacity}
                   {group.memberCount >= group.capacity ? ', dolu' : ''})
                 </option>
               ))}

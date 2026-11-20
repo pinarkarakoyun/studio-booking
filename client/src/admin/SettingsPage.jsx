@@ -4,6 +4,7 @@ import Button from '../components/Button.jsx';
 import TextField from '../components/TextField.jsx';
 import { formatPhone } from '../format.js';
 import styles from './Admin.module.css';
+import BranchesSection from './BranchesSection.jsx';
 
 // Sunucunun hata kodu -> hatanın gösterileceği alan.
 const FIELD_FOR_CODE = {
@@ -84,9 +85,17 @@ export default function SettingsPage({ onStudioChange }) {
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState(null);
+  // Açık şube sayısı: "diğer şubelerde telafi" anahtarı yalnızca çok şubeli stüdyoda görünür.
+  const [branchCount, setBranchCount] = useState(null);
 
   useEffect(() => {
-    api('/api/admin/settings').then(({ settings }) => setForm(toForm(settings)), (err) => setLoadError(err.message));
+    api('/api/admin/settings').then(
+      ({ settings }) => {
+        setForm(toForm(settings));
+        setBranchCount(settings.branchCount);
+      },
+      (err) => setLoadError(err.message),
+    );
   }, []);
 
   if (!form) {
@@ -148,6 +157,9 @@ export default function SettingsPage({ onStudioChange }) {
         <NumberRow label="Ayda en fazla telafi" hint="Boş: sınırsız" min="1" max="31" placeholder="–" {...number('maxMakeupsPerMonth')} />
         <SwitchRow label="Kaçırılacak dersten önce telafi" hint="Cuma yerine Perşembe gibi" {...toggle('allowMakeupBeforeMissed')} />
         <SwitchRow label="Telafiden vazgeçince hak geri gelsin" hint="Kapalıysa hak yanar" {...toggle('refundCreditOnMakeupCancel')} />
+        {branchCount > 1 && (
+          <SwitchRow label="Diğer şubelerde telafi" hint="Kapalıysa üye yalnızca kendi şubesine telafiye gelir" {...toggle('makeupOtherBranches')} />
+        )}
 
         <h2 className={styles.settingSection}>Ödeme</h2>
         <NumberRow label="Bitişe kaç gün kala uyar" hint="Ödemeler'de “Bitişi yaklaşıyor”" unit="gün" min="0" max="60" {...number('paymentReminderDays')} />
@@ -182,6 +194,14 @@ export default function SettingsPage({ onStudioChange }) {
           </Button>
         </div>
       </form>
+
+      <BranchesSection
+        onCountChange={(count) => {
+          setBranchCount(count);
+          // Panelin geri kalanı (gruplar, Bugün, listeler) şube adlarını buna göre gösterir.
+          onStudioChange({ branchCount: count });
+        }}
+      />
     </main>
   );
 }

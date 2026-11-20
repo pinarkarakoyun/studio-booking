@@ -3,7 +3,9 @@ import { api } from '../api.js';
 import { daysText } from './groupDays.js';
 import styles from './Admin.module.css';
 
-export default function GroupsPage({ onOpen, onAdd }) {
+export default function GroupsPage({ studio, onOpen, onAdd }) {
+  // Şube adı yalnızca çok şubeli stüdyoda.
+  const multiBranch = studio.branchCount > 1;
   const [groups, setGroups] = useState(null);
   const [error, setError] = useState(null);
   const [showClosed, setShowClosed] = useState(false);
@@ -36,7 +38,7 @@ export default function GroupsPage({ onOpen, onAdd }) {
       <ul className={styles.list}>
         {open.map((group) => (
           <li key={group.id}>
-            <GroupRow group={group} onOpen={() => onOpen(group.id)} />
+            <GroupRow group={group} multiBranch={multiBranch} onOpen={() => onOpen(group.id)} />
           </li>
         ))}
       </ul>
@@ -50,7 +52,7 @@ export default function GroupsPage({ onOpen, onAdd }) {
             <ul className={styles.list}>
               {closed.map((group) => (
                 <li key={group.id}>
-                  <GroupRow group={group} onOpen={() => onOpen(group.id)} />
+                  <GroupRow group={group} multiBranch={multiBranch} onOpen={() => onOpen(group.id)} />
                 </li>
               ))}
             </ul>
@@ -61,7 +63,7 @@ export default function GroupsPage({ onOpen, onAdd }) {
   );
 }
 
-function GroupRow({ group, onOpen }) {
+function GroupRow({ group, multiBranch, onOpen }) {
   const full = group.memberCount >= group.capacity;
   const fill = Math.min(100, Math.round((group.memberCount / group.capacity) * 100));
   return (
@@ -75,6 +77,7 @@ function GroupRow({ group, onOpen }) {
         )}
       </span>
       <span className={styles.customerMeta}>
+        {multiBranch && `${group.branch.name} · `}
         {daysText(group.weekdays)}, {group.startTime}, {group.durationMinutes} dk
       </span>
       {group.isActive && (

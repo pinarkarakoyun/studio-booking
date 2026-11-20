@@ -4,7 +4,9 @@ import { formatDateDayMonth, formatMoney } from '../format.js';
 import styles from './Admin.module.css';
 
 // Ödemeler sekmesi: sadece ilgilenilmesi gerekenler. Kişiye dokununca müşteri detayı (üyelik kartı) açılır.
-export default function PaymentsPage({ onOpenCustomer }) {
+export default function PaymentsPage({ studio, onOpenCustomer }) {
+  // Şube adı yalnızca çok şubeli stüdyoda, kişinin adının yanında.
+  const multiBranch = studio.branchCount > 1;
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
 
@@ -30,11 +32,11 @@ export default function PaymentsPage({ onOpenCustomer }) {
 
       {nothingToDo && <p className={styles.muted}>Biten, yaklaşan ya da eksik ödemesi olan üyelik yok.</p>}
 
-      <Section title="Süresi bitti, yenilenmedi" rows={data.expired} onOpen={onOpenCustomer}>
+      <Section title="Süresi bitti, yenilenmedi" rows={data.expired} multiBranch={multiBranch} onOpen={onOpenCustomer}>
         {(row) => [`${formatDateDayMonth(row.endsOn)} tarihinde bitti`, `${row.daysAgo} gün`, true]}
       </Section>
 
-      <Section title="Bitişi yaklaşıyor" rows={data.endingSoon} onOpen={onOpenCustomer}>
+      <Section title="Bitişi yaklaşıyor" rows={data.endingSoon} multiBranch={multiBranch} onOpen={onOpenCustomer}>
         {(row) => [
           `${formatDateDayMonth(row.endsOn)} tarihinde bitiyor`,
           row.daysLeft === 0 ? 'bugün' : `${row.daysLeft} gün`,
@@ -42,7 +44,7 @@ export default function PaymentsPage({ onOpenCustomer }) {
         ]}
       </Section>
 
-      <Section title="Eksik ödeme" rows={data.underpaid} onOpen={onOpenCustomer}>
+      <Section title="Eksik ödeme" rows={data.underpaid} multiBranch={multiBranch} onOpen={onOpenCustomer}>
         {(row) => [
           `${formatDateDayMonth(row.startsOn)} – ${formatDateDayMonth(row.endsOn)}, ${formatMoney(row.feeKurus)}`,
           `${formatMoney(row.remainingKurus)} kaldı`,
@@ -57,7 +59,7 @@ export default function PaymentsPage({ onOpenCustomer }) {
       </p>
 
       {/* Geçişte uzun olabilir (henüz kimsenin dönemi girilmemişken herkes burada); bu yüzden en altta. */}
-      <Section title="Üyelik dönemi girilmemiş" rows={data.noMembership} onOpen={onOpenCustomer}>
+      <Section title="Üyelik dönemi girilmemiş" rows={data.noMembership} multiBranch={multiBranch} onOpen={onOpenCustomer}>
         {() => ['Dönemini ve ödemesini gir', null, false]}
       </Section>
     </main>
@@ -65,7 +67,7 @@ export default function PaymentsPage({ onOpenCustomer }) {
 }
 
 // Bir bölüm: başlık (kişi sayısıyla) ve satırlar. children(row) -> [alt satır, sağdaki değer, vurgulu mu]
-function Section({ title, rows, onOpen, children }) {
+function Section({ title, rows, multiBranch, onOpen, children }) {
   if (rows.length === 0) return null;
   return (
     <>
@@ -80,6 +82,7 @@ function Section({ title, rows, onOpen, children }) {
               <button type="button" className={styles.memberRow} onClick={() => onOpen(row.customerId)}>
                 <span className={styles.paymentRowText}>
                   {row.fullName}
+                  {multiBranch && row.branchName && ` · ${row.branchName}`}
                   <small>{detail}</small>
                 </span>
                 {value && <span className={alert ? styles.periodAlert : styles.paymentRowValue}>{value}</span>}

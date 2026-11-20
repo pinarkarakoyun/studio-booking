@@ -8,7 +8,9 @@ const shiftDay = (date, days) => addDays(`${date}T12:00:00Z`, days).slice(0, 10)
 
 // Bugünün dersleri ve uyarıları; ‹ › ile başka günlere de bakılır (ör. bayramda ileri tarihli dersi iptal etmek).
 // date null ise bugün. Uyarılar ve "Yarın" satırı sadece bugünün ekranında.
-export default function TodayPage({ user, studio, date, onChangeDate, onOpenSession, onOpenAccount }) {
+export default function TodayPage({
+  user, studio, date, onChangeDate, branchFilter, onBranchFilterChange, onOpenSession, onOpenAccount,
+}) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const timeZone = studio.timezone;
@@ -16,11 +18,19 @@ export default function TodayPage({ user, studio, date, onChangeDate, onOpenSess
   const shown = date ?? today;
   const isToday = shown === today;
   const pickerRef = useRef(null);
+  // Şube süzgeci: yalnızca çok şubeli stüdyoda. '' = tüm şubeler. Seçim AdminApp'te tutulur (gün değişince korunur).
+  const multiBranch = studio.branchCount > 1;
+  const [branches, setBranches] = useState([]);
 
   useEffect(() => {
     const url = isToday ? '/api/admin/today' : `/api/admin/day?date=${shown}`;
     api(url).then(setData, (err) => setError(err.message));
   }, [isToday, shown]);
+
+  useEffect(() => {
+    if (!multiBranch) return;
+    api('/api/admin/branches').then(({ branches: list }) => setBranches(list.filter((b) => b.isActive)), () => {});
+  }, [multiBranch]);
 
   // Başlık "Bugün / Yarın / Dün" ya da gün adı; tarih satırı başlığı tekrar etmesin diye gün adı başlıktaysa
   // sadece "26 Ekim" yazar.
@@ -72,7 +82,11 @@ export default function TodayPage({ user, studio, date, onChangeDate, onOpenSess
     );
   }
 
-  const scheduled = data.sessions.filter((s) => s.status === 'scheduled');
+  // Süzme istemcide: bir günün ders sayısı küçük, sunucuya ayrı istek gerekmez.
+  const sessions = multiBranch && branchFilter
+    ? data.sessions.filter((s) => String(s.branch.id) === branchFilter)
+    : data.sessions;
+  const scheduled = sessions.filter((s) => s.status === 'scheduled');
   const people = scheduled.reduce((sum, s) => sum + s.bookedCount, 0);
   const { fullSessions, recentCancellations } = data.alerts ?? { fullSessions: [], recentCancellations: [] };
   const hasAlerts = fullSessions.length > 0 || recentCancellations.length > 0;
@@ -93,6 +107,20 @@ export default function TodayPage({ user, studio, date, onChangeDate, onOpenSess
           </>
         )}
       </p>
+
+      {multiBranch && (
+        <label className={styles.muted}>
+          Şube:{' '}
+          <select value={branchFilter} onChange={(e) => onBranchFilterChange(e.target.value)}>
+            <option value="">Tüm şubeler</option>
+            {branches.map((branch) => (
+              <option key={branch.id} value={branch.id}>
+                {branch.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
 
       {/* Dikkat edilecekler: sadece gösterecek bir şey varsa görünür. */}
       {hasAlerts && (
@@ -117,9 +145,9 @@ export default function TodayPage({ user, studio, date, onChangeDate, onOpenSess
       )}
 
       <ul className={styles.list}>
-        {data.sessions.map((session) => (
+        {sessions.map((session) => (
           <li key={session.id}>
-            <SessionRow session={session} timeZone={timeZone} onOpen={() => onOpenSession(session.id)} />
+            <SessionRow session={session} multiBranch={multiBranch} timeZone={timeZone} onOpen={() => onOpenSession(session.id)} />
           </li>
         ))}
       </ul>
@@ -134,7 +162,7 @@ export default function TodayPage({ user, studio, date, onChangeDate, onOpenSess
   );
 }
 
-function SessionRow({ session, timeZone, onOpen }) {
+function SessionRow({ session, multiBranch, timeZone, onOpen }) {
   const cancelledByStudio = session.status === 'cancelled';
   const full = session.bookedCount >= session.capacity;
   const fill = Math.min(100, Math.round((session.bookedCount / session.capacity) * 100));
@@ -152,6 +180,7 @@ function SessionRow({ session, timeZone, onOpen }) {
       <span className={styles.sessionMiddle}>
         <span className={styles.sessionGroup}>
           {session.groupName}
+          {multiBranch && ` · ${session.branch.name}`}
           {session.makeupCount > 0 && <span className={styles.tagMakeup}>+{session.makeupCount} telafi</span>}
           {!cancelledByStudio && session.cancelledCount > 0 && (
             <span className={styles.tagCancel}>{session.cancelledCount} iptal</span>

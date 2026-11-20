@@ -23,7 +23,9 @@ function matches(customer, query) {
   );
 }
 
-export default function CustomersPage({ onOpen, onAdd }) {
+export default function CustomersPage({ studio, onOpen, onAdd }) {
+  // Şube adı yalnızca çok şubeli stüdyoda.
+  const multiBranch = studio.branchCount > 1;
   const [customers, setCustomers] = useState(null);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('active');
@@ -81,7 +83,7 @@ export default function CustomersPage({ onOpen, onAdd }) {
               <span>
                 <span className={styles.customerName}>{customer.fullName}</span>
                 <span className={styles.customerMeta}>
-                  {customer.group?.name ??
+                  {(customer.group && `${customer.group.name}${multiBranch && customer.branchName ? ` · ${customer.branchName}` : ''}`) ??
                     (customer.upcomingGroup
                       ? `${customer.upcomingGroup.name}, ${formatDateDayMonth(customer.upcomingGroup.startsOn)} tarihinden itibaren`
                       : formatPhone(customer.phone))}

@@ -75,7 +75,10 @@ export default function CustomerDetailPage({ studio, customerId, onBack, onCrede
       <dl className={styles.summary}>
         <div>
           <dt>Grup</dt>
-          <dd>{customer.group?.name ?? (left ? 'Stüdyodan ayrıldı' : 'Grubu yok')}</dd>
+          <dd>
+            {customer.group?.name ?? (left ? 'Stüdyodan ayrıldı' : 'Grubu yok')}
+            {customer.group && studio.branchCount > 1 && customer.branchName && ` · ${customer.branchName}`}
+          </dd>
         </div>
         {customer.upcomingGroup && (
           <div>
@@ -132,6 +135,7 @@ export default function CustomerDetailPage({ studio, customerId, onBack, onCrede
 
       <Sheet open={action === 'group'} onClose={() => setAction(null)} title="Grubunu değiştir">
         <ChangeGroupForm
+          multiBranch={studio.branchCount > 1}
           customer={customer}
           today={todayIn(timeZone)}
           onDone={(groupName, effectiveFrom, refundedMakeups) =>
@@ -374,7 +378,7 @@ function LeaveConfirm({ customer, onDone }) {
 }
 
 // Grubunu değiştir: yeni grup + geçiş tarihi. Yeni grup doluysa sunucu uyarır, onayla yine de taşınır.
-function ChangeGroupForm({ customer, today, onDone }) {
+function ChangeGroupForm({ customer, today, multiBranch, onDone }) {
   const [groups, setGroups] = useState(null);
   const [groupId, setGroupId] = useState('');
   const [effectiveFrom, setEffectiveFrom] = useState(today);
@@ -440,7 +444,8 @@ function ChangeGroupForm({ customer, today, onDone }) {
             <option value="">Grup seç</option>
             {groups?.map((group) => (
               <option key={group.id} value={group.id}>
-                {group.name} ({group.memberCount}/{group.capacity}
+                {group.name}
+                {multiBranch && ` · ${group.branch.name}`} ({group.memberCount}/{group.capacity}
                 {group.memberCount >= group.capacity ? ', dolu' : ''})
               </option>
             ))}
