@@ -47,6 +47,8 @@ export default function MembershipCard({ customerId, today, canStartPeriod, pack
   // Kartta sürmekte olan dönem; yoksa en yenisi (başlamamış ya da bitmiş).
   const current = data.memberships.find((m) => m.status === 'active') ?? data.memberships[0];
   const others = data.memberships.filter((m) => m !== current);
+  // Seansları biten paketten sonra alınmış, henüz başlamamış paket (çakışma kuralı yüzünden ileri tarihli).
+  const nextPackage = data.memberships.find((m) => m.status === 'upcoming' && m.sessionCount !== null);
 
   return (
     <section aria-labelledby="membership-title">
@@ -68,7 +70,7 @@ export default function MembershipCard({ customerId, today, canStartPeriod, pack
 
       {current ? (
         <div className={styles.membershipCard}>
-          <PeriodSummary membership={current} today={today} />
+          <PeriodSummary membership={current} today={today} nextPackage={nextPackage} />
           {current.payments.length > 0 && (
             <ul className={styles.paymentList}>
               {current.payments.map((payment) => (
@@ -169,15 +171,18 @@ function sessionsText(m) {
   return `${m.remaining} / ${m.sessionCount} seans kaldı`;
 }
 
-function PeriodSummary({ membership: m, today }) {
+function PeriodSummary({ membership: m, today, nextPackage }) {
   const isPackage = m.sessionCount !== null;
   const paidShare = m.feeKurus === 0 ? 1 : Math.min(1, m.paidKurus / m.feeKurus);
   let state = null;
   if (m.status === 'upcoming') state = `${formatDateDayMonth(m.startsOn)} tarihinde başlıyor`;
   else if (m.status === 'ended') state = isPackage ? 'Son günü geçti, yeni paket eklenmedi' : 'Bitti, yeni dönem başlatılmadı';
-  else if (isPackage && m.remaining === 0) state = 'Seansları bitti, yeni paket eklenmedi';
-  else if (m.endsOn === today) state = 'Bugün bitiyor';
-  const alert = m.status === 'ended' || (isPackage && m.remaining === 0);
+  else if (isPackage && m.remaining === 0) {
+    state = nextPackage
+      ? `Seansları bitti. Yeni paket ${formatDateDayMonth(nextPackage.startsOn)} tarihinde başlıyor; aradaki dersler ondan düşer.`
+      : 'Seansları bitti, yeni paket eklenmedi';
+  } else if (m.endsOn === today) state = 'Bugün bitiyor';
+  const alert = m.status === 'ended' || (isPackage && m.remaining === 0 && !nextPackage);
 
   return (
     <>

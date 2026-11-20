@@ -101,6 +101,36 @@ describe('package model cancellations', () => {
     assert.equal(res.body.error.code, 'SESSION_STARTED');
     assert.deepEqual((await chargeableSessions(customer, pool)).map((s) => s.sessionId), [session]);
   });
+
+  // Geç iptalin seans düşürüp düşürmediği iptal anında karar verilir ve saklanır. Yönetici sonradan ayarı ya da
+  // son iptal saatini değiştirirse geçmiş iptaller yeniden hesaplanmaz (Ayarlar: "bundan sonraki işlemlerde geçerli").
+  test('later setting changes do not regrade past cancels', async () => {
+    const { studio, group, customer, c } = await setup();
+    const late = await createSession(group, 1);
+    const early = await createSession(group, 30);
+    assert.equal((await c.request('POST', `/api/sessions/${late}/cancel`, {})).body.late, true);
+    assert.equal((await c.request('POST', `/api/sessions/${early}/cancel`, {})).body.late, false);
+    // İki ders de geçti.
+    await pool.query(`UPDATE sessions SET starts_at = now() - interval '3 hours' WHERE id = $1`, [late]);
+    await pool.query(`UPDATE sessions SET starts_at = now() - interval '5 hours' WHERE id = $1`, [early]);
+    assert.deepEqual((await chargeableSessions(customer, pool)).map((s) => s.sessionId), [late]);
+
+    await pool.query(
+      'UPDATE studio_settings SET late_cancel_burns_session = false, cancellation_deadline_hours = 48 WHERE studio_id = $1',
+      [studio],
+    );
+    assert.deepEqual((await chargeableSessions(customer, pool)).map((s) => s.sessionId), [late]);
+  });
+
+  test('a late cancel with the setting off is stored as not charged', async () => {
+    const { studio, group, customer, c } = await setup();
+    await pool.query('UPDATE studio_settings SET late_cancel_burns_session = false WHERE studio_id = $1', [studio]);
+    const late = await createSession(group, 1);
+    await c.request('POST', `/api/sessions/${late}/cancel`, {});
+    await pool.query(`UPDATE sessions SET starts_at = now() - interval '3 hours' WHERE id = $1`, [late]);
+    await pool.query('UPDATE studio_settings SET late_cancel_burns_session = true WHERE studio_id = $1', [studio]);
+    assert.deepEqual(await chargeableSessions(customer, pool), []);
+  });
 });
 
 describe('group model', () => {

@@ -10,14 +10,13 @@ import { MEMBERSHIP_SELECT } from './membershipPeriods.js';
 //   3. Üye o tarihte dondurulmuş değil.
 //   4. Üye iptal etmediyse düşer: geldi de, yoklamada "gelmedi" işaretli de (Pınar'ın kararı: haber vermeden
 //      gelmemek geç iptalden avantajlı olmamalı). Bu yüzden yoklama tablosuna hiç bakılmaz.
-//   5. İptal ettiyse: son iptal saatinden önce -> düşmez; sonra (geç iptal) -> late_cancel_burns_session ayarına göre.
-// Son iptal saati ve geç iptal ayarı stüdyonun bugünkü ayarlarıdır.
+//   5. İptal ettiyse: iptal anında verilip saklanan karara göre (credits.charges_session). Geç iptal ve ayar
+//      açıktıysa düşer; zamanında iptal ya da ayar kapalıysa düşmez. Ayar sonradan değişse de karar değişmez.
 export async function chargeableSessions(userId, db) {
   const { rows } = await db.query(
     `
     SELECT s.id, s.date, s.starts_at
     FROM users u
-    JOIN studio_settings ss ON ss.studio_id = u.studio_id
     JOIN groups g           ON g.studio_id = u.studio_id
     JOIN sessions s         ON s.group_id = g.id
     WHERE u.id = $1
@@ -31,12 +30,10 @@ export async function chargeableSessions(userId, db) {
       )
       AND NOT EXISTS (SELECT 1 FROM freezes f
                       WHERE f.user_id = u.id AND daterange(f.starts_on, f.ends_on, '[]') @> s.date)
-      -- Düşmeyen iptal: zamanında yapılmış ya da geç iptal ayarı kapalı.
+      -- Düşmeyen iptal: iptal anında "düşmez" kararı verilmiş (charges_session false ya da NULL).
       AND NOT EXISTS (
         SELECT 1 FROM credits c
-        WHERE c.user_id = u.id AND c.source_session_id = s.id
-          AND (c.created_at <= s.starts_at - make_interval(hours => ss.cancellation_deadline_hours)
-               OR NOT ss.late_cancel_burns_session)
+        WHERE c.user_id = u.id AND c.source_session_id = s.id AND c.charges_session IS NOT TRUE
       )
     ORDER BY s.starts_at, s.id
     `,

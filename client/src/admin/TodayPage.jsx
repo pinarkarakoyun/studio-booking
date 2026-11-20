@@ -147,7 +147,13 @@ export default function TodayPage({
       <ul className={styles.list}>
         {sessions.map((session) => (
           <li key={session.id}>
-            <SessionRow session={session} multiBranch={multiBranch} timeZone={timeZone} onOpen={() => onOpenSession(session.id)} />
+            <SessionRow
+              session={session}
+              multiBranch={multiBranch}
+              packageModel={studio.membershipModel === 'package'}
+              timeZone={timeZone}
+              onOpen={() => onOpenSession(session.id)}
+            />
           </li>
         ))}
       </ul>
@@ -162,7 +168,7 @@ export default function TodayPage({
   );
 }
 
-function SessionRow({ session, multiBranch, timeZone, onOpen }) {
+function SessionRow({ session, multiBranch, packageModel, timeZone, onOpen }) {
   const cancelledByStudio = session.status === 'cancelled';
   const full = session.bookedCount >= session.capacity;
   const fill = Math.min(100, Math.round((session.bookedCount / session.capacity) * 100));
@@ -181,7 +187,7 @@ function SessionRow({ session, multiBranch, timeZone, onOpen }) {
         <span className={styles.sessionGroup}>
           {session.groupName}
           {multiBranch && ` · ${session.branch.name}`}
-          {session.makeupCount > 0 && <span className={styles.tagMakeup}>+{session.makeupCount} telafi</span>}
+          {session.makeupCount > 0 && <span className={styles.tagMakeup}>+{session.makeupCount} {packageModel ? 'eklendi' : 'telafi'}</span>}
           {!cancelledByStudio && session.cancelledCount > 0 && (
             <span className={styles.tagCancel}>{session.cancelledCount} iptal</span>
           )}

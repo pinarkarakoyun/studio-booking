@@ -35,7 +35,7 @@ async function loadSession(client, sessionId, userId, { lock = false } = {}) {
     `
     SELECT s.id, s.group_id, s.date, s.starts_at, s.status, g.studio_id, g.branch_id,
            ss.makeup_other_branches, ss.credit_validity_days, ss.refund_credit_on_makeup_cancel, ss.max_makeups_per_month,
-           ss.allow_undo_cancel, ss.allow_makeup_before_missed, ss.membership_model,
+           ss.allow_undo_cancel, ss.allow_makeup_before_missed, ss.membership_model, ss.late_cancel_burns_session,
            st.timezone,
            s.starts_at > now() AS is_future,
            s.starts_at - make_interval(hours => ss.cancellation_deadline_hours) > now()
@@ -155,19 +155,23 @@ async function cancelInTransaction(client, userId, sessionId) {
     throw new BookingError('USER_FROZEN', 'Üyeliğin bu tarihte dondurulmuş.');
   }
 
+  // Paket modeli: bu iptal seans düşürür mü? Bugünkü ayara göre şimdi karar verilir ve saklanır; ayar sonradan
+  // değişse de geçmiş iptal yeniden hesaplanmaz. Grup modelinde NULL.
+  const chargesSession = isPackage ? !session.is_before_deadline && session.late_cancel_burns_session : null;
+
   // Hakkın süresi kaçırılan dersin başlangıcından sayılır (BR-27).
   // starts_at'i JS'ten geri göndermek yerine SQL'de okuyoruz: JS Date milisaniyeye yuvarlar,
   // Postgres mikrosaniye tutar; gidip gelince zaman birkaç mikrosaniye kayardı.
   // ON CONFLICT: aynı ders ikinci kez iptal edilirse UNIQUE kısıtı hata yerine "satır yok" döner.
   const { rows } = await client.query(
     `
-    INSERT INTO credits (user_id, source_session_id, expires_at, forfeited_at)
-    SELECT $1, s.id, s.starts_at + make_interval(days => $3), CASE WHEN $4 THEN now() END
+    INSERT INTO credits (user_id, source_session_id, expires_at, forfeited_at, charges_session)
+    SELECT $1, s.id, s.starts_at + make_interval(days => $3), CASE WHEN $4 THEN now() END, $5
     FROM sessions s WHERE s.id = $2
     ON CONFLICT (user_id, source_session_id) DO NOTHING
     RETURNING id, expires_at
     `,
-    [userId, sessionId, session.credit_validity_days, isPackage],
+    [userId, sessionId, session.credit_validity_days, isPackage, chargesSession],
   );
   if (rows.length === 0) {
     throw new BookingError('ALREADY_CANCELLED', 'Bu dersi zaten iptal ettin.');

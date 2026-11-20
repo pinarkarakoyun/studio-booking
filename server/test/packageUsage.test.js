@@ -32,14 +32,14 @@ async function insertPackage(userId, { startsOn, count = 10, validityDays = 60 }
   return row.id;
 }
 
-// Üyenin dersi iptal ettiği an: dersin başlangıcından `hoursBefore` saat önce.
-async function cancelAt(userId, sessionId, hoursBefore) {
+// Üyenin paket iptali; `charged`: iptal anında verilen "seans düşer mi" kararı (booking.js verir, orada sınanıyor).
+async function cancelAt(userId, sessionId, hoursBefore, charged) {
   await pool.query(
-    `INSERT INTO credits (user_id, source_session_id, created_at, expires_at, forfeited_at)
+    `INSERT INTO credits (user_id, source_session_id, created_at, expires_at, forfeited_at, charges_session)
      SELECT $1, s.id, s.starts_at - $3::float8 * interval '1 hour', s.starts_at + interval '30 days',
-            s.starts_at - $3::float8 * interval '1 hour'
+            s.starts_at - $3::float8 * interval '1 hour', $4
      FROM sessions s WHERE s.id = $2`,
-    [userId, sessionId, hoursBefore],
+    [userId, sessionId, hoursBefore, charged],
   );
 }
 
@@ -70,18 +70,18 @@ describe('which sessions count', () => {
   test('early cancel does not count', async () => {
     const { group, customer } = await setup();
     const session = await createSession(group, -3 * HOUR);
-    await cancelAt(customer, session, 5); // son iptal saati: 2 saat önce
+    await cancelAt(customer, session, 5, false); // son iptal saati: 2 saat önce
     assert.deepEqual(await ids(customer), []);
   });
 
-  test('late cancel follows the setting', async () => {
-    const on = await setup();
-    const lateOn = await createSession(on.group, -3 * HOUR);
-    await cancelAt(on.customer, lateOn, 1);
-    assert.deepEqual(await ids(on.customer), [lateOn]);
-
-    await pool.query('UPDATE studio_settings SET late_cancel_burns_session = false');
-    assert.deepEqual(await ids(on.customer), []);
+  // Ayar iptal anında uygulanır (packageBooking.test.js); burada saklanan karar okunur.
+  test('late cancel follows the decision stored at cancel time', async () => {
+    const { group, customer } = await setup();
+    const charged = await createSession(group, -3 * HOUR);
+    const notCharged = await createSession(group, -2 * DAY);
+    await cancelAt(customer, charged, 1, true);
+    await cancelAt(customer, notCharged, 1, false);
+    assert.deepEqual(await ids(customer), [charged]);
   });
 
   test('studio-cancelled does not count', async () => {

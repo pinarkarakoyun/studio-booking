@@ -73,6 +73,23 @@ describe('package info in responses', () => {
     });
   });
 
+  // Çakışma kuralı yüzünden yeni paket eskisinin son gününden sonra başlar. Eskisi erken bittiyse üye yine de
+  // aldığı yeni paketi görür (aradaki dersler zaten ona yazılıyor).
+  test('my membership shows the next package when the current one is used up', async () => {
+    const { studio, group } = await setup();
+    const customer = await createCustomer(studio, group);
+    const me = await clientFor(customer);
+    await insertPackage(customer, { startsOn: await day(-10), count: 1, validityDays: 30, name: '1 seans' });
+    await insertPackage(customer, { startsOn: await day(20), count: 8, validityDays: 30 });
+    await createSession(group, -3 * 24);
+    await createSession(group, -1 * 24); // birinci pakete sığmadı, ikinciye yazılır
+
+    const { body: { membership } } = await me.request('GET', '/api/me/membership');
+    assert.deepEqual(membership, {
+      endsOn: await day(49), ended: false, packageName: '8 seans', sessionCount: 8, used: 1, remaining: 7, unpackaged: 0,
+    });
+  });
+
   test('payments list packageFinished', async () => {
     const { studio, group, admin } = await setup();
     const usedUp = await createCustomer(studio, group);
@@ -127,6 +144,17 @@ describe('package info in responses', () => {
     assert.equal(res.body.settings.membershipModel, 'group');
     const { rows: [row] } = await pool.query('SELECT membership_model FROM studio_settings WHERE studio_id = $1', [studio]);
     assert.equal(row.membership_model, 'group');
+  });
+
+  // Paket modelinde telafi yok: stüdyo dersi iptal edince hak doğmaz, ders kimsenin paketinden düşmez.
+  test('a studio cancel gives no make-up credits in package model', async () => {
+    const { group, studio, admin } = await setup();
+    const customer = await createCustomer(studio, group);
+    const session = await createSession(group, 30);
+    const res = await admin.request('POST', `/api/admin/sessions/${session}/cancel`, {});
+    assert.equal(res.status, 200);
+    assert.deepEqual(res.body, { creditedMembers: 0, refundedMakeups: 0, creditsEnabled: false });
+    assert.equal((await pool.query('SELECT 1 FROM credits WHERE user_id = $1', [customer])).rowCount, 0);
   });
 
   test('/api/studio returns membershipModel', async () => {

@@ -256,7 +256,9 @@ export async function cancelSessionByStudio(admin, sessionId, { reason } = {}, {
     // Ders kilitlenir: aynı anda bir müşteri telafiye yazılıyorsa önce o biter, sonra iptal onu da görür.
     const { rows: [session] } = await client.query(
       `
-      SELECT s.id, s.status, s.starts_at <= now() AS started, ss.credit_validity_days, ss.credit_on_studio_cancel
+      SELECT s.id, s.status, s.starts_at <= now() AS started, ss.credit_validity_days,
+             -- Paket modelinde telafi yok: stüdyo iptali hak doğurmaz (ders zaten kimsenin paketinden düşmez).
+             ss.credit_on_studio_cancel AND ss.membership_model = 'group' AS credit_on_studio_cancel
       FROM sessions s
       JOIN groups g ON g.id = s.group_id
       JOIN studio_settings ss ON ss.studio_id = g.studio_id

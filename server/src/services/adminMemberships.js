@@ -353,10 +353,17 @@ export async function getMyMembership(user, { db = pool } = {}) {
 
   // Paket: kendi son günü, kalan seans ve paketsiz ders sayısı. Ardışık dönemleri birleştirmek pakette anlamsız
   // (her paketin kendi seans sayısı var).
-  const current = rows[index];
+  let current = rows[index];
   if (current.session_count !== null) {
     const usage = await packageUsage(user.id, db);
-    const own = usage.packages.find((p) => p.membershipId === current.id);
+    const left = (row) => usage.packages.find((p) => p.membershipId === row.id);
+    // Seansları bitmiş paketin ardından alınmış bir paket varsa o gösterilir: çakışma kuralı yüzünden ileri
+    // tarihli başlasa da aradaki dersler ona yazılıyor.
+    if (left(current).remaining === 0) {
+      const next = rows.slice(index + 1).find((row) => row.session_count !== null && left(row).remaining > 0);
+      if (next) current = next;
+    }
+    const own = left(current);
     return withPayments(user, current, db, {
       endsOn: current.effective_ends_on,
       ended,
