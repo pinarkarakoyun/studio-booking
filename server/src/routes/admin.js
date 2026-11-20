@@ -30,6 +30,7 @@ import {
   getSessionRoster,
   getToday,
   removeMakeupFromSession,
+  setAbsent,
 } from '../services/adminSchedule.js';
 import { getSettings, updateSettings } from '../services/adminSettings.js';
 
@@ -98,6 +99,17 @@ router.post('/api/admin/sessions/:id/attendees', async (req, res) => {
 router.delete('/api/admin/sessions/:id/attendees/:userId', async (req, res) => {
   const userId = parseId(req.params.userId, 'CUSTOMER_NOT_FOUND', 'Müşteri bulunamadı.');
   res.json(await removeMakeupFromSession(req.user, sessionId(req), userId));
+});
+
+// Yoklama: PUT "gelmedi" işaretler, DELETE işareti kaldırır. Yanıt: güncel katılımcı listesi.
+router.put('/api/admin/sessions/:id/attendance/:userId', async (req, res) => {
+  const userId = parseId(req.params.userId, 'CUSTOMER_NOT_FOUND', 'Müşteri bulunamadı.');
+  res.json(await setAbsent(req.user, sessionId(req), userId, true));
+});
+
+router.delete('/api/admin/sessions/:id/attendance/:userId', async (req, res) => {
+  const userId = parseId(req.params.userId, 'CUSTOMER_NOT_FOUND', 'Müşteri bulunamadı.');
+  res.json(await setAbsent(req.user, sessionId(req), userId, false));
 });
 
 router.post('/api/admin/sessions/:id/cancel/preview', async (req, res) => {

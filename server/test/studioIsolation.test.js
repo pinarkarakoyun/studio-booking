@@ -48,6 +48,8 @@ async function buildStudio(slug, label) {
   const todaySession = await createSessionToday(group, '23:00');
   const session = await createSession(group, 48);
   const laterSession = await createSession(group, 96);
+  // Başlamış (dünkü) ders: yoklama yalnızca başlamış derste alınır.
+  const pastSession = await createSession(group, -26);
   await insertMakeup(guest, session);
   await grantCredit(customer);
   await pool.query('UPDATE credits SET note = $2 WHERE user_id = $1', [customer, `${label}-not`]);
@@ -63,7 +65,7 @@ async function buildStudio(slug, label) {
     [membership.id, await day(-5), `${label}-ödeme`],
   );
   return {
-    studio, group, admin, customer, guest, todaySession, session, laterSession,
+    studio, group, admin, customer, guest, todaySession, session, laterSession, pastSession,
     membership: membership.id, payment: payment.id,
     // İkinci şube (grubu yok): kapatma isteği "açık grup var" yüzünden değil, başka stüdyonun olduğu için reddedilmeli.
     branch: await createBranch(studio, { name: `${label}-Şube`, address: `${label}-adres` }),
@@ -111,7 +113,7 @@ async function snapshot() {
 const MISSING = {
   session: 999001, laterSession: 999002, todaySession: 999003, customer: 999004,
   guest: 999005, group: 999006, membership: 999007, payment: 999008, branch: 999009,
-  package: 999010,
+  package: 999010, pastSession: 999011,
 };
 
 // Başka stüdyonun kaydına yapılan isteğin dört koşulu: istemci hatası (4xx, 500 değil), yanıt olmayan kayıtla
@@ -137,6 +139,8 @@ const ADMIN_MATRIX = [
   ['GET', '/api/admin/sessions/:id', async (B) => [`/api/admin/sessions/${B.session}`]],
   ['POST', '/api/admin/sessions/:id/attendees', async (B) => [`/api/admin/sessions/${B.session}/attendees`, { userId: B.customer, confirmFull: true }]],
   ['DELETE', '/api/admin/sessions/:id/attendees/:userId', async (B) => [`/api/admin/sessions/${B.session}/attendees/${B.guest}`]],
+  ['PUT', '/api/admin/sessions/:id/attendance/:userId', async (B) => [`/api/admin/sessions/${B.pastSession}/attendance/${B.customer}`, {}]],
+  ['DELETE', '/api/admin/sessions/:id/attendance/:userId', async (B) => [`/api/admin/sessions/${B.pastSession}/attendance/${B.customer}`]],
   ['POST', '/api/admin/sessions/:id/cancel/preview', async (B) => [`/api/admin/sessions/${B.session}/cancel/preview`, {}]],
   ['POST', '/api/admin/sessions/:id/cancel', async (B) => [`/api/admin/sessions/${B.session}/cancel`, { reason: 'deneme' }]],
   ['GET', '/api/admin/customers/:id', async (B) => [`/api/admin/customers/${B.customer}`]],
@@ -248,6 +252,15 @@ describe('ids in the request body cannot point to another studio', () => {
     const body = groupBody(await day(7));
     await assertRejectedWithoutTrace(adminA, 'POST',
       ['/api/admin/groups', { ...body, branchId: B.branch }], ['/api/admin/groups', { ...body, branchId: MISSING.branch }]);
+  });
+
+  test("marking B's customer absent in A's session", async () => {
+    const { A, B, adminA } = await twoStudios();
+    for (const method of ['PUT', 'DELETE']) {
+      await assertRejectedWithoutTrace(adminA, method,
+        [`/api/admin/sessions/${A.pastSession}/attendance/${B.customer}`, {}],
+        [`/api/admin/sessions/${A.pastSession}/attendance/${MISSING.customer}`, {}]);
+    }
   });
 
   test("selling B's package to A's customer", async () => {

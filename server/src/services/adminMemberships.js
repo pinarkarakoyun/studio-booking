@@ -1,6 +1,7 @@
 import pool from '../db/pool.js';
 import { AppError } from '../errors.js';
 import { membershipModelOf } from './adminPackages.js';
+import { MEMBERSHIP_SELECT } from './membershipPeriods.js';
 
 // Üyelik dönemleri ve ödeme kayıtları (BR-31…BR-37). Her fonksiyon yöneticinin kendi stüdyosuyla sınırlı.
 // Para her yerde kuruş cinsinden tamsayı (1.500 ₺ = 150000).
@@ -45,21 +46,6 @@ async function studioToday(studioId, db) {
   );
   return row.today;
 }
-
-// Dönemler ($2 = stüdyonun bugünü; WHERE çağıran yerde eklenir). Dondurma uzaması: dönemin (dondurmasız) tarihlerine denk gelen dondurma
-// günleri kadar bitiş ileri kayar (BR-36). Bitişi belirsiz dondurma bugüne kadar sayılır.
-const MEMBERSHIP_SELECT = `
-  SELECT m.id, m.user_id, m.starts_on, m.ends_on, m.fee_kurus, m.note, m.session_count, m.package_name,
-         (m.ends_on + ext.days) AS effective_ends_on, ext.days AS freeze_days,
-         COALESCE(paid.total, 0)::bigint AS paid_kurus
-  FROM memberships m
-  CROSS JOIN LATERAL (
-    SELECT COALESCE(SUM(GREATEST(0,
-             LEAST(m.ends_on, COALESCE(f.ends_on, $2::date)) - GREATEST(m.starts_on, f.starts_on) + 1
-           )), 0)::int AS days
-    FROM freezes f WHERE f.user_id = m.user_id
-  ) AS ext
-  LEFT JOIN LATERAL (SELECT SUM(amount_kurus) AS total FROM payments p WHERE p.membership_id = m.id) AS paid ON true`;
 
 function toDto(row, payments, today) {
   let status = 'active';

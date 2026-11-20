@@ -157,7 +157,8 @@ export async function getSessionRoster(admin, sessionId, { db = pool } = {}) {
              WHEN c.forfeited_at IS NOT NULL THEN 'forfeited'
              WHEN c.used_session_id IS NOT NULL THEN 'used'
              ELSE 'unused'
-           END AS credit_state
+           END AS credit_state,
+           EXISTS (SELECT 1 FROM attendance a WHERE a.session_id = s.id AND a.user_id = u.id) AS absent
     FROM sessions s
     JOIN group_members gm ON gm.group_id = s.group_id
                          AND gm.joined_on <= s.date AND (gm.left_on IS NULL OR s.date < gm.left_on)
@@ -166,7 +167,8 @@ export async function getSessionRoster(admin, sessionId, { db = pool } = {}) {
     WHERE s.id = $1
     UNION ALL
     -- Başka gruplardan bu derse telafiyle gelenler ("yönetici ekledi" hak kullanmadan eklenenler).
-    SELECT u.id, u.full_name, 'makeup', CASE WHEN c.note = $2 THEN 'added' END
+    SELECT u.id, u.full_name, 'makeup', CASE WHEN c.note = $2 THEN 'added' END,
+           EXISTS (SELECT 1 FROM attendance a WHERE a.session_id = $1 AND a.user_id = u.id)
     FROM credits c
     JOIN users u ON u.id = c.user_id
     WHERE c.used_session_id = $1
@@ -174,7 +176,10 @@ export async function getSessionRoster(admin, sessionId, { db = pool } = {}) {
     [sessionId, ADDED_BY_ADMIN],
   );
 
-  const toPerson = (row) => ({ id: row.id, fullName: row.full_name, state: row.state, creditState: row.credit_state });
+  // absent: yoklamada "gelmedi" işaretli (yalnızca kayıt; seans sayısını değiştirmez).
+  const toPerson = (row) => ({
+    id: row.id, fullName: row.full_name, state: row.state, creditState: row.credit_state, absent: row.absent,
+  });
   const all = people.map(toPerson);
   return {
     session: {
@@ -192,6 +197,43 @@ export async function getSessionRoster(admin, sessionId, { db = pool } = {}) {
     attending: all.filter((p) => p.state === 'regular' || p.state === 'makeup').sort(sortByName),
     notAttending: all.filter((p) => p.state === 'cancelled' || p.state === 'frozen').sort(sortByName),
   };
+}
+
+// --- Yoklama ------------------------------------------------------------------------------------
+// Ders başladıktan sonra yönetici derse gelmeyen üyeyi "gelmedi" diye işaretler ya da işareti kaldırır.
+// Yalnızca kayıt: seans paketi hesabı yoklamaya bakmaz (gelmeyen de düşer). İki modelde de çalışır.
+// Kontrol sırası: önce ders ve müşteri bu stüdyonun mu (başka stüdyonun kaydı "bulunamadı"), sonra dersin durumu.
+export async function setAbsent(admin, sessionId, userId, absent, { db = pool } = {}) {
+  const { rows: [session] } = await db.query(
+    `SELECT s.status, s.starts_at <= now() AS started
+     FROM sessions s JOIN groups g ON g.id = s.group_id
+     WHERE s.id = $1 AND g.studio_id = $2`,
+    [sessionId, admin.studio_id],
+  );
+  if (!session) throw new AppError('SESSION_NOT_FOUND', 'Ders bulunamadı.', 404);
+  const { rowCount: isCustomer } = await db.query(
+    `SELECT 1 FROM users WHERE id = $1 AND studio_id = $2 AND role = 'customer'`,
+    [userId, admin.studio_id],
+  );
+  if (!isCustomer) throw new AppError('CUSTOMER_NOT_FOUND', 'Müşteri bulunamadı.', 404);
+  if (session.status === 'cancelled') throw new AppError('SESSION_CANCELLED', 'Bu ders iptal edilmiş.', 409);
+  if (!session.started) throw new AppError('SESSION_NOT_STARTED', 'Yoklama ders başladıktan sonra alınır.', 409);
+
+  if (absent) {
+    // Yalnızca derse gelmesi beklenenler (düzenli üye ya da telafi/eklenen) işaretlenebilir.
+    const roster = await getSessionRoster(admin, sessionId, { db });
+    if (!roster.attending.some((p) => p.id === userId)) {
+      throw new AppError('NOT_IN_SESSION', 'Bu kişi bu derse gelecekler listesinde değil.', 409);
+    }
+    await db.query(
+      `INSERT INTO attendance (session_id, user_id, marked_by) VALUES ($1, $2, $3)
+       ON CONFLICT (session_id, user_id) DO NOTHING`,
+      [sessionId, userId, admin.id],
+    );
+  } else {
+    await db.query('DELETE FROM attendance WHERE session_id = $1 AND user_id = $2', [sessionId, userId]);
+  }
+  return getSessionRoster(admin, sessionId, { db });
 }
 
 // --- Stüdyonun dersi iptal etmesi ---------------------------------------------------------------
