@@ -76,11 +76,27 @@ async function twoStudios() {
   return { A, B, adminA: await clientFor(A.admin), customerA: await clientFor(A.customer) };
 }
 
+// Seans paketi modelindeki iki stüdyo: paket uçları yalnızca bu modelde açık. Grup modelindeki A, B'nin paketini
+// zaten göremezdi (uç kapalı); bu yüzden A da paket modelinde olmalı ki "başka stüdyonun kaydı" gerçekten sınansın.
+async function twoPackageStudios() {
+  const studios = await twoStudios();
+  for (const [S, label] of [[studios.A, 'A-ACIK'], [studios.B, SECRET]]) {
+    await pool.query(`UPDATE studio_settings SET membership_model = 'package' WHERE studio_id = $1`, [S.studio]);
+    const { rows: [pkg] } = await pool.query(
+      `INSERT INTO packages (studio_id, name, session_count, price_kurus, validity_days)
+       VALUES ($1, $2, 8, 240000, 45) RETURNING id`,
+      [S.studio, `${label}-Paket`],
+    );
+    S.package = pkg.id;
+  }
+  return studios;
+}
+
 // Bütün tabloların içeriği: istekten önce ve sonra karşılaştırılır. Bir şey değiştiyse reddedilen istek
 // bile iz bırakmış demektir. user_sessions dahil: şifre sıfırlama oturumları kapatır.
 const TABLES = [
   'studios', 'studio_settings', 'users', 'groups', 'group_days', 'group_members',
-  'sessions', 'credits', 'freezes', 'memberships', 'payments', 'user_sessions',
+  'sessions', 'credits', 'freezes', 'memberships', 'payments', 'user_sessions', 'packages', 'attendance',
 ];
 async function snapshot() {
   const parts = {};
@@ -95,6 +111,7 @@ async function snapshot() {
 const MISSING = {
   session: 999001, laterSession: 999002, todaySession: 999003, customer: 999004,
   guest: 999005, group: 999006, membership: 999007, payment: 999008, branch: 999009,
+  package: 999010,
 };
 
 // Başka stüdyonun kaydına yapılan isteğin dört koşulu: istemci hatası (4xx, 500 değil), yanıt olmayan kayıtla
@@ -143,6 +160,14 @@ const ADMIN_MATRIX = [
   ['POST', '/api/admin/branches/:id/reopen', async (B) => [`/api/admin/branches/${B.branch}/reopen`, {}]],
 ];
 
+// Paket modeline özel uçlar: twoPackageStudios ile kurulur.
+const PACKAGE_BODY = { name: 'Yeni ad', sessionCount: 10, priceKurus: 100000, validityDays: 30 };
+const PACKAGE_MATRIX = [
+  ['PUT', '/api/admin/packages/:id', async (B) => [`/api/admin/packages/${B.package}`, PACKAGE_BODY]],
+  ['POST', '/api/admin/packages/:id/close', async (B) => [`/api/admin/packages/${B.package}/close`, {}]],
+  ['POST', '/api/admin/packages/:id/reopen', async (B) => [`/api/admin/packages/${B.package}/reopen`, {}]],
+];
+
 const CUSTOMER_MATRIX = [
   ['POST', '/api/sessions/:id/cancel', async (B) => [`/api/sessions/${B.session}/cancel`, {}]],
   ['POST', '/api/sessions/:id/undo-cancel', async (B) => [`/api/sessions/${B.session}/undo-cancel`, {}]],
@@ -159,6 +184,15 @@ describe('admin of A cannot reach B records by id', () => {
   for (const [method, route, build] of ADMIN_MATRIX) {
     test(`${method} ${route}`, async () => {
       const { A, B, adminA } = await twoStudios();
+      await assertRejectedWithoutTrace(adminA, method, await build(B, A), await build(MISSING, A));
+    });
+  }
+});
+
+describe('package-model admin of A cannot reach B records by id', () => {
+  for (const [method, route, build] of PACKAGE_MATRIX) {
+    test(`${method} ${route}`, async () => {
+      const { A, B, adminA } = await twoPackageStudios();
       await assertRejectedWithoutTrace(adminA, method, await build(B, A), await build(MISSING, A));
     });
   }
@@ -240,6 +274,14 @@ describe('lists only contain the own studio', () => {
     }
   });
 
+  test('package-model admin lists', async () => {
+    const { adminA } = await twoPackageStudios();
+    const res = await adminA.request('GET', '/api/admin/packages');
+    assert.equal(res.status, 200);
+    assert.deepEqual(res.body.packages.map((p) => p.name), ['A-ACIK-Paket']);
+    assert.doesNotMatch(JSON.stringify(res.body), new RegExp(SECRET));
+  });
+
   test('customer lists', async () => {
     const { B, customerA } = await twoStudios();
     for (const path of ['/api/sessions', '/api/me/sessions', '/api/me/credits', '/api/me/membership']) {
@@ -287,6 +329,6 @@ function idRoutes(router) {
 
 test('every id route is in the matrix', () => {
   const inMatrix = (matrix) => matrix.map(([method, route]) => `${method} ${route}`).sort();
-  assert.deepEqual(idRoutes(adminRouter), inMatrix(ADMIN_MATRIX));
+  assert.deepEqual(idRoutes(adminRouter), inMatrix([...ADMIN_MATRIX, ...PACKAGE_MATRIX]));
   assert.deepEqual(idRoutes(sessionsRouter), inMatrix(CUSTOMER_MATRIX));
 });
