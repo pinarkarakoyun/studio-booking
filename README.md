@@ -36,6 +36,13 @@ Small neighborhood studios often manage group attendance through messaging apps 
 - **Settings:** booking rules (cancellation deadline, credit validity, make-up cutoff, early make-up, undo) and the studio's contact details
 - **Branches:** a studio can have several branches with their own address and map link; every group belongs to one branch. The admin adds, edits and closes branches, filters Today by branch, and decides whether members may book make-ups at other branches. A single-branch studio sees no branch controls at all
 
+### Two membership models
+
+Each studio picks one model when it is set up (`create-admin --model grup|paket`); the admin cannot switch it later, because the two models count attendance differently.
+
+- **Group + make-up** (`grup`, default): time-based membership periods. A cancelled class earns a make-up credit.
+- **Session packages** (`paket`): the admin keeps a package catalog (name, number of sessions, price, validity in days) and sells packages to members. There are no make-up credits. A finished class counts against the member's package unless the member cancelled in time or the studio cancelled the class; a no-show counts too. A member may cancel until the class starts; a cancel after the deadline is a *late cancel*, and a setting decides whether it still uses a session. Usage is calculated, never stored: sessions fill the oldest open package first, sessions with no package wait for the next package, and sessions left unused after a package's last day are lost. The admin can mark no-shows on a started class ("Gelmedi"); this is a record only and does not change the count.
+
 ### Public page
 
 - Studio landing page at `/` with how it works, benefits and FAQ; the app itself lives under `/giris`
@@ -101,8 +108,10 @@ To add a studio, or an admin to an existing studio:
 
 ```bash
 cd server
-npm run create-admin -- <slug> "Full Name" "0532 123 45 67" ["Studio Name"]
+npm run create-admin -- <slug> "Full Name" "0532 123 45 67" ["Studio Name"] [--model paket]
 ```
+
+`--model paket` opens a new studio with session packages; without it the studio uses groups and make-up credits. The option is ignored for an existing studio.
 
 The slug is the studio's address: lowercase letters, digits and hyphens, 3–63 characters, not starting or ending with a hyphen. A few names (`www`, `api`, `admin`, `app`, `mail`, `static`, `assets`) are reserved. The database enforces the same rules.
 
@@ -117,7 +126,7 @@ cd server
 npm test
 ```
 
-Tests run against a separate `studio_booking_test` database that is created automatically. As a safety check, the test setup refuses any database whose name does not end in `_test`. About 270 tests cover authentication, booking and make-up rules, concurrency, the admin endpoints, branches, phone number normalization and isolation between studios. HTTP tests talk to real studio subdomains (`test-1.localhost`).
+Tests run against a separate `studio_booking_test` database that is created automatically. As a safety check, the test setup refuses any database whose name does not end in `_test`. About 330 tests cover authentication, booking and make-up rules, session packages, concurrency, the admin endpoints, branches, phone number normalization and isolation between studios. HTTP tests talk to real studio subdomains (`test-1.localhost`).
 
 ## Production and security
 
@@ -166,7 +175,7 @@ BRAND_DIR/
 
 ## Not in the first version
 
-Online payments (payments are collected in person and only recorded in the system), class packs (memberships are time-based only), WhatsApp/SMS reminders, waiting list, self sign-up, instructor role, reporting, native mobile app. Several studios already run on one installation, each on its own subdomain; there is no screen yet for opening a studio or changing its address (studios are created with `create-admin`).
+Online payments (payments are collected in person and only recorded in the system), WhatsApp/SMS reminders, waiting list, self sign-up, instructor role, reporting, native mobile app. Several studios already run on one installation, each on its own subdomain; there is no screen yet for opening a studio or changing its address (studios are created with `create-admin`).
 
 ## Roadmap
 
@@ -184,7 +193,7 @@ Next: turning the app into a product several studios can use. Order and decision
 
 - [x] Multi-studio foundation: each studio on its own subdomain, separate accounts per studio, data isolation proven by tests
 - [x] Branches: a studio can have several locations; groups belong to a branch
-- [ ] Class packs (e.g. 8 or 12 sessions) as a second membership model, chosen per studio at setup
+- [ ] Session packages (e.g. 8 or 12 sessions) as a second membership model, chosen per studio at setup
 - [ ] New look for the customer and admin panels
 - [ ] Appearance settings: brand and accent colours (other shades derived automatically) and logo
 - [ ] Instructor role and panel

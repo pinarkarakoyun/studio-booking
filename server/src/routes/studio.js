@@ -22,6 +22,7 @@ router.get('/api/studio', async (req, res) => {
   const { rows: [studio] } = await pool.query(
     `
     SELECT st.name, st.whatsapp_phone, st.brand_color, st.logo_url, st.timezone, ss.credit_validity_days,
+           ss.membership_model, ss.late_cancel_burns_session,
            (SELECT count(*)::int FROM branches b WHERE b.studio_id = st.id AND b.is_active) AS branch_count
     FROM studios st
     LEFT JOIN studio_settings ss ON ss.studio_id = st.id
@@ -40,6 +41,10 @@ router.get('/api/studio', async (req, res) => {
         creditValidityDays: studio.credit_validity_days,
         // Üye ekranları şube adını yalnızca açık şube sayısı 1'den fazlaysa gösterir.
         branchCount: studio.branch_count,
+        // 'group' (grup + telafi) ya da 'package' (seans paketi): üye ekranları buna göre değişir.
+        membershipModel: studio.membership_model,
+        // Paket modelinde geç iptal seansı düşürür mü (üyeye iptal öncesi uyarı için).
+        lateCancelBurnsSession: studio.late_cancel_burns_session,
       }
       : null,
   });

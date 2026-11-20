@@ -971,3 +971,27 @@
   max-height: 50vh;
   overflow-y: auto;
 }
+
+/* Ders detayında yoklama: "Gelmedi" anahtarı */
+.absentToggle {
+  padding: 4px 10px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--white);
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.absentOn {
+  border-color: #5a1f33;
+  background: var(--blush);
+  color: #5a1f33;
+  font-weight: 600;
+}
+
+.absentToggle:focus-visible {
+  outline: 2px solid var(--violet);
+  outline-offset: 2px;
+}

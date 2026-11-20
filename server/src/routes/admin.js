@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { AppError } from '../errors.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { closeBranch, createBranch, listBranches, reopenBranch, updateBranch } from '../services/adminBranches.js';
+import { closePackage, createPackage, listPackages, reopenPackage, updatePackage } from '../services/adminPackages.js';
 import {
   createCustomer,
   endFreeze,
@@ -29,6 +30,7 @@ import {
   getSessionRoster,
   getToday,
   removeMakeupFromSession,
+  setAbsent,
 } from '../services/adminSchedule.js';
 import { getSettings, updateSettings } from '../services/adminSettings.js';
 
@@ -49,9 +51,18 @@ const membershipId = (req) => parseId(req.params.id, 'MEMBERSHIP_NOT_FOUND', 'Ü
 const paymentId = (req) => parseId(req.params.id, 'PAYMENT_NOT_FOUND', 'Ödeme bulunamadı.');
 const groupId = (req) => parseId(req.params.id, 'GROUP_NOT_FOUND', 'Grup bulunamadı.');
 const branchId = (req) => parseId(req.params.id, 'BRANCH_NOT_FOUND', 'Şube bulunamadı.');
+const packageId = (req) => parseId(req.params.id, 'PACKAGE_NOT_FOUND', 'Paket bulunamadı.');
 
 // Şube formundan gelen alanlar (ekleme ve düzenleme aynı gövdeyi kullanır).
 const branchInput = (body) => ({ name: body?.name, address: body?.address, mapsUrl: body?.mapsUrl });
+
+// Paket formundan gelen alanlar (ekleme ve düzenleme aynı gövdeyi kullanır).
+const packageInput = (body) => ({
+  name: body?.name,
+  sessionCount: body?.sessionCount,
+  priceKurus: body?.priceKurus,
+  validityDays: body?.validityDays,
+});
 
 // Grup formundan gelen alanlar (düzenleme ve önizleme aynı gövdeyi kullanır).
 const groupInput = (body) => ({
@@ -88,6 +99,17 @@ router.post('/api/admin/sessions/:id/attendees', async (req, res) => {
 router.delete('/api/admin/sessions/:id/attendees/:userId', async (req, res) => {
   const userId = parseId(req.params.userId, 'CUSTOMER_NOT_FOUND', 'Müşteri bulunamadı.');
   res.json(await removeMakeupFromSession(req.user, sessionId(req), userId));
+});
+
+// Yoklama: PUT "gelmedi" işaretler, DELETE işareti kaldırır. Yanıt: güncel katılımcı listesi.
+router.put('/api/admin/sessions/:id/attendance/:userId', async (req, res) => {
+  const userId = parseId(req.params.userId, 'CUSTOMER_NOT_FOUND', 'Müşteri bulunamadı.');
+  res.json(await setAbsent(req.user, sessionId(req), userId, true));
+});
+
+router.delete('/api/admin/sessions/:id/attendance/:userId', async (req, res) => {
+  const userId = parseId(req.params.userId, 'CUSTOMER_NOT_FOUND', 'Müşteri bulunamadı.');
+  res.json(await setAbsent(req.user, sessionId(req), userId, false));
 });
 
 router.post('/api/admin/sessions/:id/cancel/preview', async (req, res) => {
@@ -215,6 +237,30 @@ router.post('/api/admin/branches/:id/reopen', async (req, res) => {
   res.json({ branches: await listBranches(req.user) });
 });
 
+// --- Paket kataloğu (yalnızca seans paketi modeli) -----------------------------------------------
+
+router.get('/api/admin/packages', async (req, res) => {
+  res.json({ packages: await listPackages(req.user) });
+});
+
+router.post('/api/admin/packages', async (req, res) => {
+  res.status(201).json(await createPackage(req.user, packageInput(req.body)));
+});
+
+router.put('/api/admin/packages/:id', async (req, res) => {
+  res.json({ package: await updatePackage(req.user, packageId(req), packageInput(req.body)) });
+});
+
+router.post('/api/admin/packages/:id/close', async (req, res) => {
+  await closePackage(req.user, packageId(req));
+  res.json({ packages: await listPackages(req.user) });
+});
+
+router.post('/api/admin/packages/:id/reopen', async (req, res) => {
+  await reopenPackage(req.user, packageId(req));
+  res.json({ packages: await listPackages(req.user) });
+});
+
 // --- Üyelik ve ödemeler -------------------------------------------------------------------------
 
 router.get('/api/admin/customers/:id/memberships', async (req, res) => {
@@ -222,8 +268,11 @@ router.get('/api/admin/customers/:id/memberships', async (req, res) => {
 });
 
 router.post('/api/admin/customers/:id/memberships', async (req, res) => {
-  const { startsOn, endsOn, feeKurus, note } = req.body ?? {};
-  res.status(201).json({ membership: await createMembership(req.user, customerId(req), { startsOn, endsOn, feeKurus, note }) });
+  // Paket modelinde packageId (endsOn yok); grup modelinde startsOn-endsOn. Hangisinin geçerli olduğuna servis karar verir.
+  const { packageId, startsOn, endsOn, feeKurus, note } = req.body ?? {};
+  res.status(201).json({
+    membership: await createMembership(req.user, customerId(req), { packageId, startsOn, endsOn, feeKurus, note }),
+  });
 });
 
 router.get('/api/admin/payments', async (req, res) => {

@@ -30,7 +30,9 @@ const SESSIONS_WITH_MY_STATUS = `
          -- İptal geri alınabilir mi? Stüdyo izin veriyorsa ve bu iptalden doğan hak henüz kullanılmadıysa
          -- (ör. "yerine şuna gel" ile hak hemen harcandıysa geri alınamaz). Ekran "Geri al"ı buna göre gösterir.
          -- Stüdyonun iptal ettiği derste "Geri al" olmaz: hakkı stüdyo verdi, ders yapılmayacak.
-         (ss.allow_undo_cancel AND me.has_unused_credit AND s.status = 'scheduled') AS can_undo_cancel,
+         -- Paket modelinde iptal satırı yanmış açılır ve telafiye kullanılmaz: ders başlayana kadar geri alınabilir.
+         (s.status = 'scheduled' AND CASE WHEN ss.membership_model = 'package' THEN me.is_cancelled
+                                          ELSE ss.allow_undo_cancel AND me.has_unused_credit END) AS can_undo_cancel,
          CASE
            WHEN me.is_makeup                    THEN 'makeup'
            WHEN me.is_member AND me.is_frozen    THEN 'frozen'

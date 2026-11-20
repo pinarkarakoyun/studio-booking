@@ -8,8 +8,10 @@ import { NO_HEALTH_DATA_HINT } from '../privacy.js';
 import styles from './Admin.module.css';
 
 // Gelmeyen birinin yanında yazan sebep. Stüdyonun iptal ettiği derste "iptal etti" demeyiz.
-function reasonText(person, sessionCancelled) {
+// Paket modelinde telafi yok: hak metinleri yerine yalnızca ne olduğu.
+function reasonText(person, sessionCancelled, packageModel) {
   if (person.state === 'frozen') return 'dondurulmuş';
+  if (packageModel) return sessionCancelled ? 'stüdyo iptal etti' : 'iptal etti';
   if (sessionCancelled) return person.creditState === 'used' ? 'telafi hakkını kullandı' : 'telafi hakkı verildi';
   if (person.creditState === 'unused') return 'iptal etti, telafi hakkı var';
   if (person.creditState === 'used') return 'iptal etti, telafisini seçti';
@@ -23,6 +25,8 @@ export default function SessionRosterPage({ studio, sessionId, backLabel = 'Bug�
   // Açık panel: 'cancel' | 'add' | { remove: kişi } | null
   const [panel, setPanel] = useState(null);
   const [notice, setNotice] = useState(null);
+  const [absentError, setAbsentError] = useState(null);
+  const [absentBusy, setAbsentBusy] = useState(null); // işaretlenmekte olan kişinin id'si
 
   // "Ders başladı mı?" için şimdiki zaman, veri geldiği anda bir kez alınır (render sırasında değil).
   function load() {
@@ -43,6 +47,22 @@ export default function SessionRosterPage({ studio, sessionId, backLabel = 'Bug�
     await load();
   }
 
+  // Yoklama: "gelmedi" işaretini aç/kapat. Yalnızca kayıt; seans sayısını değiştirmez.
+  async function toggleAbsent(person) {
+    setAbsentBusy(person.id);
+    setAbsentError(null);
+    try {
+      const result = await api(`/api/admin/sessions/${sessionId}/attendance/${person.id}`, {
+        method: person.absent ? 'DELETE' : 'PUT',
+      });
+      setData({ ...result, loadedAt: Date.now() });
+    } catch (err) {
+      setAbsentError(err.message);
+    } finally {
+      setAbsentBusy(null);
+    }
+  }
+
   const back = (
     <button type="button" className={styles.back} onClick={onBack}>
       ‹ {backLabel}
@@ -59,11 +79,14 @@ export default function SessionRosterPage({ studio, sessionId, backLabel = 'Bug�
   }
 
   const { session, attending, notAttending } = data;
+  const packageModel = studio.membershipModel === 'package';
   const isCancelled = session.status === 'cancelled';
   const startsAt = new Date(session.startsAt).getTime();
   const canCancel = !isCancelled && startsAt > data.loadedAt;
   // Kişi ders bitene kadar eklenebilir (kapıdan gelen de kaydedilsin).
   const canEdit = !isCancelled && startsAt + session.durationMinutes * 60000 > data.loadedAt;
+  // Ders başladıysa yoklama alınabilir (iki modelde de).
+  const canMarkAbsent = !isCancelled && startsAt <= data.loadedAt;
   const fill = Math.min(100, Math.round((session.bookedCount / session.capacity) * 100));
 
   return (
@@ -94,29 +117,45 @@ export default function SessionRosterPage({ studio, sessionId, backLabel = 'Bug�
         <span className={styles.muted}>{session.freeSpots > 0 ? `${session.freeSpots} boş` : 'dolu'}</span>
       </div>
 
-      <h2 className={styles.listLabel}>Gelecekler</h2>
+      <h2 className={styles.listLabel}>{canMarkAbsent ? 'Gelenler' : 'Gelecekler'}</h2>
+      {canMarkAbsent && attending.length > 0 && (
+        <p className={styles.muted}>Gelmeyeni “Gelmedi” ile işaretle. Yalnızca kayıt için.</p>
+      )}
+      {absentError && <p className={styles.formError}>{absentError}</p>}
       {attending.length === 0 ? (
         <p className={styles.muted}>Bu derse gelecek kimse yok.</p>
       ) : (
         <ul className={styles.people}>
           {attending.map((person) => (
             <li key={person.id} className={styles.person}>
-              <span>{person.fullName}</span>
-              {person.state === 'makeup' && (
-                <span className={styles.personEnd}>
+              <span className={person.absent ? styles.inactive : undefined}>{person.fullName}</span>
+              <span className={styles.personEnd}>
+                {person.state === 'makeup' && (
                   <span className={styles.tagMakeup}>{person.creditState === 'added' ? 'Yönetici ekledi' : 'Telafi'}</span>
-                  {canEdit && (
-                    <button
-                      type="button"
-                      className={styles.paymentDelete}
-                      aria-label={`${person.fullName} dersten çıkar`}
-                      onClick={() => setPanel({ remove: person })}
-                    >
-                      Çıkar
-                    </button>
-                  )}
-                </span>
-              )}
+                )}
+                {canMarkAbsent && (
+                  <button
+                    type="button"
+                    className={`${styles.absentToggle} ${person.absent ? styles.absentOn : ''}`}
+                    aria-pressed={person.absent}
+                    aria-label={`${person.fullName} gelmedi`}
+                    disabled={absentBusy === person.id}
+                    onClick={() => toggleAbsent(person)}
+                  >
+                    Gelmedi
+                  </button>
+                )}
+                {person.state === 'makeup' && canEdit && (
+                  <button
+                    type="button"
+                    className={styles.paymentDelete}
+                    aria-label={`${person.fullName} dersten çıkar`}
+                    onClick={() => setPanel({ remove: person })}
+                  >
+                    Çıkar
+                  </button>
+                )}
+              </span>
             </li>
           ))}
         </ul>
@@ -129,7 +168,7 @@ export default function SessionRosterPage({ studio, sessionId, backLabel = 'Bug�
             {notAttending.map((person) => (
               <li key={person.id} className={`${styles.person} ${styles.inactive}`}>
                 <span>{person.fullName}</span>
-                <span className={styles.reason}>{reasonText(person, isCancelled)}</span>
+                <span className={styles.reason}>{reasonText(person, isCancelled, packageModel)}</span>
               </li>
             ))}
           </ul>
@@ -159,13 +198,14 @@ export default function SessionRosterPage({ studio, sessionId, backLabel = 'Bug�
       )}
 
       <Sheet open={panel === 'cancel'} onClose={() => setPanel(null)} title="Dersi iptal et">
-        {panel === 'cancel' && <CancelSessionForm sessionId={session.id} onDone={done} />}
+        {panel === 'cancel' && <CancelSessionForm sessionId={session.id} packageModel={packageModel} onDone={done} />}
       </Sheet>
 
       <Sheet open={panel === 'add'} onClose={() => setPanel(null)} title="Derse kişi ekle">
         {panel === 'add' && (
           <AddPersonForm
             sessionId={session.id}
+            packageModel={packageModel}
             excludedIds={[...attending, ...notAttending].map((p) => p.id)}
             onDone={done}
           />
@@ -180,7 +220,7 @@ export default function SessionRosterPage({ studio, sessionId, backLabel = 'Bug�
 }
 
 // Önce sunucudan "kaç kişi etkilenir?" önizlemesi alınır (aynı kod, sonunda geri alınır), sonra onay.
-function CancelSessionForm({ sessionId, onDone }) {
+function CancelSessionForm({ sessionId, packageModel, onDone }) {
   const [preview, setPreview] = useState(null);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
@@ -196,7 +236,7 @@ function CancelSessionForm({ sessionId, onDone }) {
     setBusy(true);
     try {
       const result = await api(`/api/admin/sessions/${sessionId}/cancel`, { method: 'POST', body: { reason } });
-      onDone(`Ders iptal edildi. ${summary(result, true)}`);
+      onDone(`Ders iptal edildi. ${summary(result, true, packageModel)}`);
     } catch (err) {
       setError(err.message);
       setBusy(false);
@@ -206,7 +246,7 @@ function CancelSessionForm({ sessionId, onDone }) {
   return (
     <>
       <p className={styles.sheetText}>
-        İptal kesindir, geri alınamaz. {preview ? summary(preview, false) : !error && 'Etkisi hesaplanıyor…'}
+        İptal kesindir, geri alınamaz. {preview ? summary(preview, false, packageModel) : !error && 'Etkisi hesaplanıyor…'}
       </p>
       <TextField
         label="Sebep (isteğe bağlı)"
@@ -227,9 +267,11 @@ function CancelSessionForm({ sessionId, onDone }) {
 }
 
 // Sunucunun sayılarını cümleye çevirir. Önizlemede gelecek zaman, sonuçta geçmiş zaman.
-function summary({ creditedMembers, refundedMakeups, creditsEnabled }, done) {
+function summary({ creditedMembers, refundedMakeups, creditsEnabled }, done, packageModel) {
   const parts = [];
-  if (creditsEnabled) {
+  if (packageModel) {
+    parts.push(`Bu ders kimsenin paketinden ${done ? 'düşmedi' : 'düşmez'}`);
+  } else if (creditsEnabled) {
     parts.push(
       creditedMembers
         ? `${creditedMembers} kişiye telafi hakkı ${done ? 'verildi' : 'verilecek'}`
@@ -244,7 +286,7 @@ function summary({ creditedMembers, refundedMakeups, creditsEnabled }, done) {
 
 // Müşteri arayıp seç, sonra onayla. Bu dersin grubundaki üyeler ve zaten gelenler listede yok
 // (sunucu da reddeder). Ders doluysa uyarı çıkar, "Yine de ekle" ile eklenir.
-function AddPersonForm({ sessionId, excludedIds, onDone }) {
+function AddPersonForm({ sessionId, packageModel, excludedIds, onDone }) {
   const [customers, setCustomers] = useState(null);
   const [error, setError] = useState(null);
   const [query, setQuery] = useState('');
@@ -264,7 +306,8 @@ function AddPersonForm({ sessionId, excludedIds, onDone }) {
         method: 'POST',
         body: { userId: chosen.id, confirmFull },
       });
-      onDone(`${chosen.fullName} derse eklendi${usedCredit ? ', telafi hakkından düşüldü' : ', hak kullanılmadan'}.`);
+      if (packageModel) onDone(`${chosen.fullName} derse eklendi.`);
+      else onDone(`${chosen.fullName} derse eklendi${usedCredit ? ', telafi hakkından düşüldü' : ', hak kullanılmadan'}.`);
     } catch (err) {
       if (err.code === 'SESSION_FULL') setFull(err.message);
       else setError(err.message);
@@ -277,9 +320,11 @@ function AddPersonForm({ sessionId, excludedIds, onDone }) {
       <>
         <p className={styles.sheetText}>
           <strong>{chosen.fullName}</strong>{' '}
-          {chosen.unusedCredits > 0
-            ? `${chosen.unusedCredits} telafi hakkı var; geçerli bir hakkı varsa ondan düşülür.`
-            : 'telafi hakkı yok; hak kullanılmadan eklenir.'}
+          {packageModel && 'derse eklenir; ders bittiğinde paketinden bir seans düşer.'}
+          {!packageModel &&
+            (chosen.unusedCredits > 0
+              ? `${chosen.unusedCredits} telafi hakkı var; geçerli bir hakkı varsa ondan düşülür.`
+              : 'telafi hakkı yok; hak kullanılmadan eklenir.')}
         </p>
         {full && <p className={styles.formError}>{full} Yine de eklemek istiyor musun?</p>}
         {error && <p className={styles.formError}>{error}</p>}

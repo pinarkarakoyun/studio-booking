@@ -1,5 +1,8 @@
 import pool from '../db/pool.js';
 import { AppError } from '../errors.js';
+import { membershipModelOf } from './adminPackages.js';
+import { MEMBERSHIP_SELECT } from './membershipPeriods.js';
+import { packageUsage } from './packageUsage.js';
 
 // Üyelik dönemleri ve ödeme kayıtları (BR-31…BR-37). Her fonksiyon yöneticinin kendi stüdyosuyla sınırlı.
 // Para her yerde kuruş cinsinden tamsayı (1.500 ₺ = 150000).
@@ -45,22 +48,8 @@ async function studioToday(studioId, db) {
   return row.today;
 }
 
-// Dönemler ($2 = stüdyonun bugünü; WHERE çağıran yerde eklenir). Dondurma uzaması: dönemin (dondurmasız) tarihlerine denk gelen dondurma
-// günleri kadar bitiş ileri kayar (BR-36). Bitişi belirsiz dondurma bugüne kadar sayılır.
-const MEMBERSHIP_SELECT = `
-  SELECT m.id, m.user_id, m.starts_on, m.ends_on, m.fee_kurus, m.note,
-         (m.ends_on + ext.days) AS effective_ends_on, ext.days AS freeze_days,
-         COALESCE(paid.total, 0)::bigint AS paid_kurus
-  FROM memberships m
-  CROSS JOIN LATERAL (
-    SELECT COALESCE(SUM(GREATEST(0,
-             LEAST(m.ends_on, COALESCE(f.ends_on, $2::date)) - GREATEST(m.starts_on, f.starts_on) + 1
-           )), 0)::int AS days
-    FROM freezes f WHERE f.user_id = m.user_id
-  ) AS ext
-  LEFT JOIN LATERAL (SELECT SUM(amount_kurus) AS total FROM payments p WHERE p.membership_id = m.id) AS paid ON true`;
-
-function toDto(row, payments, today) {
+// usage: paket dönemi için { used, remaining, burned } (packageUsage); süreye bağlı dönemde yok.
+function toDto(row, payments, today, usage) {
   let status = 'active';
   if (row.starts_on > today) status = 'upcoming';
   else if (row.effective_ends_on < today) status = 'ended';
@@ -74,6 +63,12 @@ function toDto(row, payments, today) {
     paidKurus: row.paid_kurus,
     remainingKurus: Math.max(0, row.fee_kurus - row.paid_kurus),
     note: row.note,
+    // Paket döneminde dolu (paket modeli); süreye bağlı dönemde null.
+    sessionCount: row.session_count,
+    packageName: row.package_name,
+    used: usage?.used ?? null,
+    remaining: usage?.remaining ?? null,
+    burned: usage?.burned ?? null,
     status,
     payments: payments
       .filter((p) => p.membership_id === row.id)
@@ -99,51 +94,107 @@ async function loadMemberships(userId, today, db) {
      WHERE m.user_id = $1 ORDER BY p.paid_on, p.id`,
     [userId],
   );
-  return rows.map((row) => toDto(row, payments, today));
+  const usage = rows.some((row) => row.session_count !== null) ? await packageUsage(userId, db) : { packages: [] };
+  const usageOf = (row) => usage.packages.find((p) => p.membershipId === row.id);
+  return rows.map((row) => toDto(row, payments, today, usageOf(row)));
 }
 
 // Yeni dönem önerisi: son dönemin (dondurmayla uzamış) bitişinin ertesi günü; hiç dönem yoksa bugün.
 // Geç ödeyen müşteri ödeme gününü kaydırmaz.
 function suggestStart(memberships, today) {
   const latest = memberships[0];
-  if (!latest) return today;
-  const next = new Date(`${latest.endsOn}T12:00:00Z`);
-  next.setUTCDate(next.getUTCDate() + 1);
-  return next.toISOString().slice(0, 10);
+  return latest ? addDays(latest.endsOn, 1) : today;
 }
 
 export async function getMemberships(admin, customerId, { db = pool } = {}) {
   await findCustomerId(admin, customerId, db);
   const today = await studioToday(admin.studio_id, db);
   const memberships = await loadMemberships(customerId, today, db);
-  return { memberships, suggestedStartsOn: suggestStart(memberships, today) };
+  const result = { memberships, suggestedStartsOn: suggestStart(memberships, today) };
+  // Paket modelinde: hiçbir pakete sığmayan (paketsiz) ders sayısı; yönetici yeni paket satarken görür.
+  if ((await membershipModelOf(admin.studio_id, db)) === 'package') {
+    result.unpackaged = (await packageUsage(customerId, db)).unpackaged;
+  }
+  return result;
 }
 
-export async function createMembership(admin, customerId, { startsOn, endsOn, feeKurus, note }, { db = pool } = {}) {
+// Yeni dönem. Grup modelinde gövde { startsOn, endsOn, feeKurus, note }; paket modelinde { packageId, startsOn,
+// feeKurus?, note? }: seans sayısı, ad ve fiyat katalogdan kopyalanır, bitiş = başlangıç + geçerlilik - 1.
+// feeKurus verilirse katalog fiyatının yerine geçer (indirim). Katalog sonradan değişse de satılmış paket değişmez.
+export async function createMembership(admin, customerId, input, { db = pool } = {}) {
+  const model = await membershipModelOf(admin.studio_id, db);
+  if (model === 'package') return sellPackage(admin, customerId, input, db);
+  if (input.packageId != null) {
+    throw new AppError('NOT_AVAILABLE_FOR_MODEL', 'Bu stüdyoda paket satılmıyor; dönem tarihlerini yaz.', 400);
+  }
+
+  const { startsOn, endsOn, feeKurus, note } = input;
   assertDate(startsOn, 'Başlangıç tarihi');
   assertDate(endsOn, 'Bitiş tarihi');
   if (endsOn < startsOn) throw new AppError('INVALID_DATE', 'Bitiş, başlangıçtan önce olamaz.', 400);
+  assertFee(feeKurus);
+  const period = { startsOn, endsOn, feeKurus, note: cleanNote(note), sessionCount: null, packageName: null };
+  return withTransaction(db, (client) => insertPeriod(admin, customerId, period, client));
+}
+
+function assertFee(feeKurus) {
   if (!Number.isSafeInteger(feeKurus) || feeKurus < 0) throw new AppError('INVALID_AMOUNT', 'Ücreti yaz.', 400);
+}
+
+const PACKAGE_NOT_FOUND = () => new AppError('PACKAGE_NOT_FOUND', 'Paket bulunamadı.', 404);
+
+async function sellPackage(admin, customerId, { packageId, startsOn, feeKurus, note }, db) {
+  if (packageId == null) throw new AppError('PACKAGE_REQUIRED', 'Satılacak paketi seç.', 400);
+  if (!Number.isSafeInteger(packageId) || packageId <= 0) throw PACKAGE_NOT_FOUND();
+  assertDate(startsOn, 'Başlangıç tarihi');
+  if (feeKurus != null) assertFee(feeKurus);
   const cleanedNote = cleanNote(note);
 
   return withTransaction(db, async (client) => {
-    const customer = await findCustomerId(admin, customerId, client, { lock: true });
-    if (customer.status === 'left') {
-      throw new AppError('CUSTOMER_LEFT', 'Ayrılmış bir müşteriye üyelik dönemi açılamaz.', 409);
-    }
-    // Veritabanı kısıtı dondurmasız tarihleri karşılaştırır; dondurmayla uzamış bitişi burada kontrol ediyoruz.
-    const today = await studioToday(admin.studio_id, client);
-    const existing = await loadMemberships(customerId, today, client);
-    if (existing.some((m) => startsOn <= m.endsOn && endsOn >= m.startsOn)) {
-      throw new AppError('MEMBERSHIP_OVERLAP', 'Bu tarihler başka bir üyelik dönemiyle çakışıyor.', 409);
-    }
-    const { rows: [row] } = await client.query(
-      `INSERT INTO memberships (user_id, starts_on, ends_on, fee_kurus, note) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-      [customerId, startsOn, endsOn, feeKurus, cleanedNote],
+    const { rows: [pkg] } = await client.query(
+      'SELECT name, session_count, price_kurus, validity_days, is_active FROM packages WHERE id = $1 AND studio_id = $2',
+      [packageId, admin.studio_id],
     );
-    const memberships = await loadMemberships(customerId, today, client);
-    return memberships.find((m) => m.id === row.id);
+    if (!pkg) throw PACKAGE_NOT_FOUND();
+    if (!pkg.is_active) throw new AppError('PACKAGE_CLOSED', 'Bu paket satışa kapalı; açık bir paket seç.', 400);
+    const period = {
+      startsOn,
+      endsOn: addDays(startsOn, pkg.validity_days - 1),
+      feeKurus: feeKurus ?? Number(pkg.price_kurus),
+      note: cleanedNote,
+      sessionCount: pkg.session_count,
+      packageName: pkg.name,
+    };
+    return insertPeriod(admin, customerId, period, client);
   });
+}
+
+// "YYYY-MM-DD" + n gün. Öğlen UTC: saat dilimi geçişleri tarihi kaydırmasın.
+function addDays(date, n) {
+  const d = new Date(`${date}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+// İki model için ortak: müşteri kontrolü, çakışma kontrolü ve kayıt. Transaction içinde çağrılır.
+async function insertPeriod(admin, customerId, period, client) {
+  const customer = await findCustomerId(admin, customerId, client, { lock: true });
+  if (customer.status === 'left') {
+    throw new AppError('CUSTOMER_LEFT', 'Ayrılmış bir müşteriye üyelik dönemi açılamaz.', 409);
+  }
+  // Veritabanı kısıtı dondurmasız tarihleri karşılaştırır; dondurmayla uzamış bitişi burada kontrol ediyoruz.
+  const today = await studioToday(admin.studio_id, client);
+  const existing = await loadMemberships(customerId, today, client);
+  if (existing.some((m) => period.startsOn <= m.endsOn && period.endsOn >= m.startsOn)) {
+    throw new AppError('MEMBERSHIP_OVERLAP', 'Bu tarihler başka bir üyelik dönemiyle çakışıyor.', 409);
+  }
+  const { rows: [row] } = await client.query(
+    `INSERT INTO memberships (user_id, starts_on, ends_on, fee_kurus, note, session_count, package_name)
+     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+    [customerId, period.startsOn, period.endsOn, period.feeKurus, period.note, period.sessionCount, period.packageName],
+  );
+  const memberships = await loadMemberships(customerId, today, client);
+  return memberships.find((m) => m.id === row.id);
 }
 
 // Dönem yöneticinin stüdyosunda mı? Ödeme eklerken iki ödeme aynı anda ücreti aşmasın diye dönemi kilitler.
@@ -227,6 +278,8 @@ export async function getPaymentOverview(admin, { db = pool } = {}) {
     [admin.studio_id, today],
   );
 
+  const isPackageModel = (await membershipModelOf(admin.studio_id, db)) === 'package';
+  const packageFinished = [];
   const expired = [];
   const endingSoon = [];
   const underpaid = [];
@@ -239,9 +292,21 @@ export async function getPaymentOverview(admin, { db = pool } = {}) {
       continue;
     }
     const latest = own[0];
+    // Paket modeli: en yeni paketi bitmiş (kalan 0: seansları dolmuş ya da son günü geçip kalanı yanmış) ve
+    // yenisi açılmamış üye "Paketi bitti" listesine girer; "süresi doldu"da ikinci kez görünmez.
+    let finished = false;
+    if (isPackageModel && latest.session_count !== null) {
+      const usage = await packageUsage(customer.id, db);
+      if (usage.packages.find((p) => p.membershipId === latest.id)?.remaining === 0) {
+        finished = true;
+        packageFinished.push({ ...person, endsOn: latest.effective_ends_on, unpackaged: usage.unpackaged });
+      }
+    }
     const left = daysBetween(today, latest.effective_ends_on);
-    if (left < 0) expired.push({ ...person, endsOn: latest.effective_ends_on, daysAgo: -left });
-    else if (left <= studio.payment_reminder_days) endingSoon.push({ ...person, endsOn: latest.effective_ends_on, daysLeft: left });
+    if (!finished && left < 0) expired.push({ ...person, endsOn: latest.effective_ends_on, daysAgo: -left });
+    else if (!finished && left <= studio.payment_reminder_days) {
+      endingSoon.push({ ...person, endsOn: latest.effective_ends_on, daysLeft: left });
+    }
     for (const period of own) {
       const remaining = period.fee_kurus - period.paid_kurus;
       if (remaining > 0) {
@@ -267,6 +332,7 @@ export async function getPaymentOverview(admin, { db = pool } = {}) {
     underpaid: underpaid.sort((a, b) => (a.startsOn < b.startsOn ? -1 : a.startsOn > b.startsOn ? 1 : byName(a, b))),
     noMembership: noMembership.sort(byName),
     thisMonth: { count: month.count, totalKurus: month.total },
+    ...(isPackageModel ? { packageFinished: packageFinished.sort(byName) } : {}),
   };
 }
 
@@ -285,6 +351,30 @@ export async function getMyMembership(user, { db = pool } = {}) {
   const ended = index === -1;
   if (ended) index = rows.length - 1;
 
+  // Paket: kendi son günü, kalan seans ve paketsiz ders sayısı. Ardışık dönemleri birleştirmek pakette anlamsız
+  // (her paketin kendi seans sayısı var).
+  let current = rows[index];
+  if (current.session_count !== null) {
+    const usage = await packageUsage(user.id, db);
+    const left = (row) => usage.packages.find((p) => p.membershipId === row.id);
+    // Seansları bitmiş paketin ardından alınmış bir paket varsa o gösterilir: çakışma kuralı yüzünden ileri
+    // tarihli başlasa da aradaki dersler ona yazılıyor.
+    if (left(current).remaining === 0) {
+      const next = rows.slice(index + 1).find((row) => row.session_count !== null && left(row).remaining > 0);
+      if (next) current = next;
+    }
+    const own = left(current);
+    return withPayments(user, current, db, {
+      endsOn: current.effective_ends_on,
+      ended,
+      packageName: current.package_name,
+      sessionCount: current.session_count,
+      used: own.used,
+      remaining: own.remaining,
+      unpackaged: usage.unpackaged,
+    });
+  }
+
   let endsOn = rows[index].effective_ends_on;
   if (!ended) {
     for (const next of rows.slice(index + 1)) {
@@ -292,15 +382,17 @@ export async function getMyMembership(user, { db = pool } = {}) {
       if (next.effective_ends_on > endsOn) endsOn = next.effective_ends_on;
     }
   }
-  const result = { endsOn, ended };
+  return withPayments(user, rows[index], db, { endsOn, ended });
+}
 
+// Stüdyo "Üyeler ödeme bilgisini görsün" ayarını açtıysa dönemin ücret ve ödemelerini ekler.
+async function withPayments(user, period, db, result) {
   const { rows: [setting] } = await db.query(
     'SELECT show_payments_to_customers FROM studio_settings WHERE studio_id = $1',
     [user.studio_id],
   );
   if (!setting?.show_payments_to_customers) return result;
 
-  const period = rows[index];
   const { rows: payments } = await db.query(
     'SELECT paid_on, amount_kurus, method FROM payments WHERE membership_id = $1 ORDER BY paid_on, id',
     [period.id],

@@ -23,7 +23,10 @@ export default function PaymentsPage({ studio, onOpenCustomer }) {
     );
   }
 
-  const nothingToDo = data.expired.length + data.endingSoon.length + data.underpaid.length + data.noMembership.length === 0;
+  // "Paketi bitti" yalnızca seans paketi modelinde gelir.
+  const packageFinished = data.packageFinished ?? [];
+  const nothingToDo =
+    packageFinished.length + data.expired.length + data.endingSoon.length + data.underpaid.length + data.noMembership.length === 0;
 
   return (
     <main className={styles.page}>
@@ -31,6 +34,14 @@ export default function PaymentsPage({ studio, onOpenCustomer }) {
       <p className={styles.subtitle}>Sadece ilgilenmen gerekenler</p>
 
       {nothingToDo && <p className={styles.muted}>Biten, yaklaşan ya da eksik ödemesi olan üyelik yok.</p>}
+
+      <Section title="Paketi bitti, yenilenmedi" rows={packageFinished} multiBranch={multiBranch} onOpen={onOpenCustomer}>
+        {(row) => [
+          `Son gün ${formatDateDayMonth(row.endsOn)}`,
+          row.unpackaged > 0 ? `${row.unpackaged} ders paketsiz` : 'seansları bitti',
+          row.unpackaged > 0,
+        ]}
+      </Section>
 
       <Section title="Süresi bitti, yenilenmedi" rows={data.expired} multiBranch={multiBranch} onOpen={onOpenCustomer}>
         {(row) => [`${formatDateDayMonth(row.endsOn)} tarihinde bitti`, `${row.daysAgo} gün`, true]}

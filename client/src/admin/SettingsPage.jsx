@@ -5,6 +5,7 @@ import TextField from '../components/TextField.jsx';
 import { formatPhone } from '../format.js';
 import styles from './Admin.module.css';
 import BranchesSection from './BranchesSection.jsx';
+import PackagesSection from './PackagesSection.jsx';
 
 // Sunucunun hata kodu -> hatanın gösterileceği alan.
 const FIELD_FOR_CODE = {
@@ -119,6 +120,8 @@ export default function SettingsPage({ onStudioChange }) {
     onChange: (event) => set(field, event.target.value),
   });
   const toggle = (field) => ({ checked: form[field], onChange: (value) => set(field, value) });
+  // Model kurulumda seçilir, buradan değişmez. Paket modelinde telafi ayarları yerine paketler ve geç iptal ayarı.
+  const packageModel = form.membershipModel === 'package';
 
   async function submit(event) {
     event.preventDefault();
@@ -143,22 +146,32 @@ export default function SettingsPage({ onStudioChange }) {
     <main className={styles.page}>
       <h1 className={styles.title}>Ayarlar</h1>
       <p className={styles.subtitle}>Bu kurallar bütün müşteriler için geçerli.</p>
+      <p className={styles.muted}>Üyelik modeli: {packageModel ? 'Seans paketi' : 'Grup + telafi'}</p>
 
       <form onSubmit={submit} noValidate>
         <h2 className={styles.settingSection}>İptal</h2>
-        <NumberRow label="İptal için son süre" hint="Dersten önce" unit="saat" min="0" max="72" {...number('cancellationDeadlineHours')} />
-        <SwitchRow label="İptali geri alma" hint="Yer hâlâ boşsa" {...toggle('allowUndoCancel')} />
-        <SwitchRow label="Stüdyo iptalinde telafi hakkı" hint="Stüdyo dersi iptal edince gelecek olanlara" {...toggle('creditOnStudioCancel')} />
+        {packageModel ? (
+          <>
+            <NumberRow label="İptal için son süre" hint="Dersten önce; sonrası geç iptal" unit="saat" min="0" max="72" {...number('cancellationDeadlineHours')} />
+            <SwitchRow label="Geç iptalde seans yansın" hint="Kapalıysa geç iptal de paketten düşmez" {...toggle('lateCancelBurnsSession')} />
+          </>
+        ) : (
+          <>
+            <NumberRow label="İptal için son süre" hint="Dersten önce" unit="saat" min="0" max="72" {...number('cancellationDeadlineHours')} />
+            <SwitchRow label="İptali geri alma" hint="Yer hâlâ boşsa" {...toggle('allowUndoCancel')} />
+            <SwitchRow label="Stüdyo iptalinde telafi hakkı" hint="Stüdyo dersi iptal edince gelecek olanlara" {...toggle('creditOnStudioCancel')} />
 
-        <h2 className={styles.settingSection}>Telafi</h2>
-        <NumberRow label="Telafi hakkı geçerliliği" hint="Kaçırılan dersten itibaren" unit="gün" min="1" max="365" {...number('creditValidityDays')} />
-        <NumberRow label="En fazla ne kadar ileriye" hint="Telafi seçerken" unit="gün" min="1" max="90" {...number('bookingWindowDays')} />
-        <NumberRow label="Telafi kaydının kapanışı" hint="0: ders başlayana kadar" unit="dk" min="0" max="240" {...number('makeupBookingCutoffMinutes')} />
-        <NumberRow label="Ayda en fazla telafi" hint="Boş: sınırsız" min="1" max="31" placeholder="–" {...number('maxMakeupsPerMonth')} />
-        <SwitchRow label="Kaçırılacak dersten önce telafi" hint="Cuma yerine Perşembe gibi" {...toggle('allowMakeupBeforeMissed')} />
-        <SwitchRow label="Telafiden vazgeçince hak geri gelsin" hint="Kapalıysa hak yanar" {...toggle('refundCreditOnMakeupCancel')} />
-        {branchCount > 1 && (
-          <SwitchRow label="Diğer şubelerde telafi" hint="Kapalıysa üye yalnızca kendi şubesine telafiye gelir" {...toggle('makeupOtherBranches')} />
+            <h2 className={styles.settingSection}>Telafi</h2>
+            <NumberRow label="Telafi hakkı geçerliliği" hint="Kaçırılan dersten itibaren" unit="gün" min="1" max="365" {...number('creditValidityDays')} />
+            <NumberRow label="En fazla ne kadar ileriye" hint="Telafi seçerken" unit="gün" min="1" max="90" {...number('bookingWindowDays')} />
+            <NumberRow label="Telafi kaydının kapanışı" hint="0: ders başlayana kadar" unit="dk" min="0" max="240" {...number('makeupBookingCutoffMinutes')} />
+            <NumberRow label="Ayda en fazla telafi" hint="Boş: sınırsız" min="1" max="31" placeholder="–" {...number('maxMakeupsPerMonth')} />
+            <SwitchRow label="Kaçırılacak dersten önce telafi" hint="Cuma yerine Perşembe gibi" {...toggle('allowMakeupBeforeMissed')} />
+            <SwitchRow label="Telafiden vazgeçince hak geri gelsin" hint="Kapalıysa hak yanar" {...toggle('refundCreditOnMakeupCancel')} />
+            {branchCount > 1 && (
+              <SwitchRow label="Diğer şubelerde telafi" hint="Kapalıysa üye yalnızca kendi şubesine telafiye gelir" {...toggle('makeupOtherBranches')} />
+            )}
+          </>
         )}
 
         <h2 className={styles.settingSection}>Ödeme</h2>
@@ -194,6 +207,8 @@ export default function SettingsPage({ onStudioChange }) {
           </Button>
         </div>
       </form>
+
+      {packageModel && <PackagesSection />}
 
       <BranchesSection
         onCountChange={(count) => {
