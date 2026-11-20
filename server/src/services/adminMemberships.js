@@ -2,6 +2,7 @@ import pool from '../db/pool.js';
 import { AppError } from '../errors.js';
 import { membershipModelOf } from './adminPackages.js';
 import { MEMBERSHIP_SELECT } from './membershipPeriods.js';
+import { packageUsage } from './packageUsage.js';
 
 // Üyelik dönemleri ve ödeme kayıtları (BR-31…BR-37). Her fonksiyon yöneticinin kendi stüdyosuyla sınırlı.
 // Para her yerde kuruş cinsinden tamsayı (1.500 ₺ = 150000).
@@ -47,7 +48,8 @@ async function studioToday(studioId, db) {
   return row.today;
 }
 
-function toDto(row, payments, today) {
+// usage: paket dönemi için { used, remaining, burned } (packageUsage); süreye bağlı dönemde yok.
+function toDto(row, payments, today, usage) {
   let status = 'active';
   if (row.starts_on > today) status = 'upcoming';
   else if (row.effective_ends_on < today) status = 'ended';
@@ -64,6 +66,9 @@ function toDto(row, payments, today) {
     // Paket döneminde dolu (paket modeli); süreye bağlı dönemde null.
     sessionCount: row.session_count,
     packageName: row.package_name,
+    used: usage?.used ?? null,
+    remaining: usage?.remaining ?? null,
+    burned: usage?.burned ?? null,
     status,
     payments: payments
       .filter((p) => p.membership_id === row.id)
@@ -89,7 +94,9 @@ async function loadMemberships(userId, today, db) {
      WHERE m.user_id = $1 ORDER BY p.paid_on, p.id`,
     [userId],
   );
-  return rows.map((row) => toDto(row, payments, today));
+  const usage = rows.some((row) => row.session_count !== null) ? await packageUsage(userId, db) : { packages: [] };
+  const usageOf = (row) => usage.packages.find((p) => p.membershipId === row.id);
+  return rows.map((row) => toDto(row, payments, today, usageOf(row)));
 }
 
 // Yeni dönem önerisi: son dönemin (dondurmayla uzamış) bitişinin ertesi günü; hiç dönem yoksa bugün.
@@ -103,7 +110,12 @@ export async function getMemberships(admin, customerId, { db = pool } = {}) {
   await findCustomerId(admin, customerId, db);
   const today = await studioToday(admin.studio_id, db);
   const memberships = await loadMemberships(customerId, today, db);
-  return { memberships, suggestedStartsOn: suggestStart(memberships, today) };
+  const result = { memberships, suggestedStartsOn: suggestStart(memberships, today) };
+  // Paket modelinde: hiçbir pakete sığmayan (paketsiz) ders sayısı; yönetici yeni paket satarken görür.
+  if ((await membershipModelOf(admin.studio_id, db)) === 'package') {
+    result.unpackaged = (await packageUsage(customerId, db)).unpackaged;
+  }
+  return result;
 }
 
 // Yeni dönem. Grup modelinde gövde { startsOn, endsOn, feeKurus, note }; paket modelinde { packageId, startsOn,
@@ -266,6 +278,8 @@ export async function getPaymentOverview(admin, { db = pool } = {}) {
     [admin.studio_id, today],
   );
 
+  const isPackageModel = (await membershipModelOf(admin.studio_id, db)) === 'package';
+  const packageFinished = [];
   const expired = [];
   const endingSoon = [];
   const underpaid = [];
@@ -278,9 +292,21 @@ export async function getPaymentOverview(admin, { db = pool } = {}) {
       continue;
     }
     const latest = own[0];
+    // Paket modeli: en yeni paketi bitmiş (kalan 0: seansları dolmuş ya da son günü geçip kalanı yanmış) ve
+    // yenisi açılmamış üye "Paketi bitti" listesine girer; "süresi doldu"da ikinci kez görünmez.
+    let finished = false;
+    if (isPackageModel && latest.session_count !== null) {
+      const usage = await packageUsage(customer.id, db);
+      if (usage.packages.find((p) => p.membershipId === latest.id)?.remaining === 0) {
+        finished = true;
+        packageFinished.push({ ...person, endsOn: latest.effective_ends_on, unpackaged: usage.unpackaged });
+      }
+    }
     const left = daysBetween(today, latest.effective_ends_on);
-    if (left < 0) expired.push({ ...person, endsOn: latest.effective_ends_on, daysAgo: -left });
-    else if (left <= studio.payment_reminder_days) endingSoon.push({ ...person, endsOn: latest.effective_ends_on, daysLeft: left });
+    if (!finished && left < 0) expired.push({ ...person, endsOn: latest.effective_ends_on, daysAgo: -left });
+    else if (!finished && left <= studio.payment_reminder_days) {
+      endingSoon.push({ ...person, endsOn: latest.effective_ends_on, daysLeft: left });
+    }
     for (const period of own) {
       const remaining = period.fee_kurus - period.paid_kurus;
       if (remaining > 0) {
@@ -306,6 +332,7 @@ export async function getPaymentOverview(admin, { db = pool } = {}) {
     underpaid: underpaid.sort((a, b) => (a.startsOn < b.startsOn ? -1 : a.startsOn > b.startsOn ? 1 : byName(a, b))),
     noMembership: noMembership.sort(byName),
     thisMonth: { count: month.count, totalKurus: month.total },
+    ...(isPackageModel ? { packageFinished: packageFinished.sort(byName) } : {}),
   };
 }
 
@@ -324,6 +351,23 @@ export async function getMyMembership(user, { db = pool } = {}) {
   const ended = index === -1;
   if (ended) index = rows.length - 1;
 
+  // Paket: kendi son günü, kalan seans ve paketsiz ders sayısı. Ardışık dönemleri birleştirmek pakette anlamsız
+  // (her paketin kendi seans sayısı var).
+  const current = rows[index];
+  if (current.session_count !== null) {
+    const usage = await packageUsage(user.id, db);
+    const own = usage.packages.find((p) => p.membershipId === current.id);
+    return withPayments(user, current, db, {
+      endsOn: current.effective_ends_on,
+      ended,
+      packageName: current.package_name,
+      sessionCount: current.session_count,
+      used: own.used,
+      remaining: own.remaining,
+      unpackaged: usage.unpackaged,
+    });
+  }
+
   let endsOn = rows[index].effective_ends_on;
   if (!ended) {
     for (const next of rows.slice(index + 1)) {
@@ -331,15 +375,17 @@ export async function getMyMembership(user, { db = pool } = {}) {
       if (next.effective_ends_on > endsOn) endsOn = next.effective_ends_on;
     }
   }
-  const result = { endsOn, ended };
+  return withPayments(user, rows[index], db, { endsOn, ended });
+}
 
+// Stüdyo "Üyeler ödeme bilgisini görsün" ayarını açtıysa dönemin ücret ve ödemelerini ekler.
+async function withPayments(user, period, db, result) {
   const { rows: [setting] } = await db.query(
     'SELECT show_payments_to_customers FROM studio_settings WHERE studio_id = $1',
     [user.studio_id],
   );
   if (!setting?.show_payments_to_customers) return result;
 
-  const period = rows[index];
   const { rows: payments } = await db.query(
     'SELECT paid_on, amount_kurus, method FROM payments WHERE membership_id = $1 ORDER BY paid_on, id',
     [period.id],

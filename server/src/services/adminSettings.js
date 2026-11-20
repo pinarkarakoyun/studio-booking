@@ -33,6 +33,10 @@ function toDto(row) {
     maxMakeupsPerMonth: row.max_makeups_per_month,
     // Yalnızca okunur: ekran şube ayarlarını açık şube sayısı 1'den fazlaysa gösterir.
     branchCount: row.branch_count,
+    // Yalnızca okunur: kurulumda seçilir ('group' | 'package'); PUT'ta gönderilse de yok sayılır.
+    membershipModel: row.membership_model,
+    // Paket modelinde: geç iptal edilen seans paketten düşsün mü (ekran yalnızca paket modelinde gösterir).
+    lateCancelBurnsSession: row.late_cancel_burns_session,
   };
   for (const [key, rule] of Object.entries(NUMBER_RULES)) dto[key] = row[rule.column];
   for (const [key, column] of Object.entries(BOOLEAN_RULES)) dto[key] = row[column];
@@ -66,6 +70,13 @@ function validate(input) {
   }
   values.maxMakeupsPerMonth = max;
 
+  // İsteğe bağlı: gönderilmezse mevcut değer korunur (grup modelindeki ekran bu alanı hiç göndermeyebilir).
+  const late = input.lateCancelBurnsSession;
+  if (late !== undefined && typeof late !== 'boolean') {
+    throw new AppError('INVALID_SETTING', 'Ayar açık ya da kapalı olmalı.', 400);
+  }
+  values.lateCancelBurnsSession = late;
+
   for (const key of Object.keys(BOOLEAN_RULES)) {
     if (typeof input[key] !== 'boolean') throw new AppError('INVALID_SETTING', 'Ayar açık ya da kapalı olmalı.', 400);
     values[key] = input[key];
@@ -96,6 +107,7 @@ export async function updateSettings(admin, input, { db = pool } = {}) {
       ...Object.entries(NUMBER_RULES).map(([key, rule]) => [rule.column, v[key]]),
       ...Object.entries(BOOLEAN_RULES).map(([key, column]) => [column, v[key]]),
       ['max_makeups_per_month', v.maxMakeupsPerMonth],
+      ...(v.lateCancelBurnsSession === undefined ? [] : [['late_cancel_burns_session', v.lateCancelBurnsSession]]),
     ];
     await client.query(
       `UPDATE studio_settings SET ${columns.map(([column], i) => `${column} = $${i + 2}`).join(', ')} WHERE studio_id = $1`,

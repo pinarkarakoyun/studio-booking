@@ -35,7 +35,7 @@ async function loadSession(client, sessionId, userId, { lock = false } = {}) {
     `
     SELECT s.id, s.group_id, s.date, s.starts_at, s.status, g.studio_id, g.branch_id,
            ss.makeup_other_branches, ss.credit_validity_days, ss.refund_credit_on_makeup_cancel, ss.max_makeups_per_month,
-           ss.allow_undo_cancel, ss.allow_makeup_before_missed,
+           ss.allow_undo_cancel, ss.allow_makeup_before_missed, ss.membership_model,
            st.timezone,
            s.starts_at > now() AS is_future,
            s.starts_at - make_interval(hours => ss.cancellation_deadline_hours) > now()
@@ -133,10 +133,18 @@ async function freeSpots(client, sessionId) {
 
 // --- İptal (BR-06, BR-08, BR-13, BR-27) ---------------------------------------------------------
 
+// Paket modeli: iptal ders başlayana kadar yapılabilir; son iptal saatinden sonrası "geç iptal" sayılır (seansın
+// düşüp düşmeyeceğine late_cancel_burns_session karar verir, packageUsage.js). İptal yine bir credits satırıdır
+// (doluluk hesabı buna bakıyor) ama telafiye kullanılamaz: yanmış (forfeited_at dolu) olarak açılır.
+// Grup modelinde son iptal saatinden sonra iptal yok.
 async function cancelInTransaction(client, userId, sessionId) {
   // İptal yer açar, kapasiteyi aşma riski yok; bu yüzden dersi kilitlemiyoruz.
   const session = await loadSession(client, sessionId, userId);
-  if (!session.is_before_deadline) {
+  const isPackage = session.membership_model === 'package';
+  if (isPackage && !session.is_future) {
+    throw new BookingError('SESSION_STARTED', 'Bu ders başladı veya geçti.');
+  }
+  if (!isPackage && !session.is_before_deadline) {
     throw new BookingError('CANCELLATION_DEADLINE_PASSED', 'Bu ders için iptal süresi geçti.');
   }
   if (!(await isRegularMember(client, userId, session))) {
@@ -153,18 +161,19 @@ async function cancelInTransaction(client, userId, sessionId) {
   // ON CONFLICT: aynı ders ikinci kez iptal edilirse UNIQUE kısıtı hata yerine "satır yok" döner.
   const { rows } = await client.query(
     `
-    INSERT INTO credits (user_id, source_session_id, expires_at)
-    SELECT $1, s.id, s.starts_at + make_interval(days => $3)
+    INSERT INTO credits (user_id, source_session_id, expires_at, forfeited_at)
+    SELECT $1, s.id, s.starts_at + make_interval(days => $3), CASE WHEN $4 THEN now() END
     FROM sessions s WHERE s.id = $2
     ON CONFLICT (user_id, source_session_id) DO NOTHING
     RETURNING id, expires_at
     `,
-    [userId, sessionId, session.credit_validity_days],
+    [userId, sessionId, session.credit_validity_days, isPackage],
   );
   if (rows.length === 0) {
     throw new BookingError('ALREADY_CANCELLED', 'Bu dersi zaten iptal ettin.');
   }
-  return { creditId: rows[0].id, expiresAt: rows[0].expires_at };
+  // late: ekran "Bu seans paketinden düşecek" gibi bir bilgi gösterebilsin (grup modelinde hep false).
+  return { creditId: rows[0].id, expiresAt: rows[0].expires_at, late: !session.is_before_deadline };
 }
 
 export function cancelSession({ userId, sessionId }, { db = pool } = {}) {
@@ -177,6 +186,10 @@ async function bookMakeupInTransaction(client, userId, targetSessionId) {
   // Önce kilit: aynı derse aynı anda gelen ikinci istek burada bekler ve kapasiteyi
   // ilk işlem bittikten sonraki güncel haliyle görür.
   const target = await loadSession(client, targetSessionId, userId, { lock: true });
+  // Paket modelinde telafi yok: kaçırılan ders telafi edilmez, paketten düşmez (zamanında iptal edildiyse).
+  if (target.membership_model === 'package') {
+    throw new BookingError('MAKEUP_NOT_AVAILABLE', 'Bu stüdyoda telafi yok; seans paketinle gelmeye devam edebilirsin.');
+  }
   await assertBranchAllowed(client, userId, target);
   if (!target.is_future) {
     throw new BookingError('SESSION_STARTED', 'Bu ders başladı veya geçti.');
@@ -312,7 +325,10 @@ export function undoCancel({ userId, sessionId }, { db = pool } = {}) {
   return withTransaction(db, async (client) => {
     // Geri dönmek yeni bir yer almak demek: kapasite kontrolü için ders kilitlenir.
     const session = await loadSession(client, sessionId, userId, { lock: true });
-    if (!session.allow_undo_cancel) {
+    // Paket modelinde "İptali geri al" her zaman açık (telafi ayarları bu modelde gizli ve geçersiz) ve iptal
+    // satırı zaten yanmış açılır; ders başlayana kadar geri alınabilir.
+    const isPackage = session.membership_model === 'package';
+    if (!isPackage && !session.allow_undo_cancel) {
       throw new BookingError('UNDO_CANCEL_DISABLED', 'Bu stüdyoda iptal geri alınamıyor.');
     }
     if (!session.is_future) {
@@ -329,7 +345,7 @@ export function undoCancel({ userId, sessionId }, { db = pool } = {}) {
     if (!credit) {
       throw new BookingError('NOT_CANCELLED', 'Bu dersi iptal etmemişsin.');
     }
-    if (credit.used_session_id !== null || credit.forfeited_at !== null) {
+    if (credit.used_session_id !== null || (!isPackage && credit.forfeited_at !== null)) {
       throw new BookingError('CREDIT_ALREADY_USED', 'Bu iptalden doğan hak kullanıldığı için geri alınamaz.');
     }
     if ((await freeSpots(client, sessionId)) <= 0) {
