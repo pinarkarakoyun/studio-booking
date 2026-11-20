@@ -71,6 +71,11 @@ export default function PublicSite() {
   const instructor = site.instructor ?? {};
   const photos = site.photos ?? [];
   const hello = whatsappLink(site.whatsappPhone, MESSAGES.hello);
+  // Şubeler: en az bir şubenin adresi varsa bütün açık şubeler listelenir (adresi olmayan yalnızca adıyla).
+  // Şube adı yalnızca birden çok şube varsa yazılır.
+  const branchList = site.branches ?? [];
+  const shownBranches = branchList.some((branch) => branch.address) ? branchList : [];
+  const showBranchNames = branchList.length > 1;
   const callNumber = site.phone ?? site.whatsappPhone;
 
   return (
@@ -213,7 +218,31 @@ export default function PublicSite() {
               <h2 id="iletisim-baslik" className={styles.heading}>
                 Bize ulaş
               </h2>
-              <p>{site.address ?? 'Adres buraya gelecek'}</p>
+              {/* Şube adresleri panelden gelir. Hiçbir şubede adres yokken sunucu site.json'daki adresi gönderir
+                  (address); bir şubeye adres girilince yalnızca şube adresleri gösterilir. */}
+              {shownBranches.length > 0 ? (
+                shownBranches.map((branch) => (
+                  <p key={branch.name}>
+                    {showBranchNames && (
+                      <>
+                        <strong>{branch.name}</strong>
+                        <br />
+                      </>
+                    )}
+                    {branch.address}
+                    {branch.mapsUrl && (
+                      <>
+                        {' · '}
+                        <a href={branch.mapsUrl} target="_blank" rel="noreferrer">
+                          Haritada aç
+                        </a>
+                      </>
+                    )}
+                  </p>
+                ))
+              ) : (
+                <p>{site.address ?? 'Adres buraya gelecek'}</p>
+              )}
               {site.workingHours && <p className={styles.mutedLight}>{site.workingHours}</p>}
               <p className={styles.links}>
                 {site.mapsUrl && (

@@ -24,6 +24,7 @@ Small neighborhood studios often manage group attendance through messaging apps 
 - "Can't come" to a class to earn a make-up credit, with an undo option
 - Pick a make-up class from the sessions that still have a free spot
 - See their membership end date and, if the studio allows it, their own payments
+- In a studio with several branches, see which branch each class is at
 
 ### Admin panel
 
@@ -33,10 +34,12 @@ Small neighborhood studios often manage group attendance through messaging apps 
 - **Memberships and payments:** time-based membership periods, offline payment records, free months, freeze extensions and an overview of due, paid and overdue payments
 - **Make-up credits:** grant credits with an expiry and a note; cancel a whole session and give everyone a credit automatically
 - **Settings:** booking rules (cancellation deadline, credit validity, make-up cutoff, early make-up, undo) and the studio's contact details
+- **Branches:** a studio can have several branches with their own address and map link; every group belongs to one branch. The admin adds, edits and closes branches, filters Today by branch, and decides whether members may book make-ups at other branches. A single-branch studio sees no branch controls at all
 
 ### Public page
 
 - Studio landing page at `/` with how it works, benefits and FAQ; the app itself lives under `/giris`
+- The contact section lists each branch's address and map link
 - The studio's own logo, photos and texts are kept outside the repository (see [Studio branding](#studio-branding))
 
 ## Key design decisions
@@ -51,6 +54,7 @@ Small neighborhood studios often manage group attendance through messaging apps 
 - **Server-side sessions:** Login uses httpOnly cookies backed by a sessions table, so a member who leaves can be logged out instantly.
 - **One studio per subdomain:** Several studios share one installation. Each studio has its own address (`ornek.example.com`), and the server picks the studio from the request's host. An unknown address never falls back to another studio; it gets a 404. The session cookie has no `Domain`, so it stays on its own studio's address.
 - **Separate accounts per studio:** The same phone number can be a separate account, with its own password, in two studios. A studio resets only its own members' passwords. Data isolation between studios is proven by tests that try every endpoint with another studio's ids (`server/test/studioIsolation.test.js`).
+- **A session's branch comes from its group:** Sessions do not store a branch; they read it from their group, and a member's branch is the branch of their group on that date. Moving a group to another branch therefore also shows its past sessions there, an accepted trade-off while there are no reports. A composite foreign key keeps a group from pointing to another studio's branch. With the same-branch make-up rule on, the server refuses a make-up at another branch even if the request is sent by hand.
 
 ## Tech stack
 
@@ -113,7 +117,7 @@ cd server
 npm test
 ```
 
-Tests run against a separate `studio_booking_test` database that is created automatically. As a safety check, the test setup refuses any database whose name does not end in `_test`. About 210 tests cover authentication, booking and make-up rules, concurrency, the admin endpoints, phone number normalization and isolation between studios. HTTP tests talk to real studio subdomains (`test-1.localhost`).
+Tests run against a separate `studio_booking_test` database that is created automatically. As a safety check, the test setup refuses any database whose name does not end in `_test`. About 270 tests cover authentication, booking and make-up rules, concurrency, the admin endpoints, branches, phone number normalization and isolation between studios. HTTP tests talk to real studio subdomains (`test-1.localhost`).
 
 ## Production and security
 

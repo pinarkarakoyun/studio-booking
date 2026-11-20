@@ -85,6 +85,7 @@ export default function MakeupPickerPage({ studio, from, busy, onBack, onPick })
           <ul className={styles.list}>
             {daySessions.map((session) => (
               <SessionOption
+                multiBranch={studio.branchCount > 1}
                 key={session.id}
                 session={session}
                 timeZone={timeZone}
@@ -103,7 +104,7 @@ export default function MakeupPickerPage({ studio, from, busy, onBack, onPick })
   );
 }
 
-function SessionOption({ session, timeZone, now, busy, pending, onSelect, onCancel, onConfirm }) {
+function SessionOption({ session, multiBranch, timeZone, now, busy, pending, onSelect, onCancel, onConfirm }) {
   const full = session.freeSpots <= 0;
   const closed = new Date(session.makeupDeadlineAt).getTime() <= now;
   const fill = Math.min(100, Math.round((session.bookedCount / session.capacity) * 100));
@@ -112,7 +113,11 @@ function SessionOption({ session, timeZone, now, busy, pending, onSelect, onCanc
   return (
     <li className={`${styles.option} ${full || closed ? styles.optionUnavailable : ''}`}>
       <div>
-        <span className={styles.time}>{time}</span>
+        <span className={styles.time}>
+          {time}
+          {/* Çok şubeli stüdyoda telafi başka şubede olabilir: şube adı saatin yanında. */}
+          {multiBranch && session.branchName && ` · ${session.branchName}`}
+        </span>
         {!full && !closed && (
           <span className={styles.bar} aria-hidden="true">
             <span style={{ width: `${fill}%` }} />
