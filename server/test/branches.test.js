@@ -46,6 +46,15 @@ describe('branches schema', () => {
     await insertBranch(a, 'Kuzey');
   });
 
+  // Türkçe I/ı: veritabanının lower()'ı İngilizce kuralla "I"yı "i" yapar; "KIZILAY" ile "Kızılay" farklı sanılırdı.
+  test('branch names differing only in Turkish I/ı case are the same name', async () => {
+    const studio = await createStudio();
+    await insertBranch(studio, 'Kızılay');
+    await assert.rejects(insertBranch(studio, 'KIZILAY'), { code: '23505' });
+    await insertBranch(studio, 'İstasyon');
+    await assert.rejects(insertBranch(studio, 'istasyon'), { code: '23505' });
+  });
+
   test('maps_url must be https', async () => {
     const studio = await createStudio();
     await assert.rejects(insertBranch(studio, 'Kuzey', { mapsUrl: 'http://maps.example.com/x' }), { code: '23514' });

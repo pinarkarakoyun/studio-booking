@@ -58,6 +58,14 @@ describe('branch management', () => {
     assert.equal(res.body.error.code, 'BRANCH_NAME_TAKEN');
   });
 
+  test('rejects a duplicate name that differs only in Turkish I/ı case', async () => {
+    const { c } = await setup();
+    assert.equal((await c.request('POST', '/api/admin/branches', { name: 'Kızılay' })).status, 201);
+    const res = await c.request('POST', '/api/admin/branches', { name: 'KIZILAY' });
+    assert.equal(res.status, 409);
+    assert.equal(res.body.error.code, 'BRANCH_NAME_TAKEN');
+  });
+
   test('updates name, address and maps url; empty strings clear the optional fields', async () => {
     const { studio, c } = await setup();
     const b = await createBranch(studio, { name: 'Kuzey', address: 'Eski' });

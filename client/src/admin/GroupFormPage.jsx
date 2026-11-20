@@ -45,7 +45,7 @@ const FIELD_FOR_CODE = {
 };
 
 // group verilmezse "Yeni grup", verilirse "Grubu düzenle".
-export default function GroupFormPage({ studio, group, onCancel, onSaved }) {
+export default function GroupFormPage({ studio, group, onStudioChange, onCancel, onSaved }) {
   const today = todayIn(studio.timezone);
   // Şube seçimi yalnızca çok şubeli stüdyoda; tek şubede sunucu grubu o şubeye bağlar.
   const multiBranch = studio.branchCount > 1;
@@ -145,7 +145,18 @@ export default function GroupFormPage({ studio, group, onCancel, onSaved }) {
       }
     } catch (err) {
       const field = FIELD_FOR_CODE[err.code] ?? 'form';
-      setErrors({ [field]: err.message });
+      if (field === 'branchId' && !multiBranch) {
+        // Bu ekran tek şube sanıyor ama sunucuda artık birden çok şube var (ör. başka bir cihazdan şube açıldı).
+        // Şube alanı hiç çizilmediği için hata görünmezdi: mesajı formun altına yaz ve şube sayısını tazele ki
+        // şube seçimi belirsin.
+        setErrors({ form: 'Şubeler değişmiş. Şube seçip yeniden dene.' });
+        api('/api/studio').then(
+          ({ studio: fresh }) => fresh && onStudioChange({ branchCount: fresh.branchCount }),
+          () => {},
+        );
+      } else {
+        setErrors({ [field]: err.message });
+      }
       setBusy(false);
     }
   }

@@ -105,6 +105,7 @@ export default function AdminApp({ user, studio, onStudioChange, onLogout }) {
       content = (
         <GroupFormPage
           studio={studio}
+          onStudioChange={onStudioChange}
           group={view.group}
           onCancel={() => goTo(view.group ? { name: 'detail', id: view.group.id } : START)}
           onSaved={(id, notice) => goTo({ name: 'detail', id, notice })}
