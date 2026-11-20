@@ -33,6 +33,8 @@ export default function AdminApp({ user, studio, onStudioChange, onLogout }) {
   const [accountOpen, setAccountOpen] = useState(false);
   // Bugün sekmesinde bakılan gün (null = bugün). Ders detayından geri dönünce aynı gün açılır.
   const [day, setDay] = useState(null);
+  // "Bugün"deki şube süzgeci burada tutulur: o ekran her gün değişiminde yeniden kurulur (key), seçim kaybolmasın.
+  const [branchFilter, setBranchFilter] = useState('');
   const goTo = (next) => setView(next);
   // Grup detayındaki bir üyeye dokununca Müşteriler sekmesinde o müşterinin sayfası açılır.
   const openCustomer = (id) => {
@@ -57,6 +59,8 @@ export default function AdminApp({ user, studio, onStudioChange, onLogout }) {
           studio={studio}
           date={day}
           onChangeDate={setDay}
+          branchFilter={branchFilter}
+          onBranchFilterChange={setBranchFilter}
           onOpenSession={(id) => goTo({ name: 'session', id })}
           onOpenAccount={() => setAccountOpen(true)}
         />
@@ -83,12 +87,13 @@ export default function AdminApp({ user, studio, onStudioChange, onLogout }) {
     } else if (view.name === 'credentials') {
       content = <CredentialsPage studio={studio} credentials={view.credentials} onDone={() => goTo(view.backTo)} />;
     } else {
-      content = <CustomersPage onOpen={(id) => goTo({ name: 'detail', id })} onAdd={() => goTo({ name: 'new' })} />;
+      content = <CustomersPage studio={studio} onOpen={(id) => goTo({ name: 'detail', id })} onAdd={() => goTo({ name: 'new' })} />;
     }
   } else if (tab === 'groups') {
     if (view.name === 'detail') {
       content = (
         <GroupDetailPage
+          studio={studio}
           groupId={view.id}
           initialNotice={view.notice}
           onBack={() => goTo(START)}
@@ -100,16 +105,17 @@ export default function AdminApp({ user, studio, onStudioChange, onLogout }) {
       content = (
         <GroupFormPage
           studio={studio}
+          onStudioChange={onStudioChange}
           group={view.group}
           onCancel={() => goTo(view.group ? { name: 'detail', id: view.group.id } : START)}
           onSaved={(id, notice) => goTo({ name: 'detail', id, notice })}
         />
       );
     } else {
-      content = <GroupsPage onOpen={(id) => goTo({ name: 'detail', id })} onAdd={() => goTo({ name: 'new' })} />;
+      content = <GroupsPage studio={studio} onOpen={(id) => goTo({ name: 'detail', id })} onAdd={() => goTo({ name: 'new' })} />;
     }
   } else if (tab === 'payments') {
-    content = <PaymentsPage onOpenCustomer={openCustomer} />;
+    content = <PaymentsPage studio={studio} onOpenCustomer={openCustomer} />;
   } else if (tab === 'settings') {
     content = <SettingsPage onStudioChange={onStudioChange} />;
   } else {

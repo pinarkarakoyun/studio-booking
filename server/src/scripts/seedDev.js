@@ -4,7 +4,7 @@
 // Kullanım: ALLOW_DEMO_SEED=1 npm run seed:dev
 //           ALLOW_DEMO_SEED=1 DEMO_SEED_FILE=/yol/demo-seed.json npm run seed:dev   (bir stüdyoya özel sunum verisi)
 //
-// DEMO_SEED_FILE verilirse stüdyo adı, renk, logo, gruplar, üye adları ve örnek ücretler o dosyadan
+// DEMO_SEED_FILE verilirse stüdyo adı, renk, logo, şubeler, gruplar, üye adları ve örnek ücretler o dosyadan
 // gelir; verilmeyen her alan aşağıdaki varsayılanlarla dolar. Dosya repo dışında, stüdyonun marka
 // klasöründe durur (gerçek stüdyo bilgisi koda girmez).
 //
@@ -12,6 +12,7 @@
 // stüdyoda asla kullanılmaz. Script üretim ortamında ve dolu bir veritabanında çalışmayı reddeder.
 import { readFile } from 'node:fs/promises';
 import pool from '../db/pool.js';
+import { DEFAULT_BRANCH_NAME } from '../services/adminBranches.js';
 import { createUser } from '../services/auth.js';
 import { generateSessions } from '../services/sessionGenerator.js';
 import { assertDemoSeedAllowed } from './demoSeedGuard.js';
@@ -32,6 +33,12 @@ const demo = process.env.DEMO_SEED_FILE ? JSON.parse(await readFile(process.env.
 const STUDIO = { name: 'Deneme Pilates Stüdyosu', slug: 'demo', whatsappPhone: '+905000000000', brandColor: null, logoUrl: null, ...demo.studio };
 const slugError = slugProblem(STUDIO.slug);
 if (slugError) throw new Error(slugError);
+
+// Şubeler: demo dosyası "branches": [{ "name", "address"? }] verebilir; her grup "branch" alanında şubenin adını
+// yazar (yoksa ilk şube). Verilmezse tek şube: tek şubeli stüdyoda arayüzde hiçbir şube izi görünmez.
+const BRANCHES = demo.branches ?? [{ name: DEFAULT_BRANCH_NAME }];
+const unknownBranch = (demo.groups ?? []).find((g) => g.branch && !BRANCHES.some((br) => br.name === g.branch));
+if (unknownBranch) throw new Error(`"${unknownBranch.name}" grubunun şubesi ("${unknownBranch.branch}") branches listesinde yok.`);
 
 // Haftanın günleri: 1 = Pazartesi ... 7 = Pazar
 const DEFAULT_GROUPS = [
@@ -71,6 +78,16 @@ try {
   );
   await client.query('INSERT INTO studio_settings (studio_id) VALUES ($1)', [studio.id]);
 
+  const branchIds = new Map();
+  for (const branch of BRANCHES) {
+    const { rows: [row] } = await client.query(
+      'INSERT INTO branches (studio_id, name, address) VALUES ($1, $2, $3) RETURNING id',
+      [studio.id, branch.name, branch.address ?? null],
+    );
+    branchIds.set(branch.name, row.id);
+  }
+  const firstBranchId = branchIds.get(BRANCHES[0].name);
+
   const { admin, customer } = DEV_ACCOUNTS;
   const adminId = await createUser(
     { studioId: studio.id, role: 'admin', fullName: admin.fullName, phone: admin.phone, temporaryPassword: admin.password },
@@ -85,9 +102,9 @@ try {
   const membersByGroup = [];
   for (const [index, group] of GROUPS.entries()) {
     const { rows: [row] } = await client.query(
-      `INSERT INTO groups (studio_id, name, start_time, duration_minutes, capacity)
-       VALUES ($1, $2, $3, 50, $4) RETURNING id`,
-      [studio.id, group.name, group.time, group.capacity],
+      `INSERT INTO groups (studio_id, branch_id, name, start_time, duration_minutes, capacity)
+       VALUES ($1, $2, $3, $4, 50, $5) RETURNING id`,
+      [studio.id, branchIds.get(group.branch) ?? firstBranchId, group.name, group.time, group.capacity],
     );
     for (const day of group.days) {
       await client.query('INSERT INTO group_days (group_id, weekday) VALUES ($1, $2)', [row.id, day]);

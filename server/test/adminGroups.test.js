@@ -3,11 +3,13 @@ import { after, beforeEach, describe, test } from 'node:test';
 import { generateSessions } from '../src/services/sessionGenerator.js';
 import {
   createAdmin,
+  createBranch,
   createCustomer,
   createGroup,
   createSession,
   createStudio,
   insertMakeup,
+  defaultBranchId,
   occupancy,
   pool,
   resetDb,
@@ -298,5 +300,78 @@ describe("changing a customer's group", () => {
       groupId: group, effectiveFrom: await daysFromToday(0),
     });
     assert.equal(res.body.error.code, 'SAME_GROUP');
+  });
+});
+
+describe('group branch', () => {
+  const groupOf = async (c, id) => (await c.request('GET', `/api/admin/groups/${id}`)).body.group;
+
+  test('single-branch studio: a group can be created without branchId and gets the only branch', async () => {
+    const { studio, c } = await setup();
+    const group = await groupOf(c, await createViaApi(c));
+    assert.deepEqual(group.branch, { id: await defaultBranchId(studio), name: 'Merkez' });
+  });
+
+  test('multi-branch studio: branchId is required, and the chosen branch is stored', async () => {
+    const { studio, c } = await setup();
+    const kuzey = await createBranch(studio, { name: 'Kuzey' });
+
+    const missing = await c.request('POST', '/api/admin/groups', groupBody());
+    assert.equal(missing.status, 400);
+    assert.equal(missing.body.error.code, 'BRANCH_REQUIRED');
+
+    const group = await groupOf(c, await createViaApi(c, { branchId: kuzey }));
+    assert.deepEqual(group.branch, { id: kuzey, name: 'Kuzey' });
+    const listed = (await c.request('GET', '/api/admin/groups')).body.groups;
+    assert.equal(listed.find((g) => g.id === group.id).branch.name, 'Kuzey');
+  });
+
+  test("a closed branch is refused, another studio's branch is not found", async () => {
+    const { studio, c } = await setup();
+    const closed = await createBranch(studio, { name: 'Eski', isActive: false });
+    const other = await createBranch(await createStudio(), { name: 'Başka' });
+
+    const res1 = await c.request('POST', '/api/admin/groups', groupBody({ branchId: closed }));
+    assert.equal(res1.status, 400);
+    assert.equal(res1.body.error.code, 'BRANCH_CLOSED');
+    const res2 = await c.request('POST', '/api/admin/groups', groupBody({ branchId: other }));
+    assert.equal(res2.status, 404);
+    assert.equal(res2.body.error.code, 'BRANCH_NOT_FOUND');
+    assert.equal((await pool.query('SELECT count(*)::int AS n FROM groups')).rows[0].n, 0);
+  });
+
+  // Review Focus: geçersiz değerler veritabanı hatasına (500) dönüşmemeli.
+  test('invalid branchId values are rejected cleanly', async () => {
+    const { studio, c } = await setup();
+    await createBranch(studio, { name: 'Kuzey' });
+    for (const branchId of ['abc', -1, 1.5, null, { id: 1 }]) {
+      const res = await c.request('POST', '/api/admin/groups', groupBody({ branchId }));
+      assert.ok([400, 404].includes(res.status), `${JSON.stringify(branchId)} -> ${res.status}`);
+    }
+  });
+
+  test("changing a group's branch applies at once and the preview reports it", async () => {
+    const { studio, c } = await setup();
+    const kuzey = await createBranch(studio, { name: 'Kuzey' });
+    const id = await createViaApi(c, { branchId: await defaultBranchId(studio) });
+
+    const preview = await c.request('POST', `/api/admin/groups/${id}/preview`, groupBody({ branchId: kuzey }));
+    assert.equal(preview.status, 200);
+    assert.deepEqual(preview.body.branchChange, { from: 'Merkez', to: 'Kuzey' });
+    assert.equal((await groupOf(c, id)).branch.name, 'Merkez');
+
+    const saved = await c.request('PUT', `/api/admin/groups/${id}`, groupBody({ branchId: kuzey }));
+    assert.equal(saved.status, 200);
+    assert.equal((await groupOf(c, id)).branch.name, 'Kuzey');
+  });
+
+  test('editing without branchId keeps the branch', async () => {
+    const { studio, c } = await setup();
+    const kuzey = await createBranch(studio, { name: 'Kuzey' });
+    const id = await createViaApi(c, { branchId: kuzey });
+    const res = await c.request('PUT', `/api/admin/groups/${id}`, groupBody({ name: 'Yeni ad' }));
+    assert.equal(res.status, 200);
+    assert.equal(res.body.branchChange, null);
+    assert.equal((await groupOf(c, id)).branch.name, 'Kuzey');
   });
 });

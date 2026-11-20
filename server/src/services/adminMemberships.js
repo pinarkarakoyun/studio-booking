@@ -208,9 +208,16 @@ export async function getPaymentOverview(admin, { db = pool } = {}) {
     [admin.studio_id],
   );
   const { today } = studio;
+  // Şube adı bugünkü grubundan (grubu yoksa null); ekran yalnızca çok şubeli stüdyoda gösterir.
   const { rows: customers } = await db.query(
-    `SELECT id, full_name FROM users WHERE studio_id = $1 AND role = 'customer' AND status <> 'left'`,
-    [admin.studio_id],
+    `SELECT u.id, u.full_name, b.name AS branch_name
+     FROM users u
+     LEFT JOIN group_members gm ON gm.user_id = u.id
+                               AND gm.joined_on <= $2 AND (gm.left_on IS NULL OR $2 < gm.left_on)
+     LEFT JOIN groups g ON g.id = gm.group_id
+     LEFT JOIN branches b ON b.id = g.branch_id
+     WHERE u.studio_id = $1 AND u.role = 'customer' AND u.status <> 'left'`,
+    [admin.studio_id, today],
   );
   const { rows: periods } = await db.query(
     `${MEMBERSHIP_SELECT}
@@ -225,7 +232,7 @@ export async function getPaymentOverview(admin, { db = pool } = {}) {
   const underpaid = [];
   const noMembership = [];
   for (const customer of customers) {
-    const person = { customerId: customer.id, fullName: customer.full_name };
+    const person = { customerId: customer.id, fullName: customer.full_name, branchName: customer.branch_name };
     const own = periods.filter((p) => p.user_id === customer.id);
     if (own.length === 0) {
       noMembership.push(person);

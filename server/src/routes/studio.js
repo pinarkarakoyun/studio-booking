@@ -21,7 +21,8 @@ router.get('/api/studio', async (req, res) => {
   }
   const { rows: [studio] } = await pool.query(
     `
-    SELECT st.name, st.whatsapp_phone, st.brand_color, st.logo_url, st.timezone, ss.credit_validity_days
+    SELECT st.name, st.whatsapp_phone, st.brand_color, st.logo_url, st.timezone, ss.credit_validity_days,
+           (SELECT count(*)::int FROM branches b WHERE b.studio_id = st.id AND b.is_active) AS branch_count
     FROM studios st
     LEFT JOIN studio_settings ss ON ss.studio_id = st.id
     WHERE st.id = $1
@@ -37,6 +38,8 @@ router.get('/api/studio', async (req, res) => {
         logoUrl: studio.logo_url,
         timezone: studio.timezone,
         creditValidityDays: studio.credit_validity_days,
+        // Üye ekranları şube adını yalnızca açık şube sayısı 1'den fazlaysa gösterir.
+        branchCount: studio.branch_count,
       }
       : null,
   });
@@ -76,16 +79,24 @@ export function privacyNotice(value) {
 }
 
 router.get('/api/site', requireStudio, async (req, res) => {
-  const [{ rows: [studio] }, site] = await Promise.all([
+  const [{ rows: [studio] }, { rows: branchRows }, site] = await Promise.all([
     pool.query(
       `SELECT st.name, st.whatsapp_phone, st.logo_url, ss.cancellation_deadline_hours, ss.credit_validity_days
        FROM studios st LEFT JOIN studio_settings ss ON ss.studio_id = st.id
        WHERE st.id = $1`,
       [req.studio.id],
     ),
+    pool.query(
+      'SELECT name, address, maps_url FROM branches WHERE studio_id = $1 AND is_active ORDER BY id',
+      [req.studio.id],
+    ),
     readSiteFile(req.studio.slug),
   ]);
   const instructor = site.instructor ?? {};
+  // Şube adresleri panelden gelir. Geçiş kuralı: hiçbir açık şubenin adresi yokken site bugünkü gibi
+  // site.json'daki adresi gösterir; bir şubeye adres girilince yalnızca şube adresleri kullanılır.
+  const branches = branchRows.map((b) => ({ name: b.name, address: b.address, mapsUrl: b.maps_url }));
+  const useSiteAddress = !branches.some((b) => b.address);
   res.json({
     site: {
       studioName: studio?.name ?? null,
@@ -118,8 +129,9 @@ router.get('/api/site', requireStudio, async (req, res) => {
             .slice(0, 4)
         : [],
       privacyNotice: privacyNotice(site.privacyNotice),
-      address: text(site.address),
-      mapsUrl: text(site.mapsUrl),
+      branches,
+      address: useSiteAddress ? text(site.address) : null,
+      mapsUrl: useSiteAddress ? text(site.mapsUrl) : null,
       instagramUrl: text(site.instagramUrl),
       photos: Array.isArray(site.photos)
         ? site.photos.map((p) => ({ url: brandFile(p?.file), alt: text(p?.alt) ?? '' })).filter((p) => p.url)

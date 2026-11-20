@@ -175,7 +175,10 @@ export default function MySessionsPage({ user, studio, onLogout }) {
       {next ? (
         <section className={styles.next} aria-label="Sıradaki dersin">
           <p className={styles.nextLabel}>{next.myStatus === 'makeup' ? 'Sıradaki dersin (telafi)' : 'Sıradaki dersin'}</p>
-          <p className={styles.nextDay}>{formatDay(next.date)}</p>
+          <p className={styles.nextDay}>
+            {formatDay(next.date)}
+            {studio.branchCount > 1 && next.branchName && ` · ${next.branchName}`}
+          </p>
           <div className={styles.nextBottom}>
             <span className={styles.nextTime}>{formatTime(next.startsAt, timeZone)}</span>
             <button type="button" className={styles.nextButton} onClick={() => setSheetSession(next)}>
@@ -213,6 +216,7 @@ export default function MySessionsPage({ user, studio, onLogout }) {
           <ul className={styles.list}>
             {group.sessions.map((session) => (
               <SessionRow
+                multiBranch={studio.branchCount > 1}
                 key={session.id}
                 session={session}
                 timeZone={timeZone}
@@ -262,9 +266,11 @@ export default function MySessionsPage({ user, studio, onLogout }) {
   );
 }
 
-function SessionRow({ session, timeZone, now, busy, onOpen, onUndo }) {
+function SessionRow({ session, multiBranch, timeZone, now, busy, onOpen, onUndo }) {
+  // Çok şubeli stüdyoda dersin şubesi günün yanında ("Pazartesi 24 Kasım · Kuzey").
+  const dayText = `${formatDay(session.date)}${multiBranch && session.branchName ? ` · ${session.branchName}` : ''}`;
   const time = <span className={styles.time}>{formatTime(session.startsAt, timeZone)}</span>;
-  const day = <span className={styles.day}>{formatDay(session.date)}</span>;
+  const day = <span className={styles.day}>{dayText}</span>;
 
   if (session.status === 'cancelled') {
     return (
@@ -295,7 +301,7 @@ function SessionRow({ session, timeZone, now, busy, onOpen, onUndo }) {
     return (
       <li className={`${styles.row} ${styles.inactive}`}>
         <div>
-          <span className={`${styles.day} ${styles.struck}`}>{formatDay(session.date)}</span>
+          <span className={`${styles.day} ${styles.struck}`}>{dayText}</span>
           <p className={styles.rowNote}>
             İptal ettin.{' '}
             {session.canUndoCancel && !isPast(session.startsAt, now) && (

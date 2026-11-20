@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import pool from '../src/db/pool.js';
+import { openFirstBranch } from '../src/services/adminBranches.js';
 
 if (!process.env.DB_NAME?.endsWith('_test')) {
   throw new Error('Tests must run against a *_test database. Use "npm test".');
@@ -11,7 +12,7 @@ export { pool };
 // RESTART IDENTITY: id'ler yeniden 1'den başlar. CASCADE: bağlı tablolar da boşalır.
 export async function resetDb() {
   await pool.query(`
-    TRUNCATE studios, studio_settings, users, groups, group_days, group_members,
+    TRUNCATE studios, studio_settings, branches, users, groups, group_days, group_members,
              sessions, credits, freezes, user_sessions, memberships, payments
     RESTART IDENTITY CASCADE
   `);
@@ -45,16 +46,37 @@ export async function createStudio(settings = {}) {
       settings.makeupBookingCutoffMinutes ?? 0,
     ],
   );
+  // Uygulamadaki gibi her stüdyo bir şubeyle ("Merkez") açılır.
+  await openFirstBranch(studio.id, pool);
   return studio.id;
 }
 
-export async function createGroup(studioId, { capacity = 3 } = {}) {
+// Stüdyonun ilk açılan şubesi (createStudio'nun açtığı "Merkez").
+export async function defaultBranchId(studioId) {
+  const { rows: [branch] } = await pool.query(
+    'SELECT id FROM branches WHERE studio_id = $1 ORDER BY id LIMIT 1',
+    [studioId],
+  );
+  return branch.id;
+}
+
+// Stüdyoya ek bir şube açar (çok şubeli senaryolar için).
+export async function createBranch(studioId, { name = 'B Şubesi', address = null, isActive = true } = {}) {
+  const { rows: [branch] } = await pool.query(
+    'INSERT INTO branches (studio_id, name, address, is_active) VALUES ($1, $2, $3, $4) RETURNING id',
+    [studioId, name, address, isActive],
+  );
+  return branch.id;
+}
+
+// branchId verilmezse grup stüdyonun ilk şubesine bağlanır.
+export async function createGroup(studioId, { capacity = 3, branchId } = {}) {
   const { rows: [group] } = await pool.query(
     `
-    INSERT INTO groups (studio_id, name, start_time, duration_minutes, capacity)
-    VALUES ($1, 'G', '09:00', 60, $2) RETURNING id
+    INSERT INTO groups (studio_id, branch_id, name, start_time, duration_minutes, capacity)
+    VALUES ($1, $2, 'G', '09:00', 60, $3) RETURNING id
     `,
-    [studioId, capacity],
+    [studioId, branchId ?? (await defaultBranchId(studioId)), capacity],
   );
   return group.id;
 }

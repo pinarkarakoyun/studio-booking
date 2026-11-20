@@ -21,6 +21,7 @@ const SESSIONS_WITH_MY_STATUS = `
          s.cancel_reason,
          g.name AS group_name,
          g.duration_minutes,
+         b.name AS branch_name,
          o.capacity,
          o.booked_count,
          GREATEST(o.free_spots, 0) AS free_spots,
@@ -38,11 +39,18 @@ const SESSIONS_WITH_MY_STATUS = `
          END AS my_status
   FROM sessions s
   JOIN groups g             ON g.id = s.group_id
+  JOIN branches b           ON b.id = g.branch_id
   JOIN studios st           ON st.id = g.studio_id
   JOIN studio_settings ss   ON ss.studio_id = st.id
   JOIN session_occupancy o  ON o.session_id = s.id
   CROSS JOIN LATERAL (
     SELECT
+      -- Üyenin bu dersin tarihindeki şubesi: o gün üyesi olduğu grubun şubesi (grubu yoksa NULL).
+      -- Grup değiştiren üyede geçişten önceki günler eski, sonraki günler yeni şube sayılır.
+      (SELECT mg.branch_id FROM group_members mgm JOIN groups mg ON mg.id = mgm.group_id
+       WHERE mgm.user_id = $1
+         AND mgm.joined_on <= s.date AND (mgm.left_on IS NULL OR s.date < mgm.left_on)
+       LIMIT 1) AS my_branch_id,
       EXISTS (SELECT 1 FROM group_members gm
               WHERE gm.user_id = $1 AND gm.group_id = s.group_id
                 AND gm.joined_on <= s.date AND (gm.left_on IS NULL OR s.date < gm.left_on)) AS is_member,
@@ -65,6 +73,7 @@ function toSessionDto(row) {
     status: row.session_status,
     cancelReason: row.cancel_reason,
     groupName: row.group_name,
+    branchName: row.branch_name,
     durationMinutes: row.duration_minutes,
     capacity: row.capacity,
     bookedCount: row.booked_count,
@@ -95,13 +104,17 @@ export async function listMySessions(user, { db = pool } = {}) {
 
 // Telafi seçilebilecek dersler: stüdyonun rezervasyon penceresindeki tüm planlı dersler.
 // Dolu olanlar da listede (freeSpots = 0); ekran onları "dolu" diye gösterebilir.
+// Şubeler: "diğer şubelerde telafi" kapalıysa yalnızca üyenin o günkü şubesinin dersleri (grubu olmayan üye
+// hepsini görür; kendi şubesi yok). Açıkken hepsi; aynı gün içinde üyenin kendi şubesinin dersleri önce gelir.
+// Liste yalnızca kolaylık: asıl kural rezervasyonda sunucuda uygulanır (booking.js, OTHER_BRANCH).
 export async function listBookableSessions(user, { db = pool } = {}) {
   const { rows } = await db.query(
     `
     ${SESSIONS_WITH_MY_STATUS}
       AND s.status = 'scheduled'
       AND s.date <= (now() AT TIME ZONE st.timezone)::date + ss.booking_window_days
-    ORDER BY s.starts_at
+      AND (ss.makeup_other_branches OR me.my_branch_id IS NULL OR g.branch_id = me.my_branch_id)
+    ORDER BY s.date, COALESCE(g.branch_id = me.my_branch_id, false) DESC, s.starts_at
     `,
     [user.id, user.studio_id],
   );

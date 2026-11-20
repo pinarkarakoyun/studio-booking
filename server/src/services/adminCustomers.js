@@ -36,7 +36,7 @@ async function withTransaction(db, work) {
 // o tarihe kadar hâlâ eski grubundadır.
 const CUSTOMER_SELECT = `
   SELECT u.id, u.full_name, u.phone, u.status,
-         g.id AS group_id, g.name AS group_name,
+         g.id AS group_id, g.name AS group_name, gb.name AS branch_name,
          ng.id AS next_group_id, ng.name AS next_group_name, ngm.joined_on AS next_group_starts_on,
          fz.starts_on AS freeze_starts_on, fz.ends_on AS freeze_ends_on,
          (fz.starts_on IS NOT NULL AND fz.starts_on <= today.date) AS is_frozen,
@@ -49,6 +49,8 @@ const CUSTOMER_SELECT = `
   LEFT JOIN group_members gm ON gm.user_id = u.id
                             AND gm.joined_on <= today.date AND (gm.left_on IS NULL OR today.date < gm.left_on)
   LEFT JOIN groups g ON g.id = gm.group_id
+  -- Üyenin şubesi bugünkü grubundan gelir (üyeye ayrı şube alanı yok).
+  LEFT JOIN branches gb ON gb.id = g.branch_id
   LEFT JOIN LATERAL (
     SELECT m.group_id, m.joined_on FROM group_members m
     WHERE m.user_id = u.id AND m.joined_on > today.date
@@ -80,6 +82,7 @@ function toCustomerDto(row) {
       ? { startsOn: row.freeze_starts_on, endsOn: row.freeze_ends_on, active: row.is_frozen }
       : null,
     unusedCredits: row.unused_credits,
+    branchName: row.branch_name,
   };
 }
 

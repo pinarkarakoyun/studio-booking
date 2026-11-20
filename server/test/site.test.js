@@ -27,7 +27,7 @@ describe('public site content', () => {
     assert.deepEqual(res.body.site.photos, []);
     const keys = Object.keys(res.body.site).sort();
     assert.deepEqual(keys, [
-      'address', 'equipment', 'groupSize', 'instagramUrl', 'instructor', 'logoUrl', 'mapsUrl', 'phone', 'photos', 'privacyNotice',
+      'address', 'branches', 'equipment', 'groupSize', 'instagramUrl', 'instructor', 'logoUrl', 'mapsUrl', 'phone', 'photos', 'privacyNotice',
       'reasons', 'rules', 'studioName', 'subline', 'tagline', 'whatsappPhone', 'workingHours',
     ]);
     // Sadece iki kural; diğer ayarlar (ör. aylık telafi sınırı) sızmaz.

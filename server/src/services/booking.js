@@ -33,8 +33,8 @@ async function withTransaction(db, work) {
 async function loadSession(client, sessionId, userId, { lock = false } = {}) {
   const { rows } = await client.query(
     `
-    SELECT s.id, s.group_id, s.date, s.starts_at, s.status, g.studio_id,
-           ss.credit_validity_days, ss.refund_credit_on_makeup_cancel, ss.max_makeups_per_month,
+    SELECT s.id, s.group_id, s.date, s.starts_at, s.status, g.studio_id, g.branch_id,
+           ss.makeup_other_branches, ss.credit_validity_days, ss.refund_credit_on_makeup_cancel, ss.max_makeups_per_month,
            ss.allow_undo_cancel, ss.allow_makeup_before_missed,
            st.timezone,
            s.starts_at > now() AS is_future,
@@ -72,6 +72,24 @@ async function assertActiveUserOfStudio(client, userId, session) {
   }
   if (rows[0].status !== 'active') {
     throw new BookingError('USER_NOT_ACTIVE', 'Hesabın aktif değil.');
+  }
+}
+
+// "Diğer şubelerde telafi" kapalıysa üye yalnızca dersin tarihindeki kendi şubesinin dersine telafi yazdırabilir
+// (şubesi o gün üyesi olduğu grubundan gelir). Grubu olmayan üyenin şubesi yok, sınırlanmaz. Telafi listesi bu
+// dersleri zaten göstermez; bu kontrol isteği elle gönderen için. Yönetici "derse kişi ekle"de bu kurala takılmaz.
+async function assertBranchAllowed(client, userId, session) {
+  if (session.makeup_other_branches) return;
+  const { rows: [own] } = await client.query(
+    `
+    SELECT g.branch_id FROM group_members gm JOIN groups g ON g.id = gm.group_id
+    WHERE gm.user_id = $1 AND gm.joined_on <= $2 AND (gm.left_on IS NULL OR $2 < gm.left_on)
+    LIMIT 1
+    `,
+    [userId, session.date],
+  );
+  if (own && own.branch_id !== session.branch_id) {
+    throw new BookingError('OTHER_BRANCH', 'Bu ders başka bir şubede.');
   }
 }
 
@@ -159,6 +177,7 @@ async function bookMakeupInTransaction(client, userId, targetSessionId) {
   // Önce kilit: aynı derse aynı anda gelen ikinci istek burada bekler ve kapasiteyi
   // ilk işlem bittikten sonraki güncel haliyle görür.
   const target = await loadSession(client, targetSessionId, userId, { lock: true });
+  await assertBranchAllowed(client, userId, target);
   if (!target.is_future) {
     throw new BookingError('SESSION_STARTED', 'Bu ders başladı veya geçti.');
   }

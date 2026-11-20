@@ -6,7 +6,7 @@ import { formatDateDayMonth } from '../format.js';
 import { WEEKDAYS } from './groupDays.js';
 import styles from './Admin.module.css';
 
-export default function GroupDetailPage({ groupId, initialNotice = null, onBack, onEdit, onOpenCustomer }) {
+export default function GroupDetailPage({ studio, groupId, initialNotice = null, onBack, onEdit, onOpenCustomer }) {
   const [group, setGroup] = useState(null);
   const [error, setError] = useState(null);
   const [closing, setClosing] = useState(false);
@@ -61,6 +61,7 @@ export default function GroupDetailPage({ groupId, initialNotice = null, onBack,
     <main className={styles.page}>
       {back}
       <h1 className={styles.rosterTitle}>{group.name}</h1>
+      {studio.branchCount > 1 && <p className={styles.muted}>{group.branch.name}</p>}
 
       <div className={styles.days} aria-label="Günler">
         {WEEKDAYS.map((day) => (

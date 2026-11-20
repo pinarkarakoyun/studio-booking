@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { api } from '../api.js';
 import Button from '../components/Button.jsx';
 import TextField from '../components/TextField.jsx';
@@ -39,13 +39,21 @@ const FIELD_FOR_CODE = {
   INVALID_DURATION: 'durationMinutes',
   INVALID_CAPACITY: 'capacity',
   INVALID_DATE: 'effectiveFrom',
+  BRANCH_REQUIRED: 'branchId',
+  BRANCH_NOT_FOUND: 'branchId',
+  BRANCH_CLOSED: 'branchId',
 };
 
 // group verilmezse "Yeni grup", verilirse "Grubu düzenle".
-export default function GroupFormPage({ studio, group, onCancel, onSaved }) {
+export default function GroupFormPage({ studio, group, onStudioChange, onCancel, onSaved }) {
   const today = todayIn(studio.timezone);
+  // Şube seçimi yalnızca çok şubeli stüdyoda; tek şubede sunucu grubu o şubeye bağlar.
+  const multiBranch = studio.branchCount > 1;
+  const branchFieldId = useId();
+  const [branches, setBranches] = useState(null);
   const [form, setForm] = useState({
     name: group?.name ?? '',
+    branchId: group?.branch ? String(group.branch.id) : '',
     weekdays: group?.weekdays ?? [],
     startTime: group?.startTime ?? '09:00',
     durationMinutes: String(group?.durationMinutes ?? 50),
@@ -64,8 +72,12 @@ export default function GroupFormPage({ studio, group, onCancel, onSaved }) {
   const memberCount = group?.members.length ?? 0;
   const capacityBelowMembers = capacityChanged && Number(form.capacity) >= 1 && Number(form.capacity) < memberCount;
 
+  const branchChanged = Boolean(group) && multiBranch && form.branchId !== String(group.branch.id);
+
   const body = {
     name: form.name,
+    // Tek şubede hiç gönderilmez (düzenlemede şube değişmez, yeni grupta sunucu tek şubeyi seçer).
+    branchId: multiBranch ? (form.branchId ? Number(form.branchId) : null) : undefined,
     weekdays,
     startTime: form.startTime,
     durationMinutes: Number(form.durationMinutes),
@@ -90,6 +102,15 @@ export default function GroupFormPage({ studio, group, onCancel, onSaved }) {
 
   const shownPreview = scheduleChanged && preview?.key === previewKey ? preview : null;
 
+  // Açık şubeler (seçim kutusu için).
+  useEffect(() => {
+    if (!multiBranch) return;
+    api('/api/admin/branches').then(
+      ({ branches: list }) => setBranches(list.filter((branch) => branch.isActive)),
+      (err) => setErrors((current) => ({ ...current, branchId: err.message })),
+    );
+  }, [multiBranch]);
+
   function update(field) {
     return (event) => {
       setForm((current) => ({ ...current, [field]: event.target.value }));
@@ -113,14 +134,29 @@ export default function GroupFormPage({ studio, group, onCancel, onSaved }) {
     try {
       if (group) {
         const summary = await api(`/api/admin/groups/${group.id}`, { method: 'PUT', body });
-        onSaved(group.id, summary.scheduleChanged ? `Kaydedildi. ${describe(summary, { done: true })}` : 'Kaydedildi.');
+        const branchNote = summary.branchChange ? ` Şube: ${summary.branchChange.from} → ${summary.branchChange.to}.` : '';
+        onSaved(
+          group.id,
+          (summary.scheduleChanged ? `Kaydedildi. ${describe(summary, { done: true })}` : 'Kaydedildi.') + branchNote,
+        );
       } else {
         const result = await api('/api/admin/groups', { method: 'POST', body });
         onSaved(result.groupId, 'Grup oluşturuldu, önümüzdeki dersleri hazır.');
       }
     } catch (err) {
       const field = FIELD_FOR_CODE[err.code] ?? 'form';
-      setErrors({ [field]: err.message });
+      if (field === 'branchId' && !multiBranch) {
+        // Bu ekran tek şube sanıyor ama sunucuda artık birden çok şube var (ör. başka bir cihazdan şube açıldı).
+        // Şube alanı hiç çizilmediği için hata görünmezdi: mesajı formun altına yaz ve şube sayısını tazele ki
+        // şube seçimi belirsin.
+        setErrors({ form: 'Şubeler değişmiş. Şube seçip yeniden dene.' });
+        api('/api/studio').then(
+          ({ studio: fresh }) => fresh && onStudioChange({ branchCount: fresh.branchCount }),
+          () => {},
+        );
+      } else {
+        setErrors({ [field]: err.message });
+      }
       setBusy(false);
     }
   }
@@ -134,6 +170,30 @@ export default function GroupFormPage({ studio, group, onCancel, onSaved }) {
 
       <form onSubmit={submit} noValidate>
         <TextField label="Grup adı" value={form.name} onChange={update('name')} error={errors.name} placeholder="Pzt-Çar-Cum sabah" />
+
+        {multiBranch && (
+          <div className={fieldStyles.field}>
+            <label htmlFor={branchFieldId} className={fieldStyles.label}>
+              Şube
+            </label>
+            <div className={`${fieldStyles.control} ${errors.branchId ? fieldStyles.invalid : ''}`}>
+              <select id={branchFieldId} className={fieldStyles.input} value={form.branchId} onChange={update('branchId')}>
+                <option value="">Şube seç</option>
+                {branches?.map((branch) => (
+                  <option key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {errors.branchId && <p className={fieldStyles.error}>{errors.branchId}</p>}
+          </div>
+        )}
+        {branchChanged && (
+          <div className={styles.warning} role="status">
+            <p>Şube değişikliği hemen geçerli olur; grubun geçmiş dersleri de yeni şubede görünür.</p>
+          </div>
+        )}
 
         <fieldset className={styles.dayPicker}>
           <legend className={fieldStyles.label}>Günler</legend>
