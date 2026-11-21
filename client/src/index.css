@@ -6,31 +6,31 @@
 */
 :root {
   /* Renkler */
-  --brand: #3f21b5; /* ana renk: seçili sekme, koyu kart, odak halkası */
-  --brand-strong: #24104a; /* en koyu yüzey: koyu bantlar, yan menü */
-  --brand-soft: #f1e9ff; /* ana rengin açık yüzeyi (doluluk çubuğunun boş kısmı gibi) */
-  --on-brand: #ffffff; /* ana renk ve koyu yüzey üstündeki yazı */
-  --on-brand-soft: #d9cff5; /* koyu yüzeyde ikincil yazı */
-  --accent: #ff4f9a; /* vurgu */
-  --accent-text: #e0307f; /* vurgu rengindeki yazı: açık zeminde okunabilsin diye biraz koyu */
-  --accent-hover: #f23c8b;
-  --accent-disabled: #ff86ba;
-  --surface: #fffbfc; /* sayfa zemini */
-  --surface-raised: #ffffff; /* kart yüzeyi */
-  --surface-sunken: #fbf0f3; /* gömük yüzey: sekme çubuğu zemini, bilgi kutusu */
-  --ink: #22163f; /* ana yazı rengi */
-  --ink-soft: #5e5379; /* ikincil yazı */
-  --ink-faint: #9a90b3; /* pasif, soluk yazı */
-  --line: #f1e4e8; /* ince çizgiler, kenarlıklar */
-  --line-strong: #e8d9df; /* alan ve kart kenarlıkları */
-  --warning: #c2185b; /* dikkat isteyen kısa uyarı yazısı */
-  --control-off: #d9cfdc; /* kapalı anahtar */
-  --danger: #b4233c;
+  --brand: #4b5530; /* ana renk: seçili sekme, koyu kart, odak halkası */
+  --brand-strong: #2f361d; /* en koyu yüzey: koyu bantlar, yan menü */
+  --brand-soft: #dce0cc; /* ana rengin açık yüzeyi (doluluk çubuğunun boş kısmı gibi) */
+  --on-brand: #f5f0e6; /* ana renk ve koyu yüzey üstündeki yazı */
+  --on-brand-soft: #e9e6d8; /* koyu yüzeyde ikincil yazı */
+  --accent: #826330; /* vurgu */
+  --accent-text: #7a5c2b; /* vurgu rengindeki yazı: açık zeminde okunabilsin diye biraz koyu */
+  --accent-hover: #765a2b;
+  --accent-disabled: #c4ab7f;
+  --surface: #f5f0e6; /* sayfa zemini */
+  --surface-raised: #fbf8f2; /* kart yüzeyi */
+  --surface-sunken: #e8e3d6; /* gömük yüzey: sekme çubuğu zemini, bilgi kutusu */
+  --ink: #2f361d; /* ana yazı rengi */
+  --ink-soft: #5c5a4e; /* ikincil yazı */
+  --ink-faint: #868372; /* pasif, soluk yazı */
+  --line: #e2ddcf; /* ince çizgiler, kenarlıklar */
+  --line-strong: #c9c6b4; /* alan ve kart kenarlıkları */
+  --warning: #9a5b16; /* dikkat isteyen kısa uyarı yazısı */
+  --control-off: #cfcab8; /* kapalı anahtar */
+  --danger: #8a2e1e;
   --on-danger: #ffffff;
 
   /* Yazı tipleri */
   --font-brand: 'Cormorant Garamond', Georgia, serif;
-  --font-ui: 'Archivo Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-ui: 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
 
   /* Yazı boyutları: 16px tabanlı, telefonda rahat okunacak ölçek */
   --text-sm: 0.8125rem; /* 13px */
