@@ -43,7 +43,7 @@ Pınar dalı açar:
 git switch -c feat/ui-panels
 ```
 
-### Görev 1: Değişkenleri anlamlı adlara çevirme (görünüm aynı)
+### Task 1 (Görev 1): Değişkenleri anlamlı adlara çevirme (görünüm aynı)
 
 **Files:**
 - Modify: `client/src/index.css:7-60` (`:root`)
@@ -99,7 +99,7 @@ git add client/src
 git commit -m "refactor(client): rename CSS variables to role-based names"
 ```
 
-### Görev 2: Varsayılan krem/zeytin palet ve yazı tipleri
+### Task 2 (Görev 2): Varsayılan krem/zeytin palet ve yazı tipleri
 
 **Files:**
 - Modify: `client/src/index.css` (değerler, `--font-ui`)
@@ -141,7 +141,7 @@ git add client/package.json client/package-lock.json client/src/index.css client
 git commit -m "feat(client): cream and olive default palette, DM Sans"
 ```
 
-### Görev 3: Ortak bileşenler (Toast, Button, Sheet, TextField, Monogram, hareket)
+### Task 3 (Görev 3): Ortak bileşenler (Toast, Button, Sheet, TextField, Monogram, hareket)
 
 **Files:**
 - Create: `client/src/components/Toast.jsx`, `client/src/components/Toast.module.css`
@@ -179,7 +179,7 @@ git add client/src/components client/src/index.css client/src/pages/MySessionsPa
 git commit -m "feat(client): shared Toast and restyled Button, Sheet, TextField"
 ```
 
-### Görev 4: Üye paneli (Derslerim)
+### Task 4 (Görev 4): Üye paneli (Derslerim)
 
 **Files:**
 - Create: `client/src/pages/MembershipSummary.jsx` (koyu üyelik kartı; `MySessionsPage.jsx`'teki `MembershipInfo`, `packageLine` ve telafi kutusu buraya taşınır), `client/src/pages/PackageRing.jsx`
@@ -220,7 +220,7 @@ git add client/src/pages
 git commit -m "feat(member): prototype look for My sessions, package ring, late-cancel confirm"
 ```
 
-### Görev 5: Telafi seçme ekranı ve giriş ekranları
+### Task 5 (Görev 5): Telafi seçme ekranı ve giriş ekranları
 
 **Files:**
 - Modify: `client/src/pages/MakeupPickerPage.jsx`, `MakeupPickerPage.module.css`
@@ -237,7 +237,7 @@ git add client/src/pages client/src/App.jsx client/src/site/HostMessage.module.c
 git commit -m "feat(client): prototype look for makeup picker and sign-in screens"
 ```
 
-### Görev 6: Yönetici kabuğu, Bugün ve ders detayı
+### Task 6 (Görev 6): Yönetici kabuğu, Bugün ve ders detayı
 
 **Files:**
 - Modify: `client/src/admin/AdminApp.jsx:120-159`, `client/src/admin/Admin.module.css`
@@ -258,7 +258,7 @@ git add client/src/admin
 git commit -m "feat(admin): sidebar shell, Today stats and roster in prototype look"
 ```
 
-### Görev 7: Müşteriler, müşteri detayı, yeni müşteri, giriş bilgileri
+### Task 7 (Görev 7): Müşteriler, müşteri detayı, yeni müşteri, giriş bilgileri
 
 **Files:**
 - Modify: `client/src/admin/{CustomersPage,CustomerDetailPage,NewCustomerPage,CredentialsPage,MembershipCard}.jsx`, `Admin.module.css`
@@ -274,7 +274,7 @@ git add client/src/admin
 git commit -m "feat(admin): customers table and detail screens in prototype look"
 ```
 
-### Görev 8: Gruplar, Ödemeler, Ayarlar
+### Task 8 (Görev 8): Gruplar, Ödemeler, Ayarlar
 
 **Files:**
 - Modify: `client/src/admin/{GroupsPage,GroupDetailPage,GroupFormPage,PaymentsPage,SettingsPage,BranchesSection,PackagesSection}.jsx`, `Admin.module.css`
@@ -290,7 +290,7 @@ git add client/src/admin
 git commit -m "feat(admin): groups, payments and settings in prototype look"
 ```
 
-### Görev 9: PR 1 son kontrol, README, PR
+### Task 9 (Görev 9): PR 1 son kontrol, README, PR
 
 **Files:**
 - Modify: `README.md` (İngilizce: "UI" bölümü — role-based CSS variables, default palette, theme override, toast/sheet conventions; yol haritası kutusu işaretlenmez, PR 2 sonrası)
@@ -324,7 +324,7 @@ git pull
 git switch -c feat/ui-site
 ```
 
-### Görev 10: `/api/site` yeni alanlar (TDD)
+### Task 10 (Görev 10): `/api/site` yeni alanlar (TDD)
 
 **Files:**
 - Modify: `server/src/routes/studio.js:84-150`
@@ -357,7 +357,7 @@ git add server/src/routes/studio.js server/site.example.json server/test/site.te
 git commit -m "feat(site): read courses, quiz, spotlight, branch details and stats from site.json"
 ```
 
-### Görev 11: Site iskeleti: menü, hero, kayan bant, altbilgi, WhatsApp
+### Task 11 (Görev 11): Site iskeleti: menü, hero, kayan bant, altbilgi, WhatsApp
 
 **Files:**
 - Modify: `client/src/site/PublicSite.jsx` (baştan), `PublicSite.module.css` (baştan; Görev 1'deki geçici `--site-*` değişkenleri kalkar), `SiteNav.jsx`
@@ -381,7 +381,7 @@ git add client/package.json client/package-lock.json client/src
 git commit -m "feat(site): new site shell with hero, marquee, footer and WhatsApp button"
 ```
 
-### Görev 12: Neden biz, Dersler, test, öne çıkan program
+### Task 12 (Görev 12): Neden biz, Dersler, test, öne çıkan program
 
 **Files:**
 - Create: `client/src/site/{Reasons,Courses,Quiz,Spotlight}.jsx` (stiller `PublicSite.module.css`'te ya da her birinin kendi modülünde — mevcut kalıba göre)
@@ -404,7 +404,7 @@ git add client/src/site
 git commit -m "feat(site): reasons, courses, class quiz and spotlight sections"
 ```
 
-### Görev 13: Şubeler, eğitmen, Nasıl işler, SSS, aydınlatma sayfası
+### Task 13 (Görev 13): Şubeler, eğitmen, Nasıl işler, SSS, aydınlatma sayfası
 
 **Files:**
 - Create: `client/src/site/{Branches,Instructor}.jsx`
@@ -426,7 +426,7 @@ git add client/src/site
 git commit -m "feat(site): branches, instructor, model-aware how-it-works and FAQ"
 ```
 
-### Görev 14: İçerik, son kontrol, README, PR
+### Task 14 (Görev 14): İçerik, son kontrol, README, PR
 
 **Files:**
 - Modify (repo dışı): `~/Documents/02 Projeler/studio-booking-brands/tua/site.json` (prototipteki metinler: hero, dersler, test, öne çıkan program, şube ayrıntıları, sayılar; "Telafi hakkı" kartı Tua'nın modeline göre düzeltilir), `~/Documents/02 Projeler/studio-booking-notes/marka/demo/site.json` (deneme için birkaç alan)
