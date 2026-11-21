@@ -98,11 +98,12 @@ describe('which sessions count', () => {
     assert.deepEqual(await ids(customer), []);
   });
 
-  // Ders 60 dakika: yarım saat önce başlayan ders henüz bitmedi.
+  // Ders 60 dakika: yarım saat önce başlayan ders henüz bitmedi; gelecekteki ders de sayılmaz.
+  // Gelecekteki ders 2 gün sonra: grubun günde tek dersi olabildiğinden ikisi hiçbir saatte aynı güne düşmemeli.
   test('a session in progress is not counted yet', async () => {
     const { group, customer } = await setup();
     await createSession(group, -0.5 * HOUR);
-    await createSession(group, 5 * HOUR);
+    await createSession(group, 2 * DAY);
     assert.deepEqual(await ids(customer), []);
   });
 
