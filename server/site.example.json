@@ -1,4 +1,5 @@
 {
+  "hero": { "eyebrow": "Nefes al, güçlen" },
   "tagline": "Şehrinde kadınlara özel reformer pilates",
   "subline": "Küçük gruplar, sana göre bir program.",
   "instructor": {
@@ -22,6 +23,64 @@
   "reasons": [
     { "title": "Küçük gruplar", "text": "Eğitmen herkesi tek tek görür." },
     { "title": "Telafi hakkı", "text": "Kaçırdığın dersi başka bir güne al." }
+  ],
+  "courses": [
+    { "title": "Reformer", "text": "Aletle, küçük grupta, tüm vücut çalışması.", "highlight": true, "link": "test" },
+    { "title": "Mat pilates", "text": "Kendi ağırlığınla temel güç ve esneklik." },
+    { "title": "Özel ders", "text": "Eğitmenle birebir, sana göre program." }
+  ],
+  "quiz": {
+    "title": "Sana hangi ders uygun?",
+    "intro": "İki soruyu cevapla, sana uygun dersi önerelim.",
+    "questions": [
+      {
+        "id": "deneyim",
+        "text": "Daha önce pilates yaptın mı?",
+        "options": [
+          { "label": "Hiç yapmadım", "next": "hedef" },
+          { "label": "Evet, düzenli", "result": "reformer" }
+        ]
+      },
+      {
+        "id": "hedef",
+        "text": "En çok ne istiyorsun?",
+        "options": [
+          { "label": "Temelden başlamak", "result": "mat" },
+          { "label": "Birebir ilgi", "result": "ozel" }
+        ]
+      }
+    ],
+    "results": [
+      { "id": "reformer", "title": "Reformer", "text": "Küçük grupta aletle ilerlemek sana uygun." },
+      { "id": "mat", "title": "Mat pilates", "text": "Temel hareketlerle güvenli bir başlangıç." },
+      { "id": "ozel", "title": "Özel ders", "text": "Eğitmenle birebir, sana özel bir program." }
+    ]
+  },
+  "spotlight": {
+    "eyebrow": "Öne çıkan program",
+    "title": "Yeni başlayanlar programı",
+    "text": "Dört haftada temel hareketleri öğren, sonra gruplara katıl.",
+    "photo": "program.jpg",
+    "tabs": [
+      { "label": "1. hafta", "meta": "2 ders", "title": "Temeller", "items": ["Nefes", "Duruş", "Merkez kaslar"] },
+      { "label": "2. hafta", "meta": "2 ders", "title": "Akış", "items": ["Reformer'a giriş", "Esneme"] }
+    ]
+  },
+  "stats": [
+    { "value": "8", "label": "Yıllık deneyim" },
+    { "value": "500+", "label": "Mutlu üye" },
+    { "value": "6", "label": "Kişilik gruplar" }
+  ],
+  "branchDetails": [
+    {
+      "name": "Merkez",
+      "badge": "Ana şube",
+      "description": "Şubenin kısa tanıtımı.",
+      "schedule": [
+        { "day": "Pazartesi", "classes": "09:00 Reformer · 19:00 Mat" },
+        { "day": "Çarşamba", "classes": "09:00 Reformer" }
+      ]
+    }
   ],
   "privacyNotice": {
     "_not": "TASLAK ŞABLON. Aydınlatma Yükümlülüğü Tebliği m.4'teki unsurlara göre hazırlandı: veri sorumlusunun kimliği, işleme amaçları, aktarılan alıcılar ve aktarım amacı, toplama yöntemi ve hukuki sebep, m.11 hakları. Yayına almadan önce köşeli parantezleri stüdyonun bilgileriyle doldur, sistemin gerçekte tuttuğu verilerle karşılaştır ve mümkünse bir hukukçuya kontrol ettir. Bu alan sitede gösterilmez.",

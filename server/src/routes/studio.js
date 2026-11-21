@@ -83,6 +83,99 @@ export function privacyNotice(value) {
   return { updatedOn, sections };
 }
 
+// Dizi alanlarını güvenli okur: dizi değilse boş dizi, en fazla `max` öğe.
+const list = (value, max) => (Array.isArray(value) ? value.slice(0, max) : []);
+
+// Ders kartları. `link` yalnızca sayfa içi bölüm kimliği olabilir ("test" gibi): başka adres ya da
+// "javascript:" bağlantısı siteye giremez.
+const SECTION_ID = /^[a-z][a-z-]{0,30}$/;
+export function readCourses(site) {
+  return (Array.isArray(site.courses) ? site.courses : [])
+    .map((c) => ({
+      title: text(c?.title),
+      text: text(c?.text),
+      highlight: c?.highlight === true,
+      link: typeof c?.link === 'string' && SECTION_ID.test(c.link) ? c.link : null,
+    }))
+    .filter((c) => c.title && c.text)
+    .slice(0, 6);
+}
+
+// "Sana hangi ders uygun?" testi. Her seçenek ya sonraki bir soruya (next) ya da bir sonuca (result) gider,
+// ikisine birden değil. Yalnızca ileri gidilebildiği için test döngüye giremez ve her yol bir sonuçla biter.
+// Sorular sondan başa okunur: böylece seçeneği kalmadığı için atılan bir soruya giden seçenek de atılır.
+export function readQuiz(site) {
+  const quiz = site.quiz;
+  if (!quiz || typeof quiz !== 'object') return null;
+  const results = list(quiz.results, 6)
+    .map((r) => ({ id: text(r?.id), title: text(r?.title), text: text(r?.text) }))
+    .filter((r) => r.id && r.title && r.text);
+  const resultIds = new Set(results.map((r) => r.id));
+  const questions = list(quiz.questions, 5).map((q) => ({ id: text(q?.id), text: text(q?.text), options: q?.options }));
+  if (results.length === 0 || !questions[0]?.id || !questions[0]?.text) return null;
+
+  const kept = [];
+  const laterIds = new Set();
+  for (const question of [...questions].reverse()) {
+    if (!question.id || !question.text || laterIds.has(question.id)) continue;
+    const options = list(question.options, 4)
+      .map((o) => ({ label: text(o?.label), next: text(o?.next), result: text(o?.result) }))
+      .filter((o) => o.label && (o.next ? !o.result && laterIds.has(o.next) : resultIds.has(o.result)));
+    if (options.length === 0) continue;
+    kept.unshift({ id: question.id, text: question.text, options });
+    laterIds.add(question.id);
+  }
+  // İlk soru atıldıysa test başlayamaz.
+  if (kept[0]?.id !== questions[0].id) return null;
+  return { title: text(quiz.title), intro: text(quiz.intro), questions: kept, results };
+}
+
+// Öne çıkan program: başlığı yoksa bölüm yok.
+export function readSpotlight(site) {
+  const s = site.spotlight;
+  if (!text(s?.title)) return null;
+  return {
+    eyebrow: text(s.eyebrow),
+    title: text(s.title),
+    text: text(s.text),
+    photoUrl: brandFile(s.photo),
+    tabs: list(s.tabs, 4)
+      .map((tab) => ({
+        label: text(tab?.label),
+        meta: text(tab?.meta),
+        title: text(tab?.title),
+        items: list(tab?.items, 6).map(text).filter(Boolean),
+      }))
+      .filter((tab) => tab.label && tab.title),
+  };
+}
+
+// Eğitmen bölümündeki sayı kartları ("12" yıl, "500+" üye gibi): en fazla üç, kısa değerler.
+export function readStats(site) {
+  return (Array.isArray(site.stats) ? site.stats : [])
+    .map((s) => ({ value: text(s?.value), label: text(s?.label) }))
+    .filter((s) => s.value && s.label && s.value.length <= 12)
+    .slice(0, 3);
+}
+
+// Şubelerin sitedeki ek bilgileri (rozet, açıklama, haftalık program) site.json'da şube adıyla yazılır;
+// panelde öyle bir şube yoksa bilgi hiç kullanılmaz.
+export function branchDetailsByName(site) {
+  const byName = new Map();
+  for (const d of Array.isArray(site.branchDetails) ? site.branchDetails : []) {
+    const name = text(d?.name);
+    if (!name || byName.has(name)) continue;
+    byName.set(name, {
+      badge: text(d.badge),
+      description: text(d.description),
+      schedule: list(d.schedule, 7)
+        .map((row) => ({ day: text(row?.day), classes: text(row?.classes) }))
+        .filter((row) => row.day && row.classes),
+    });
+  }
+  return byName;
+}
+
 router.get('/api/site', requireStudio, async (req, res) => {
   const [{ rows: [studio] }, { rows: branchRows }, site] = await Promise.all([
     pool.query(
@@ -100,7 +193,13 @@ router.get('/api/site', requireStudio, async (req, res) => {
   const instructor = site.instructor ?? {};
   // Şube adresleri panelden gelir. Geçiş kuralı: hiçbir açık şubenin adresi yokken site bugünkü gibi
   // site.json'daki adresi gösterir; bir şubeye adres girilince yalnızca şube adresleri kullanılır.
-  const branches = branchRows.map((b) => ({ name: b.name, address: b.address, mapsUrl: b.maps_url }));
+  const details = branchDetailsByName(site);
+  const branches = branchRows.map((b) => ({
+    name: b.name,
+    address: b.address,
+    mapsUrl: b.maps_url,
+    ...(details.get(b.name) ?? { badge: null, description: null, schedule: [] }),
+  }));
   const useSiteAddress = !branches.some((b) => b.address);
   res.json({
     site: {
@@ -116,6 +215,7 @@ router.get('/api/site', requireStudio, async (req, res) => {
       workingHours: text(site.workingHours),
       groupSize: text(site.groupSize),
       equipment: text(site.equipment),
+      hero: { eyebrow: text(site.hero?.eyebrow) },
       tagline: text(site.tagline),
       subline: text(site.subline),
       instructor: {
@@ -133,6 +233,10 @@ router.get('/api/site', requireStudio, async (req, res) => {
             .filter((r) => r.title && r.text)
             .slice(0, 4)
         : [],
+      courses: readCourses(site),
+      quiz: readQuiz(site),
+      spotlight: readSpotlight(site),
+      stats: readStats(site),
       privacyNotice: privacyNotice(site.privacyNotice),
       branches,
       address: useSiteAddress ? text(site.address) : null,
