@@ -31,6 +31,8 @@
   /* Yazı tipleri */
   --font-brand: 'Cormorant Garamond', Georgia, serif;
   --font-ui: 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* El yazısı üst başlık: yalnızca tanıtım sitesinde ("Kendine zaman ayır" gibi kısa sözler). */
+  --font-script: 'Great Vibes', cursive;
 
   /* Yazı boyutları: 16px tabanlı, telefonda rahat okunacak ölçek */
   --text-sm: 0.8125rem; /* 13px */

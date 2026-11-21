@@ -29,17 +29,21 @@ export default function PrivacyPage() {
       {notice ? (
         <>
           {notice.updatedOn && <p className={styles.muted}>Son güncelleme: {formatDate(notice.updatedOn)}</p>}
-          {notice.sections.map((section) => (
-            <section key={section.title} className={styles.section}>
-              <h2>{section.title}</h2>
-              {section.text.split(/\n\s*\n/).map((paragraph) => (
-                <p key={paragraph.slice(0, 40)}>{paragraph}</p>
-              ))}
-            </section>
-          ))}
+          <div className={styles.body}>
+            {notice.sections.map((section) => (
+              <section key={section.title} className={styles.section}>
+                <h2>{section.title}</h2>
+                {section.text.split(/\n\s*\n/).map((paragraph) => (
+                  <p key={paragraph.slice(0, 40)}>{paragraph}</p>
+                ))}
+              </section>
+            ))}
+          </div>
         </>
       ) : (
-        <p>Aydınlatma metni henüz eklenmedi. Sorularınız için stüdyoyla iletişime geçebilirsiniz.</p>
+        <div className={styles.body}>
+          <p>Aydınlatma metni henüz eklenmedi. Sorularınız için stüdyoyla iletişime geçebilirsiniz.</p>
+        </div>
       )}
     </main>
   );
