@@ -193,7 +193,7 @@ Next: turning the app into a product several studios can use. Order and decision
 
 - [x] Multi-studio foundation: each studio on its own subdomain, separate accounts per studio, data isolation proven by tests
 - [x] Branches: a studio can have several locations; groups belong to a branch
-- [ ] Session packages (e.g. 8 or 12 sessions) as a second membership model, chosen per studio at setup
+- [x] Session packages (e.g. 8 or 12 sessions) as a second membership model, chosen per studio at setup
 - [ ] New look for the customer and admin panels
 - [ ] Appearance settings: brand and accent colours (other shades derived automatically) and logo
 - [ ] Instructor role and panel
