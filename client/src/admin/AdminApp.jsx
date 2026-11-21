@@ -78,6 +78,7 @@ export default function AdminApp({ user, studio, onStudioChange, onLogout }) {
           studio={studio}
           customerId={view.id}
           onBack={() => goTo(START)}
+          showToast={showToast}
           onCredentials={(credentials) => goTo({ name: 'credentials', credentials, backTo: { name: 'detail', id: view.id } })}
         />
       );

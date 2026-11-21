@@ -7,6 +7,8 @@
   border: 0;
   border-radius: var(--radius-panel) var(--radius-panel) 0 0;
   background: var(--surface-raised);
+  /* Penceredeki metin alanları zeminle karışmasın (TextField --field-bg okur). */
+  --field-bg: var(--surface);
   color: var(--ink);
 }
 

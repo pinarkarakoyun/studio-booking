@@ -11,12 +11,12 @@ import styles from './Admin.module.css';
 
 const whatsappLink = (phone) => `https://wa.me/${phone.replace('+', '')}`;
 
-export default function CustomerDetailPage({ studio, customerId, onBack, onCredentials }) {
+// showToast: başarı mesajları AdminApp'teki ortak toast'ta; form hataları pencerenin içinde kalır.
+export default function CustomerDetailPage({ studio, customerId, onBack, onCredentials, showToast }) {
   const [customer, setCustomer] = useState(null);
   const [error, setError] = useState(null);
   // Açık olan işlem paneli: 'group' | 'freeze' | 'endFreeze' | 'reset' | 'leave' | null
   const [action, setAction] = useState(null);
-  const [notice, setNotice] = useState(null);
   const timeZone = studio.timezone;
 
   function load() {
@@ -33,7 +33,7 @@ export default function CustomerDetailPage({ studio, customerId, onBack, onCrede
 
   async function done(message) {
     setAction(null);
-    setNotice(message);
+    showToast('success', message);
     await load();
   }
 
@@ -65,12 +65,6 @@ export default function CustomerDetailPage({ studio, customerId, onBack, onCrede
           WhatsApp
         </a>
       </p>
-
-      {notice && (
-        <p className={styles.notice} role="status">
-          {notice}
-        </p>
-      )}
 
       <dl className={styles.summary}>
         <div>
@@ -121,6 +115,7 @@ export default function CustomerDetailPage({ studio, customerId, onBack, onCrede
         today={todayIn(timeZone)}
         canStartPeriod={!left}
         packageModel={studio.membershipModel === 'package'}
+        showToast={showToast}
       />
 
       {!left && (
@@ -241,8 +236,8 @@ function ConfirmAction({ text, button, request, onDone, danger = false }) {
     <>
       <p className={styles.sheetText}>{text}</p>
       {error && <p className={styles.formError}>{error}</p>}
-      <div className={danger ? styles.dangerButton : undefined}>
-        <Button type="button" busy={busy} busyLabel="Kaydediliyor…" onClick={run}>
+      <div className={styles.formSubmit}>
+        <Button variant={danger ? 'danger' : 'primary'} size="lg" type="button" busy={busy} busyLabel="Kaydediliyor…" onClick={run}>
           {button}
         </Button>
       </div>
@@ -288,7 +283,7 @@ function FreezeForm({ customerId, today, onDone }) {
       />
       {error && <p className={styles.formError}>{error}</p>}
       <div className={styles.formSubmit}>
-        <Button type="submit" busy={busy} busyLabel="Kaydediliyor…">
+        <Button size="lg" type="submit" busy={busy} busyLabel="Kaydediliyor…">
           Dondur
         </Button>
       </div>
@@ -356,7 +351,7 @@ function GrantCreditsForm({ customerId, today, validityDays, onDone }) {
       />
       {errors.form && <p className={styles.formError}>{errors.form}</p>}
       <div className={styles.formSubmit}>
-        <Button type="submit" busy={busy} busyLabel="Kaydediliyor…">
+        <Button size="lg" type="submit" busy={busy} busyLabel="Kaydediliyor…">
           Hakkı ver
         </Button>
       </div>
@@ -476,13 +471,13 @@ function ChangeGroupForm({ customer, today, multiBranch, onDone }) {
       {fullWarning ? (
         <div className={styles.warning} role="alert">
           <p>{fullWarning}</p>
-          <Button type="button" busy={busy} busyLabel="Kaydediliyor…" onClick={() => submit(true)}>
+          <Button size="lg" type="button" busy={busy} busyLabel="Kaydediliyor…" onClick={() => submit(true)}>
             Yine de taşı
           </Button>
         </div>
       ) : (
         <div className={styles.formSubmit}>
-          <Button type="submit" busy={busy} busyLabel="Kaydediliyor…">
+          <Button size="lg" type="submit" busy={busy} busyLabel="Kaydediliyor…">
             Grubunu değiştir
           </Button>
         </div>

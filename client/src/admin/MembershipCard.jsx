@@ -19,12 +19,12 @@ const methodLabel = (value) => METHODS.find((m) => m.value === value).label.toLo
 // Müşteri detayındaki üyelik kartı: dönem, ödenen/kalan, ödemeler; "Ödeme ekle" ve "Yeni dönem başlat".
 // Seans paketi modelinde dönem bir pakettir: "Paket ekle" katalogdan seçer, kartta kalan seans görünür.
 // Tutarlar sadece yöneticide görünür (BR-37).
-export default function MembershipCard({ customerId, today, canStartPeriod, packageModel }) {
+// showToast: başarı mesajları (Paket eklendi, Ödeme kaydedildi …) AdminApp'teki ortak toast'ta.
+export default function MembershipCard({ customerId, today, canStartPeriod, packageModel, showToast }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   // Açık panel: 'payment' | 'period' | { deletePayment } | null
   const [panel, setPanel] = useState(null);
-  const [notice, setNotice] = useState(null);
   const [showOthers, setShowOthers] = useState(false);
 
   function load() {
@@ -38,7 +38,7 @@ export default function MembershipCard({ customerId, today, canStartPeriod, pack
 
   async function done(message) {
     setPanel(null);
-    setNotice(message);
+    showToast('success', message);
     await load();
   }
 
@@ -55,12 +55,6 @@ export default function MembershipCard({ customerId, today, canStartPeriod, pack
       <h2 id="membership-title" className={styles.listLabel}>
         Üyelik
       </h2>
-
-      {notice && (
-        <p className={styles.notice} role="status">
-          {notice}
-        </p>
-      )}
 
       {data.unpackaged > 0 && (
         <p className={styles.periodAlert}>
@@ -108,7 +102,7 @@ export default function MembershipCard({ customerId, today, canStartPeriod, pack
 
       {canStartPeriod && (
         <div className={styles.formSubmit}>
-          <Button variant="quiet" type="button" onClick={() => setPanel('period')}>
+          <Button variant="secondary" type="button" onClick={() => setPanel('period')}>
             {packageModel ? 'Paket ekle' : 'Yeni dönem başlat'}
           </Button>
         </div>
@@ -288,7 +282,7 @@ function PaymentForm({ membership, today, onDone }) {
       <TextField label="Not (isteğe bağlı)" value={note} maxLength={200} onChange={(e) => setNote(e.target.value)} hint={NO_HEALTH_DATA_HINT} />
       {errors.form && <p className={styles.formError}>{errors.form}</p>}
       <div className={styles.formSubmit}>
-        <Button type="submit" busy={busy} busyLabel="Kaydediliyor…">
+        <Button size="lg" type="submit" busy={busy} busyLabel="Kaydediliyor…">
           Ödemeyi kaydet
         </Button>
       </div>
@@ -381,7 +375,7 @@ function PeriodForm({ customerId, suggestedStartsOn, lastFeeKurus, onDone }) {
       <TextField label="Not (isteğe bağlı)" value={note} maxLength={200} onChange={(e) => setNote(e.target.value)} hint={NO_HEALTH_DATA_HINT} />
       {errors.form && <p className={styles.formError}>{errors.form}</p>}
       <div className={styles.formSubmit}>
-        <Button type="submit" busy={busy} busyLabel="Kaydediliyor…">
+        <Button size="lg" type="submit" busy={busy} busyLabel="Kaydediliyor…">
           Dönemi başlat
         </Button>
       </div>
@@ -484,7 +478,7 @@ function PackageForm({ customerId, suggestedStartsOn, onDone }) {
       <TextField label="Not (isteğe bağlı)" value={note} maxLength={200} onChange={(e) => setNote(e.target.value)} hint={NO_HEALTH_DATA_HINT} />
       {errors.form && <p className={styles.formError}>{errors.form}</p>}
       <div className={styles.formSubmit}>
-        <Button type="submit" busy={busy} busyLabel="Kaydediliyor…">
+        <Button size="lg" type="submit" busy={busy} busyLabel="Kaydediliyor…">
           Paketi ekle
         </Button>
       </div>
@@ -515,7 +509,7 @@ function DeletePayment({ payment, onDone }) {
       </p>
       {error && <p className={styles.formError}>{error}</p>}
       <div className={styles.formSubmit}>
-        <Button type="button" busy={busy} busyLabel="Siliniyor…" onClick={run}>
+        <Button variant="danger" size="lg" type="button" busy={busy} busyLabel="Siliniyor…" onClick={run}>
           Ödemeyi sil
         </Button>
       </div>

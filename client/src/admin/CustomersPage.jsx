@@ -76,26 +76,45 @@ export default function CustomersPage({ studio, onOpen, onAdd }) {
         <p className={styles.muted}>{query ? 'Aramana uyan müşteri yok.' : 'Bu listede müşteri yok.'}</p>
       )}
 
-      <ul className={styles.list}>
-        {visible.map((customer) => (
-          <li key={customer.id}>
-            <button type="button" className={styles.customerRow} onClick={() => onOpen(customer.id)}>
-              <span>
-                <span className={styles.customerName}>{customer.fullName}</span>
-                <span className={styles.customerMeta}>
-                  {(customer.group && `${customer.group.name}${multiBranch && customer.branchName ? ` · ${customer.branchName}` : ''}`) ??
-                    (customer.upcomingGroup
-                      ? `${customer.upcomingGroup.name}, ${formatDateDayMonth(customer.upcomingGroup.startsOn)} tarihinden itibaren`
-                      : formatPhone(customer.phone))}
-                </span>
-              </span>
-              <CustomerTag customer={customer} />
-            </button>
-          </li>
-        ))}
-      </ul>
+      {/* Masaüstünde tablo (başlık satırı + satırlar), telefonda kartlar: aynı satırlar, CSS düzeni değiştirir.
+          Sütunlar yalnızca listenin verdiği alanlardan: paket ve kalan seans listede yok, o yüzden sütunu da yok. */}
+      {visible.length > 0 && (
+        <div className={styles.customerTable}>
+          <div className={styles.customerHead} aria-hidden="true">
+            <span>Müşteri</span>
+            <span>Telefon</span>
+            <span>Grup</span>
+            <span>Durum</span>
+          </div>
+          <ul className={styles.customerList}>
+            {visible.map((customer) => (
+              <li key={customer.id}>
+                <button type="button" className={styles.customerRow} onClick={() => onOpen(customer.id)}>
+                  <span className={styles.customerName}>{customer.fullName}</span>
+                  <span className={styles.customerPhone}>{formatPhone(customer.phone)}</span>
+                  <span className={styles.customerGroup}>{groupText(customer, multiBranch)}</span>
+                  <span className={styles.customerStatus}>
+                    <CustomerTag customer={customer} />
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </main>
   );
+}
+
+// Grup sütunu: bugünkü grup (çok şubede şubesiyle), yoksa ileride başlayacağı grup, o da yoksa "Grubu yok".
+function groupText(customer, multiBranch) {
+  if (customer.group) {
+    return `${customer.group.name}${multiBranch && customer.branchName ? ` · ${customer.branchName}` : ''}`;
+  }
+  if (customer.upcomingGroup) {
+    return `${customer.upcomingGroup.name}, ${formatDateDayMonth(customer.upcomingGroup.startsOn)} tarihinden itibaren`;
+  }
+  return customer.status === 'left' ? 'Ayrıldı' : 'Grubu yok';
 }
 
 // İsmin yanında sadece önemli bilgi: dondurma ya da kullanılmamış telafi hakkı.

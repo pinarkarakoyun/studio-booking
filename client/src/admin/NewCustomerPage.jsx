@@ -62,6 +62,7 @@ export default function NewCustomerPage({ studio, onCancel, onCreated }) {
       <h1 className={styles.rosterTitle}>Yeni müşteri</h1>
 
       <form
+        className={styles.formCard}
         noValidate
         onSubmit={(event) => {
           event.preventDefault();
@@ -112,13 +113,13 @@ export default function NewCustomerPage({ studio, onCancel, onCreated }) {
         {fullWarning ? (
           <div className={styles.warning} role="alert">
             <p>{fullWarning}</p>
-            <Button type="button" busy={busy} busyLabel="Kaydediliyor…" onClick={() => submit(true)}>
+            <Button size="lg" type="button" busy={busy} busyLabel="Kaydediliyor…" onClick={() => submit(true)}>
               Yine de ekle
             </Button>
           </div>
         ) : (
           <div className={styles.formSubmit}>
-            <Button type="submit" busy={busy} busyLabel="Kaydediliyor…">
+            <Button size="lg" type="submit" busy={busy} busyLabel="Kaydediliyor…">
               Müşteriyi kaydet
             </Button>
           </div>

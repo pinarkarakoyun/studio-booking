@@ -560,26 +560,42 @@
 /* --- Müşteriler --- */
 .titleRow {
   display: flex;
-  align-items: baseline;
+  align-items: flex-end;
   justify-content: space-between;
+  gap: var(--space-3);
 }
 
+/* "+ Ekle": başlığın yanında ana renk hap. */
 .addLink {
-  padding: var(--space-2) 0 var(--space-2) var(--space-3);
+  flex: none;
+  min-height: var(--tap);
+  padding: 10px 18px;
   border: 0;
-  background: none;
+  border-radius: var(--radius-pill);
+  background: var(--brand);
   font: inherit;
-  font-weight: 700;
-  color: var(--accent-text);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--on-brand);
   cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.addLink:hover {
+  background: var(--brand-strong);
+}
+
+.addLink:active {
+  transform: scale(0.97);
 }
 
 .search {
   width: 100%;
+  min-height: var(--tap);
   margin-top: var(--space-4);
-  padding: 11px 14px;
+  padding: 11px 16px;
   border: 1.5px solid var(--line-strong);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-pill);
   background: var(--surface-raised);
   font: inherit;
   font-size: 16px;
@@ -599,40 +615,177 @@
 }
 
 .chip {
-  padding: 6px 12px;
-  border: 1px solid var(--line);
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 0;
   border-radius: var(--radius-pill);
-  background: var(--surface-raised);
+  background: var(--surface-sunken);
   font: inherit;
-  font-size: var(--text-sm);
+  font-size: 14px;
+  font-weight: 500;
   color: var(--ink);
   cursor: pointer;
 }
 
 .chipOn {
-  border-color: var(--brand);
   background: var(--brand);
   color: var(--on-brand);
 }
 
-.customerRow {
+/* Müşteri listesi: telefonda kartlar (ad ve grup solda, durum sağda); 900px ve üstünde tablo. */
+.customerTable {
+  margin-top: var(--space-3);
+}
+
+.customerHead {
+  display: none;
+}
+
+.customerList {
   display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.customerRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'name status'
+    'group status';
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
+  column-gap: var(--space-3);
+  row-gap: 2px;
   width: 100%;
-  padding: 12px 0;
+  min-height: 64px;
+  padding: 12px 16px;
   border: 0;
-  border-bottom: 1px solid var(--line);
-  background: none;
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
   font: inherit;
   color: inherit;
   text-align: left;
   cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.customerRow:active {
+  transform: scale(0.99);
 }
 
 .customerRow:hover .customerName {
-  color: var(--brand);
+  grid-area: name;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.customerPhone {
+  display: none;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.customerGroup {
+  grid-area: group;
+  font-size: 13px;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.customerStatus {
+  grid-area: status;
+  justify-self: end;
+  max-width: 140px;
+  text-align: right;
+}
+
+.customerStatus:empty {
+  display: none;
+}
+
+/* Uzun durum etiketi ("Dondurulmuş, 1 Aralık tarihine kadar") iki satıra inse de tek parça görünsün. */
+.customerStatus > span {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  line-height: 1.35;
+}
+
+@media (min-width: 900px) {
+  /* Tablo: başlık satırı gömük zeminde, satırlar ince çizgiyle ayrılır (prototip). */
+  .customerTable {
+    padding: 4px 20px 8px;
+    border-radius: var(--radius-panel);
+    background: var(--surface-raised);
+  }
+
+  .customerHead,
+  .customerRow {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1.2fr) minmax(0, 1.8fr) minmax(0, 1.4fr);
+    grid-template-areas: none;
+    column-gap: 16px;
+    align-items: center;
+  }
+
+  .customerHead {
+    margin: 12px -8px 0;
+    padding: 10px 8px;
+    border-radius: 12px;
+    background: var(--surface-sunken);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink-soft);
+  }
+
+  .customerList {
+    gap: 0;
+  }
+
+  .customerRow {
+    min-height: 56px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .customerList li:last-child .customerRow {
+    border-bottom: 0;
+  }
+
+  .customerRow:active {
+    transform: none;
+  }
+
+  .customerName,
+  .customerPhone,
+  .customerGroup,
+  .customerStatus {
+    grid-area: auto;
+  }
+
+  .customerPhone {
+    display: block;
+    font-size: 14px;
+    color: var(--ink-soft);
+  }
+
+  .customerGroup {
+    font-size: 14px;
+  }
+
+  .customerStatus {
+    justify-self: start;
+    max-width: none;
+    text-align: left;
+  }
+
+  .customerStatus:empty {
+    display: block;
+  }
 }
 
 .customerName {
@@ -648,9 +801,9 @@
 
 .inlineLink {
   margin-left: var(--space-2);
-  font-weight: 700;
+  font-weight: 500;
   color: var(--brand);
-  text-decoration: none;
+  text-decoration: underline;
 }
 
 .notice {
@@ -662,31 +815,41 @@
   color: var(--brand);
 }
 
+/* Müşteri detayındaki özet: açık kart, satırlar ince çizgiyle. */
 .summary {
   margin: var(--space-4) 0 0;
-  padding: 10px 14px;
-  border-radius: 14px;
-  background: var(--surface-sunken);
-  font-size: var(--text-sm);
-  line-height: 1.6;
+  padding: 6px 18px;
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .summary div {
   display: flex;
-  gap: var(--space-2);
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.summary div:last-child {
+  border-bottom: 0;
 }
 
 .summary dt {
   color: var(--ink-soft);
 }
 
-.summary dt::after {
-  content: ':';
+.summary dt {
+  flex: none;
 }
 
 .summary dd {
   margin: 0;
-  font-weight: 600;
+  font-weight: 500;
+  text-align: right;
+  overflow-wrap: anywhere;
 }
 
 .actionRow {
@@ -694,14 +857,20 @@
   align-items: center;
   justify-content: space-between;
   width: 100%;
+  min-height: var(--tap);
   padding: 13px 0;
   border: 0;
   border-bottom: 1px solid var(--line);
   background: none;
   font: inherit;
+  font-weight: 500;
   color: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.actionRow:hover span:first-child {
+  color: var(--brand);
 }
 
 .actionRow span:last-child {
@@ -741,10 +910,10 @@
 
 .warning {
   margin-top: var(--space-6);
-  padding: 12px 14px;
-  border: 1.5px solid #f3c3cf;
-  border-radius: 14px;
-  background: var(--surface-sunken);
+  padding: 14px 16px;
+  border: 1.5px solid var(--warning);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
   font-size: var(--text-sm);
 }
 
@@ -752,23 +921,32 @@
   margin: 0 0 var(--space-3);
 }
 
+/* Sayfa içindeki form (yeni müşteri): açık kart; alanlar kartla karışmasın diye krem zemin alır. */
+.formCard {
+  --field-bg: var(--surface);
+  margin-top: var(--space-4);
+  padding: 4px 20px 20px;
+  border-radius: var(--radius-panel);
+  background: var(--surface-raised);
+}
+
 /* Giriş bilgileri */
 .credentials {
   margin: var(--space-6) 0 var(--space-4);
-  padding: 14px 16px;
-  border: 1.5px solid var(--line-strong);
-  border-radius: 16px;
+  padding: 18px 20px;
+  border-radius: var(--radius-panel);
   background: var(--surface-raised);
 }
 
 .credentials dt {
-  font-size: 0.75rem;
+  font-size: 13px;
   color: var(--ink-soft);
 }
 
 .credentials dd {
-  margin: 0 0 var(--space-3);
-  font-weight: 700;
+  margin: 2px 0 var(--space-4);
+  font-weight: 500;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 .credentials dd:last-child {
@@ -776,21 +954,29 @@
 }
 
 .password {
-  font-size: 1.375rem;
-  font-weight: 800;
+  font-family: var(--font-brand);
+  font-size: 2rem;
+  font-weight: 700;
   letter-spacing: 0.04em;
 }
 
 .whatsappButton {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
   margin-bottom: var(--space-2);
   padding: 14px 20px;
   border-radius: var(--radius-pill);
-  background: var(--accent);
-  font-weight: 700;
+  background: var(--brand);
+  font-weight: 500;
   color: var(--on-brand);
   text-align: center;
   text-decoration: none;
+}
+
+.whatsappButton:hover {
+  background: var(--brand-strong);
 }
 
 .fineprint {
@@ -1015,19 +1201,21 @@
 }
 
 /* Üyelik kartı */
+/* Müşteri detayındaki üyelik kartı: açık zemin, serif dönem/paket adı. */
 .membershipCard {
-  margin-top: var(--space-3);
-  padding: 14px 16px;
-  border: 1.5px solid var(--line-strong);
-  border-radius: 16px;
+  margin-top: var(--space-2);
+  padding: 18px 20px;
+  border-radius: var(--radius-panel);
   background: var(--surface-raised);
 }
 
 .periodDates {
   margin: 0;
   font-family: var(--font-brand);
-  font-size: 1.375rem;
-  line-height: 1.2;
+  font-weight: 700;
+  font-size: 1.625rem;
+  line-height: 1.15;
+  font-variant-numeric: lining-nums;
 }
 
 .periodMeta {
@@ -1039,7 +1227,7 @@
 .periodAlert {
   margin: 2px 0 0;
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: 500;
   color: var(--warning);
 }
 
@@ -1047,7 +1235,7 @@
   height: 6px;
   margin: var(--space-3) 0 6px;
   border-radius: 3px;
-  background: var(--brand-soft);
+  background: var(--surface-sunken);
   overflow: hidden;
 }
 
@@ -1076,7 +1264,7 @@
   justify-content: space-between;
   align-items: center;
   gap: var(--space-3);
-  padding: 6px 0;
+  padding: 8px 0;
   border-top: 1px solid var(--line);
 }
 
@@ -1089,7 +1277,8 @@
   align-items: center;
   gap: var(--space-2);
   flex: none;
-  font-weight: 600;
+  font-weight: 500;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 .paymentDelete,
@@ -1137,20 +1326,21 @@
 
 .choice {
   flex: 1;
+  min-height: var(--tap);
   padding: 10px 0;
-  border: 1.5px solid var(--line-strong);
-  border-radius: 12px;
-  background: var(--surface-raised);
+  border: 0;
+  border-radius: 14px;
+  background: var(--surface-sunken);
   font: inherit;
+  font-size: 14px;
+  font-weight: 500;
   color: var(--ink);
   cursor: pointer;
 }
 
 .choiceOn {
-  border-color: var(--brand);
-  background: var(--brand-soft);
-  color: var(--brand);
-  font-weight: 600;
+  background: var(--brand);
+  color: var(--on-brand);
 }
 
 .choice:focus-visible,
