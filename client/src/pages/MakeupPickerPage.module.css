@@ -13,7 +13,7 @@
   font: inherit;
   font-size: var(--text-sm);
   font-weight: 700;
-  color: var(--violet);
+  color: var(--brand);
   cursor: pointer;
 }
 
@@ -23,7 +23,7 @@
   font-weight: 500;
   font-size: 2rem;
   line-height: 1.05;
-  color: var(--violet);
+  color: var(--brand);
 }
 
 .subtitle {
@@ -36,7 +36,7 @@
   margin: var(--space-6) 0 0;
   padding: var(--space-4);
   border-radius: 16px;
-  background: var(--blush);
+  background: var(--surface-sunken);
   color: var(--ink-soft);
 }
 
@@ -59,16 +59,16 @@
   padding: 7px 10px;
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
-  background: var(--white);
+  background: var(--surface-raised);
   font: inherit;
   color: var(--ink);
   cursor: pointer;
 }
 
 .dayChipSelected {
-  border-color: var(--violet);
-  background: var(--violet);
-  color: var(--white);
+  border-color: var(--brand);
+  background: var(--brand);
+  color: var(--on-brand);
 }
 
 .dayChipWeekday {
@@ -122,14 +122,14 @@
   height: 5px;
   margin-top: 6px;
   border-radius: 3px;
-  background: var(--violet-soft);
+  background: var(--brand-soft);
 }
 
 .bar span {
   display: block;
   height: 100%;
   border-radius: 3px;
-  background: var(--violet);
+  background: var(--brand);
 }
 
 .spots {
@@ -148,17 +148,17 @@
   padding: 9px 18px;
   border: 0;
   border-radius: var(--radius-pill);
-  background: var(--pink);
+  background: var(--accent);
   font: inherit;
   font-size: var(--text-sm);
   font-weight: 700;
-  color: var(--white);
+  color: var(--on-brand);
   cursor: pointer;
 }
 
 .pick:disabled {
   cursor: progress;
-  background: var(--pink-disabled);
+  background: var(--accent-disabled);
 }
 
 .confirm {

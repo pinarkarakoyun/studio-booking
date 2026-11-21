@@ -5,7 +5,19 @@
   Mobil öncelikli, 900px üstünde genişler.
 */
 .site {
-  background: var(--paper);
+  /* Yalnızca bu sitenin kullandığı tonlar (21 Kasım 2026'da index.css'ten buraya taşındı). Site yol haritasının
+     4. adımında yeniden yazılınca kalkacak. */
+  --site-lavender: #e4dbfa; /* açık bantlar */
+  --site-lilac: #f4effc; /* lavantadan da açık yüzey */
+  --site-lavender-line: #e6dcf7; /* kart kenarlıkları */
+  --site-lavender-strong: #c9b8f0; /* boş fotoğraf alanının kesikli çerçevesi */
+  --site-ghost-hero: #d6c9f5; /* arka plandaki dev soluk kelimeler: giriş bandı */
+  --site-ghost-lilac: #e9e0fa; /* … açık bant */
+  --site-ghost-dark: #30185f; /* … koyu bant */
+  --site-on-dark-muted: #cfc4ee; /* koyu bantta ikincil yazı */
+  --site-pink-on-dark: #ff8cc0; /* koyu bantta numaralar */
+  --site-phone-frame: #120826; /* "İşleyişimiz"deki telefon çizimi */
+  background: var(--surface);
   color: var(--ink);
   /* Telefonda alttaki sabit çubuk son bölümü örtmesin. */
   padding-bottom: 76px;
@@ -43,17 +55,17 @@
 }
 
 .dark {
-  background: var(--aubergine);
-  color: var(--white);
+  background: var(--brand-strong);
+  color: var(--on-brand);
 }
 
 .lilac {
-  background: var(--lilac);
+  background: var(--site-lilac);
 }
 
 .brand {
-  background: var(--violet);
-  color: var(--white);
+  background: var(--brand);
+  color: var(--on-brand);
 }
 
 /* Arkadaki dev soluk kelime: süs, okunmaz (aria-hidden). */
@@ -68,17 +80,17 @@
   line-height: 1;
   letter-spacing: -0.02em;
   white-space: nowrap;
-  color: var(--lavender);
+  color: var(--site-lavender);
   pointer-events: none;
   user-select: none;
 }
 
 .dark .ghost {
-  color: var(--ghost-dark);
+  color: var(--site-ghost-dark);
 }
 
 .lilac .ghost {
-  color: var(--ghost-lilac);
+  color: var(--site-ghost-lilac);
 }
 
 .heading {
@@ -94,7 +106,7 @@
 }
 
 .onLight {
-  color: var(--aubergine);
+  color: var(--brand-strong);
 }
 
 .lead {
@@ -107,7 +119,7 @@
 
 .dark .lead,
 .brand .lead {
-  color: var(--on-dark-soft);
+  color: var(--on-brand-soft);
 }
 
 .lilac .lead {
@@ -121,7 +133,7 @@
 }
 
 .mutedLight {
-  color: var(--on-dark-muted);
+  color: var(--site-on-dark-muted);
 }
 
 /* --- Menü --- */
@@ -133,7 +145,7 @@
   gap: 10px;
   padding: 6px;
   border-radius: var(--radius-pill);
-  background: var(--white);
+  background: var(--surface-raised);
 }
 
 .navLogo {
@@ -153,14 +165,14 @@
 .navLogin {
   font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--aubergine);
+  color: var(--brand-strong);
   text-decoration: none;
 }
 
 .navLogin {
   margin-left: auto;
   padding: 8px 12px;
-  color: var(--violet);
+  color: var(--brand);
 }
 
 .navToggle {
@@ -168,8 +180,8 @@
   height: 44px;
   border: 0;
   border-radius: 50%;
-  background: var(--aubergine);
-  color: var(--white);
+  background: var(--brand-strong);
+  color: var(--on-brand);
   font-size: 1.25rem;
   cursor: pointer;
 }
@@ -184,7 +196,7 @@
   gap: 2px;
   padding: 8px;
   border-radius: 20px;
-  background: var(--white);
+  background: var(--surface-raised);
 }
 
 .navOpen a {
@@ -195,20 +207,20 @@
 }
 
 .navOpen a:hover {
-  background: var(--lilac);
+  background: var(--site-lilac);
 }
 
 /* --- Giriş --- */
 .hero {
   padding-top: 14px;
-  background: var(--lavender);
+  background: var(--site-lavender);
 }
 
 .heroGhost {
   /* Dönen kelimenin arkasına değil, girişin altına (fotoğrafın arkasına) yaslanır; ikisi üst üste binmesin. */
   top: auto;
   bottom: -0.12em;
-  color: var(--ghost-hero);
+  color: var(--site-ghost-hero);
 }
 
 .heroGrid {
@@ -232,7 +244,7 @@
   font-family: var(--font-ui);
   font-weight: 800;
   letter-spacing: -0.01em;
-  color: var(--violet);
+  color: var(--brand);
   /* Genişlik ekseni doğrudan: font-stretch bu yazı tipinde etkisiz kaldı (ölçüldü). */
   font-variation-settings: 'wdth' 62;
   transition: font-variation-settings 0.9s var(--ease);
@@ -276,8 +288,8 @@
   display: flex;
   align-items: flex-end;
   padding: 16px;
-  border: 1.5px dashed var(--lavender-strong);
-  background: var(--lilac);
+  border: 1.5px dashed var(--site-lavender-strong);
+  background: var(--site-lilac);
 }
 
 .photoEmpty span {
@@ -297,24 +309,24 @@
 }
 
 .primary {
-  background: var(--pink);
-  color: var(--white);
+  background: var(--accent);
+  color: var(--on-brand);
 }
 
 .light {
-  background: var(--white);
-  color: var(--violet);
+  background: var(--surface-raised);
+  color: var(--brand);
 }
 
 .outlineLight {
-  border: 1.5px solid var(--white);
-  color: var(--white);
+  border: 1.5px solid var(--on-brand);
+  color: var(--on-brand);
 }
 
 .site a:focus-visible,
 .navToggle:focus-visible,
 .faqItem summary:focus-visible {
-  outline: 2px solid var(--pink);
+  outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
 
@@ -331,16 +343,16 @@
 
 .card {
   padding: 16px;
-  border: 1.5px solid var(--lavender-line);
+  border: 1.5px solid var(--site-lavender-line);
   border-radius: 20px;
-  background: var(--white);
+  background: var(--surface-raised);
 }
 
 .card h3 {
   margin: 0 0 4px;
   font-size: var(--text-base);
   font-weight: 700;
-  color: var(--aubergine);
+  color: var(--brand-strong);
 }
 
 .card p {
@@ -357,7 +369,7 @@
   height: 4px;
   margin-bottom: 14px;
   border-radius: 2px;
-  background: var(--pink);
+  background: var(--accent);
 }
 
 /* --- İşleyişimiz --- */
@@ -371,9 +383,9 @@
 
 .phone {
   padding: 12px 10px;
-  border: 5px solid var(--phone-frame);
+  border: 5px solid var(--site-phone-frame);
   border-radius: 24px;
-  background: var(--paper);
+  background: var(--surface);
   color: var(--ink);
 }
 
@@ -384,7 +396,7 @@
 .phoneTitle {
   font-family: var(--font-brand);
   font-size: 1.25rem;
-  color: var(--violet);
+  color: var(--brand);
 }
 
 .phoneLine {
@@ -396,8 +408,8 @@
   margin-top: 8px;
   padding: 8px;
   border-radius: 12px;
-  background: var(--violet);
-  color: var(--white);
+  background: var(--brand);
+  color: var(--on-brand);
   font-size: 9px;
 }
 
@@ -421,8 +433,8 @@
 .phonePress {
   padding: 3px 7px;
   border-radius: var(--radius-pill);
-  background: var(--white);
-  color: var(--violet);
+  background: var(--surface-raised);
+  color: var(--brand);
   font-weight: 700;
   animation: press 3.2s var(--ease) infinite;
 }
@@ -442,7 +454,7 @@
   margin-top: 8px !important;
   padding: 5px 6px;
   border-radius: 8px;
-  background: var(--blush);
+  background: var(--surface-sunken);
   font-size: 9px;
 }
 
@@ -482,7 +494,7 @@
   font-family: var(--font-brand);
   font-size: 1.75rem;
   line-height: 1;
-  color: var(--pink-on-dark);
+  color: var(--site-pink-on-dark);
 }
 
 /* --- Eğitmen --- */
@@ -492,9 +504,9 @@
   gap: 16px;
   align-items: start;
   padding: 16px;
-  border: 1.5px solid var(--lavender-line);
+  border: 1.5px solid var(--site-lavender-line);
   border-radius: 24px;
-  background: var(--white);
+  background: var(--surface-raised);
 }
 
 .instructorPhoto {
@@ -552,7 +564,7 @@
 
 /* --- SSS --- */
 .faqItem {
-  border-bottom: 1px solid var(--lavender-line);
+  border-bottom: 1px solid var(--site-lavender-line);
 }
 
 .faqItem summary {
@@ -575,7 +587,7 @@
   flex: none;
   font-size: 1.5rem;
   line-height: 1;
-  color: var(--violet);
+  color: var(--brand);
   transition: transform 0.25s var(--ease);
 }
 
@@ -611,7 +623,7 @@
 }
 
 .links a {
-  color: var(--white);
+  color: var(--on-brand);
 }
 
 /* --- Telefonda alttaki sabit çubuk --- */
@@ -629,19 +641,19 @@
   flex: 1;
   padding: 12px 6px;
   border-radius: var(--radius-pill);
-  background: var(--white);
-  box-shadow: 0 0 0 1.5px var(--lavender-line);
+  background: var(--surface-raised);
+  box-shadow: 0 0 0 1.5px var(--site-lavender-line);
   font-size: var(--text-sm);
   font-weight: 600;
   text-align: center;
   text-decoration: none;
-  color: var(--aubergine);
+  color: var(--brand-strong);
 }
 
 .mobileBar .mobileBarMain {
-  background: var(--pink);
+  background: var(--accent);
   box-shadow: none;
-  color: var(--white);
+  color: var(--on-brand);
 }
 
 /* --- Hareket tercihi --- */
@@ -682,7 +694,7 @@
   }
 
   .navLinks a:hover {
-    color: var(--violet);
+    color: var(--brand);
   }
 
   .band {

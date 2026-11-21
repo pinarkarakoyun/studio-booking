@@ -24,7 +24,7 @@
   font-size: 1.625rem;
   line-height: 1.1;
   letter-spacing: 0.06em;
-  color: var(--violet);
+  color: var(--brand);
   /* Uzun stüdyo adları dengeli satırlara bölünsün ("Studio" tek başına alt satırda kalmasın). */
   text-wrap: balance;
 }
@@ -40,7 +40,7 @@
   font-weight: 500;
   font-size: var(--text-xl);
   line-height: 1.1;
-  color: var(--violet);
+  color: var(--brand);
 }
 
 .form {
@@ -60,7 +60,7 @@
 }
 
 .footer a {
-  color: var(--violet);
+  color: var(--brand);
   font-weight: 600;
   text-decoration: none;
 }
@@ -80,12 +80,12 @@
   flex: 1;
   height: 4px;
   border-radius: 2px;
-  background: var(--violet-soft);
+  background: var(--brand-soft);
   transition: background-color 0.2s var(--ease);
 }
 
 .strength .filled {
-  background: var(--violet);
+  background: var(--brand);
 }
 
 @media (min-width: 600px) {

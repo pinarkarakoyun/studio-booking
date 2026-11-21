@@ -8,7 +8,7 @@
 }
 
 .back {
-  color: var(--violet);
+  color: var(--brand);
   font-size: var(--text-sm);
   text-decoration: none;
 }
@@ -19,7 +19,7 @@
   font-size: var(--text-xl);
   font-weight: 500;
   line-height: 1.2;
-  color: var(--violet);
+  color: var(--brand);
 }
 
 .muted {

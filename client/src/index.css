@@ -1,42 +1,32 @@
 /*
-  Görsel dil (23 Ekim 2026'da Pınar ile seçildi):
-  mor kimlik + pembe vurgu, serif = stüdyonun sesi, sans = arayüz.
-  Renkler ve yazı tipleri burada bir kez tanımlanır; bileşenler sadece bu değişkenleri kullanır.
-  İleride stüdyo ayarlarından (brand_color) gelen renk --violet'in yerine geçebilir.
+  Görsel dil: renkler ve yazı tipleri burada bir kez tanımlanır; bileşenler sadece bu değişkenleri kullanır.
+  Değişken adı rengi değil rolü söyler (--brand, --surface …): her stüdyo BRAND_DIR/<slug>/theme.css ile
+  aynı adları ezer, bileşenler değişmez. (21 Kasım 2026: ilk stüdyonun renklerinden kalan "mor", "pembe"
+  gibi adlar bu adlara çevrildi.)
 */
 :root {
   /* Renkler */
-  --violet: #3f21b5; /* marka rengi, Instagram gönderilerinden ölçüldü */
-  --violet-soft: #f1e9ff; /* doluluk çubuğunun boş kısmı gibi açık mor yüzeyler */
-  --pink: #ff4f9a; /* yalnızca ana buton */
-  --pink-text: #e0307f; /* pembe yazı: beyaz zeminde okunabilsin diye biraz koyu */
-  --blush: #fbf0f3; /* yumuşak yüzey */
-  --paper: #fffbfc; /* sayfa zemini */
+  --brand: #3f21b5; /* ana renk: seçili sekme, koyu kart, odak halkası */
+  --brand-strong: #24104a; /* en koyu yüzey: koyu bantlar, yan menü */
+  --brand-soft: #f1e9ff; /* ana rengin açık yüzeyi (doluluk çubuğunun boş kısmı gibi) */
+  --on-brand: #ffffff; /* ana renk ve koyu yüzey üstündeki yazı */
+  --on-brand-soft: #d9cff5; /* koyu yüzeyde ikincil yazı */
+  --accent: #ff4f9a; /* vurgu */
+  --accent-text: #e0307f; /* vurgu rengindeki yazı: açık zeminde okunabilsin diye biraz koyu */
+  --accent-hover: #f23c8b;
+  --accent-disabled: #ff86ba;
+  --surface: #fffbfc; /* sayfa zemini */
+  --surface-raised: #ffffff; /* kart yüzeyi */
+  --surface-sunken: #fbf0f3; /* gömük yüzey: sekme çubuğu zemini, bilgi kutusu */
   --ink: #22163f; /* ana yazı rengi */
   --ink-soft: #5e5379; /* ikincil yazı */
-  --line: #f1e4e8; /* ince çizgiler, kenarlıklar */
-  --aubergine: #24104a; /* tanıtım sitesinin koyu bantları (patlıcan moru) */
-  --lavender: #e4dbfa; /* tanıtım sitesinin açık bantları */
-  --lilac: #f4effc; /* lavantadan da açık yüzey */
-  --white: #ffffff;
-  --danger: #b4233c;
-
-  /* Ara tonlar: bileşenlerde sabit renk yazılmasın, her stüdyo BRAND_DIR/theme.css ile hepsini ezebilsin. */
-  --line-strong: #e8d9df; /* alan ve kart kenarlıkları */
   --ink-faint: #9a90b3; /* pasif, soluk yazı */
-  --pink-hover: #f23c8b;
-  --pink-disabled: #ff86ba;
-  --alert-text: #c2185b; /* dikkat isteyen kısa uyarı yazısı */
-  --switch-off: #d9cfdc; /* kapalı anahtar */
-  --lavender-line: #e6dcf7; /* tanıtım sitesi kart kenarlıkları */
-  --lavender-strong: #c9b8f0; /* boş fotoğraf alanının kesikli çerçevesi */
-  --ghost-hero: #d6c9f5; /* arka plandaki dev soluk kelimeler: giriş bandı */
-  --ghost-lilac: #e9e0fa; /* … açık bant */
-  --ghost-dark: #30185f; /* … koyu bant */
-  --on-dark-soft: #d9cff5; /* koyu bantta paragraf */
-  --on-dark-muted: #cfc4ee; /* koyu bantta ikincil yazı */
-  --pink-on-dark: #ff8cc0; /* koyu bantta numaralar */
-  --phone-frame: #120826; /* "İşleyişimiz"deki telefon çizimi */
+  --line: #f1e4e8; /* ince çizgiler, kenarlıklar */
+  --line-strong: #e8d9df; /* alan ve kart kenarlıkları */
+  --warning: #c2185b; /* dikkat isteyen kısa uyarı yazısı */
+  --control-off: #d9cfdc; /* kapalı anahtar */
+  --danger: #b4233c;
+  --on-danger: #ffffff;
 
   /* Yazı tipleri */
   --font-brand: 'Cormorant Garamond', Georgia, serif;
@@ -58,6 +48,9 @@
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-pill: 999px;
+  --radius-card: 18px; /* kart */
+  --radius-panel: 24px; /* alttan açılan pencere, büyük kart */
+  --tap: 44px; /* en küçük dokunma alanı */
 
   /* Hareket: tek bir yumuşak eğri her yerde */
   --ease: cubic-bezier(0.65, 0, 0.25, 1);
@@ -77,13 +70,13 @@ body {
   font-size: var(--text-base);
   line-height: 1.5;
   color: var(--ink);
-  background: var(--paper);
+  background: var(--surface);
   -webkit-font-smoothing: antialiased;
 }
 
 /* Klavyeyle gezinenler nerede olduğunu görebilsin. */
 :focus-visible {
-  outline: 2px solid var(--violet);
+  outline: 2px solid var(--brand);
   outline-offset: 2px;
 }
 

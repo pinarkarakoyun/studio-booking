@@ -6,7 +6,7 @@
   align-items: center;
   justify-content: center;
   padding: var(--space-8) var(--space-4);
-  background: var(--paper);
+  background: var(--surface);
 }
 
 .card {
@@ -20,7 +20,7 @@
   font-size: var(--text-xl);
   font-weight: 500;
   line-height: 1.2;
-  color: var(--violet);
+  color: var(--brand);
 }
 
 .text {

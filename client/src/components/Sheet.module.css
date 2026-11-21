@@ -6,7 +6,7 @@
   padding: 0;
   border: 0;
   border-radius: 22px 22px 0 0;
-  background: var(--paper);
+  background: var(--surface);
   color: var(--ink);
 }
 
@@ -36,7 +36,7 @@
   font-weight: 500;
   font-size: 1.5rem;
   line-height: 1.15;
-  color: var(--violet);
+  color: var(--brand);
 }
 
 @keyframes slide-up {

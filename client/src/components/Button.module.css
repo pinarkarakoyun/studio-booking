@@ -21,23 +21,23 @@
 }
 
 .primary {
-  background: var(--pink);
-  color: var(--white);
+  background: var(--accent);
+  color: var(--on-brand);
 }
 
 .primary:hover {
-  background: var(--pink-hover);
+  background: var(--accent-hover);
 }
 
 .primary:disabled {
-  background: var(--pink-disabled);
+  background: var(--accent-disabled);
 }
 
 .quiet {
   background: transparent;
-  color: var(--violet);
+  color: var(--brand);
 }
 
 .quiet:hover {
-  background: var(--violet-soft);
+  background: var(--brand-soft);
 }
