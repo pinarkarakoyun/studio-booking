@@ -71,6 +71,8 @@ body {
   line-height: 1.5;
   color: var(--ink);
   background: var(--surface);
+  /* Cormorant'ın varsayılan "eski usul" rakamları satırın altına iner ("09:00" dağınık görünür); hepsi aynı boyda olsun. */
+  font-variant-numeric: lining-nums;
   -webkit-font-smoothing: antialiased;
 }
 

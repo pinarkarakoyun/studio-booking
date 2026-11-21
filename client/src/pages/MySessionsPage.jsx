@@ -4,18 +4,10 @@ import Monogram from '../components/Monogram.jsx';
 import Sheet from '../components/Sheet.jsx';
 import Toast from '../components/Toast.jsx';
 import { useToast } from '../components/useToast.js';
-import {
-  addDays,
-  formatDateDayMonth,
-  formatDay,
-  formatDayMonth,
-  formatMoney,
-  formatTime,
-  formatWeekdayTime,
-  todayIn,
-  weekLabel,
-} from '../format.js';
+import Button from '../components/Button.jsx';
+import { addDays, formatDay, formatDayMonth, formatTime, formatWeekdayTime, todayIn, weekLabel } from '../format.js';
 import MakeupPickerPage from './MakeupPickerPage.jsx';
+import MembershipSummary from './MembershipSummary.jsx';
 import styles from './MySessionsPage.module.css';
 
 function fetchMyData() {
@@ -166,10 +158,18 @@ export default function MySessionsPage({ user, studio, onLogout }) {
           {user.fullName.split(' ')[0]}
         </button>
       </header>
-      <h1 className={styles.title}>Derslerim</h1>
+      <h1 className={styles.greeting}>
+        <span className={styles.hello}>Merhaba,</span>
+        <span className={styles.name}>{user.fullName}</span>
+      </h1>
       {/* Bitiş tarihi her zaman; tutarlar sadece stüdyo ayarı açıksa (sunucu kapalıyken hiç göndermez, BR-37). */}
-      {data.membership && <MembershipInfo membership={data.membership} />}
-      {packageModel && !data.membership && <p className={styles.membershipLine}>Henüz bir paketin yok.</p>}
+      <MembershipSummary
+        membership={data.membership}
+        credits={credits}
+        packageModel={packageModel}
+        timeZone={timeZone}
+        onPickMakeup={() => setPicker({ from: null })}
+      />
 
       {next ? (
         <section className={styles.next} aria-label="Sıradaki dersin">
@@ -189,24 +189,6 @@ export default function MySessionsPage({ user, studio, onLogout }) {
         <p className={styles.empty}>
           Önümüzdeki günlerde dersin görünmüyor. Bir yanlışlık olduğunu düşünüyorsan stüdyoya yaz.
         </p>
-      )}
-
-      {!packageModel && credits.length > 0 && (
-        <section className={styles.credits}>
-          <p>
-            <strong>
-              {credits.length} telafi hakkın var.
-            </strong>
-            <br />
-            <span className={styles.muted}>
-              {credits.length === 1 ? '' : 'İlki '}
-              {formatDayMonth(credits[0].expiresAt, timeZone)} tarihine kadar kullanabilirsin.
-            </span>
-          </p>
-          <button type="button" className={styles.creditsButton} onClick={() => setPicker({ from: null })}>
-            Telafi seç
-          </button>
-        </section>
       )}
 
       {visibleWeeks.map((group) => (
@@ -329,7 +311,16 @@ function SessionRow({ session, multiBranch, packageModel, timeZone, now, busy, o
   );
 }
 
+// Stüdyonun "dersten kaç saat önceye kadar iptal" ayarı. /api/studio bunu göndermiyor; her dersin son iptal anı
+// (cancelDeadlineAt) ile başlangıcı (startsAt) arasındaki farktan bulunur. Dönen değer: tam saat, ör. 12.
+function lateCancelHours(session) {
+  const ms = new Date(session.startsAt) - new Date(session.cancelDeadlineAt);
+  return Math.round(ms / 3_600_000); // 1 saat = 60 × 60 × 1000 ms
+}
+
 function CantComeOptions({ session, studio, now, busy, onSwap, onCancelOnly, onDropMakeup, onClose }) {
+  // Geç iptal onayı açık mı? Pencere her açılışta yeniden kurulduğu için ({open && children}) kendiliğinden sıfırlanır.
+  const [confirmLate, setConfirmLate] = useState(false);
   const timeZone = studio.timezone;
   const deadline = formatWeekdayTime(session.cancelDeadlineAt, timeZone);
 
@@ -346,6 +337,24 @@ function CantComeOptions({ session, studio, now, busy, onSwap, onCancelOnly, onD
       );
     }
     const late = isPast(session.cancelDeadlineAt, now);
+    // Prototipteki onay: seans yanacaksa iptal tek dokunuşla olmaz, ne olacağı kırmızı butonla açıkça sorulur.
+    if (late && studio.lateCancelBurnsSession && confirmLate) {
+      return (
+        <div className={styles.confirm} role="alertdialog" aria-label="Geç iptal uyarısı">
+          <p className={styles.confirmTitle}>Derse {lateCancelHours(session)} saatten az kaldı</p>
+          <p className={styles.confirmText}>
+            {formatDay(session.date)} {formatTime(session.startsAt, timeZone)} dersini şimdi iptal edersen bu seans
+            paketinden düşülür ve iade edilmez.
+          </p>
+          <Button variant="danger" size="lg" onClick={onCancelOnly} busy={busy} busyLabel="İptal ediliyor…">
+            Yine de iptal et (seans yanar)
+          </Button>
+          <Button variant="secondary" size="lg" onClick={onClose}>
+            Vazgeç, derse geleceğim
+          </Button>
+        </div>
+      );
+    }
     let effect = 'Bu seans paketinden düşmez.';
     if (late) effect = studio.lateCancelBurnsSession ? 'Bu seans düşecek.' : 'Geç iptal, ama bu seans paketinden düşmez.';
     return (
@@ -356,7 +365,7 @@ function CantComeOptions({ session, studio, now, busy, onSwap, onCancelOnly, onD
         <button
           type="button"
           className={`${styles.option} ${late ? '' : styles.optionPrimary}`}
-          onClick={onCancelOnly}
+          onClick={late && studio.lateCancelBurnsSession ? () => setConfirmLate(true) : onCancelOnly}
           disabled={busy}
         >
           <span className={styles.optionTitle}>İptal et</span>
@@ -413,56 +422,5 @@ function CantComeOptions({ session, studio, now, busy, onSwap, onCancelOnly, onD
         Vazgeç, geliyorum
       </button>
     </>
-  );
-}
-
-const METHOD_LABELS = { cash: 'nakit', transfer: 'havale', card: 'kart' };
-
-// Üyelik bilgisi. Sakin kalır: kalan tutar uyarı rengiyle gösterilmez (müşteriye baskı hissi vermesin).
-// Paket satırı: "Paketin: 12 seans · 7 kaldı · son gün 15 Ocak"; bitmişse ne olduğunu söyler.
-function packageLine(m) {
-  if (m.ended) return `Paketinin son günü ${formatDateDayMonth(m.endsOn)} tarihinde geçti.`;
-  if (m.remaining === 0) return `Paketindeki ${m.sessionCount} seans bitti.`;
-  return `Paketin: ${m.sessionCount} seans · ${m.remaining} kaldı · son gün ${formatDateDayMonth(m.endsOn)}`;
-}
-
-function MembershipInfo({ membership }) {
-  let line = `Üyeliğin ${formatDateDayMonth(membership.endsOn)} tarihinde ${membership.ended ? 'bitti' : 'bitiyor'}.`;
-  if (membership.sessionCount) {
-    line = packageLine(membership);
-    if (membership.unpackaged > 0) line += ` ${membership.unpackaged} ders yeni paketinden düşecek.`;
-  }
-  const period = membership.period;
-  if (!period) return <p className={styles.membershipLine}>{line}</p>;
-
-  const paidShare = period.feeKurus === 0 ? 1 : Math.min(1, period.paidKurus / period.feeKurus);
-  return (
-    <section className={styles.membershipCard} aria-label="Üyeliğin">
-      <p className={styles.membershipCardLine}>{line}</p>
-      <p className={styles.membershipAmounts}>
-        {formatMoney(period.feeKurus)}
-        {period.remainingKurus > 0
-          ? `, ${formatMoney(period.paidKurus)} ödendi, ${formatMoney(period.remainingKurus)} kaldı`
-          : ', tamamı ödendi'}
-      </p>
-      <span className={styles.paidBar} aria-hidden="true">
-        <span style={{ width: `${paidShare * 100}%` }} />
-      </span>
-      {period.payments.length > 0 && (
-        <details className={styles.paymentsDetails}>
-          <summary>Ödemelerim</summary>
-          <ul>
-            {period.payments.map((payment, index) => (
-              <li key={index}>
-                <span>
-                  {formatDateDayMonth(payment.paidOn)}, {METHOD_LABELS[payment.method]}
-                </span>
-                <span>{formatMoney(payment.amountKurus)}</span>
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
-    </section>
   );
 }
