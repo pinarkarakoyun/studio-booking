@@ -104,45 +104,44 @@ export default function MakeupPickerPage({ studio, from, busy, onBack, onPick })
   );
 }
 
+// Prototipteki ders satırı: solda serif saat, ortada grup adı ve doluluk, sağda eylem ya da durum rozeti.
 function SessionOption({ session, multiBranch, timeZone, now, busy, pending, onSelect, onCancel, onConfirm }) {
   const full = session.freeSpots <= 0;
   const closed = new Date(session.makeupDeadlineAt).getTime() <= now;
-  const fill = Math.min(100, Math.round((session.bookedCount / session.capacity) * 100));
+  const available = !full && !closed;
   const time = formatTime(session.startsAt, timeZone);
+  const occupancy = `${session.bookedCount}/${session.capacity}`;
 
   return (
-    <li className={`${styles.option} ${full || closed ? styles.optionUnavailable : ''}`}>
-      <div>
-        <span className={styles.time}>
-          {time}
-          {/* Çok şubeli stüdyoda telafi başka şubede olabilir: şube adı saatin yanında. */}
+    <li className={`${styles.option} ${available ? '' : styles.optionUnavailable}`}>
+      <span className={styles.time}>{time}</span>
+      <div className={styles.info}>
+        <span className={styles.group}>
+          {session.groupName}
+          {/* Çok şubeli stüdyoda telafi başka şubede olabilir: şube adı grup adının yanında. */}
           {multiBranch && session.branchName && ` · ${session.branchName}`}
         </span>
-        {!full && !closed && (
-          <span className={styles.bar} aria-hidden="true">
-            <span style={{ width: `${fill}%` }} />
-          </span>
-        )}
         <span className={styles.spots}>
-          {full ? 'Dolu' : closed ? 'Telafi kaydı kapandı' : `${session.freeSpots} boş yer`}
+          {/* Doluyken "Dolu" sağdaki rozette yazar; burada iki kez yazmasın. */}
+          {full ? `${occupancy} kişi` : `${session.freeSpots} yer boş · ${occupancy}`}
         </span>
       </div>
 
-      {!full && !closed && (
-        pending ? (
-          <div className={styles.confirm}>
-            <button type="button" className={styles.cancel} onClick={onCancel} disabled={busy}>
-              Vazgeç
-            </button>
-            <button type="button" className={styles.pick} onClick={onConfirm} disabled={busy}>
-              {busy ? 'Kaydediliyor…' : 'Onayla'}
-            </button>
-          </div>
-        ) : (
-          <button type="button" className={styles.pick} onClick={onSelect} aria-label={`${time} dersini seç`}>
-            Seç
+      {!available ? (
+        <span className={styles.badge}>{full ? 'Dolu' : 'Kayıt kapandı'}</span>
+      ) : pending ? (
+        <div className={styles.confirm}>
+          <button type="button" className={styles.cancel} onClick={onCancel} disabled={busy}>
+            Vazgeç
           </button>
-        )
+          <button type="button" className={styles.pick} onClick={onConfirm} disabled={busy}>
+            {busy ? 'Kaydediliyor…' : 'Onayla'}
+          </button>
+        </div>
+      ) : (
+        <button type="button" className={styles.pick} onClick={onSelect} aria-label={`${time} dersine gel`}>
+          Bu derse gel
+        </button>
       )}
     </li>
   );

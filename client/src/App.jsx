@@ -69,12 +69,13 @@ function App() {
 
   if (status === 'error') {
     return (
-      <main className={styles.page}>
-        <h1 className={styles.title}>Bağlantı kurulamadı</h1>
-        <p className={styles.lead}>Sunucuya ulaşılamıyor. İnternet bağlantını kontrol edip tekrar dene.</p>
-        <p className={styles.footer}>
+      <main className={`${styles.page} ${styles.centered}`}>
+        <div className={styles.messageCard}>
+          <h1 className={styles.title}>Bağlantı kurulamadı</h1>
+          <p className={styles.lead}>Sunucuya ulaşılamıyor. İnternet bağlantını kontrol edip tekrar dene.</p>
           <Button
             type="button"
+            size="lg"
             onClick={() => {
               setStatus('loading');
               load();
@@ -82,7 +83,7 @@ function App() {
           >
             Tekrar dene
           </Button>
-        </p>
+        </div>
       </main>
     );
   }

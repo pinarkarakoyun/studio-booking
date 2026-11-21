@@ -63,11 +63,11 @@ export default function PaymentsPage({ studio, onOpenCustomer }) {
         ]}
       </Section>
 
-      <h2 className={styles.listLabel}>Bu ay alınan</h2>
-      <p className={styles.monthTotal}>
-        <span>{data.thisMonth.count} ödeme</span>
-        <strong>{formatMoney(data.thisMonth.totalKurus)}</strong>
-      </p>
+      {/* Bu ayın özeti: prototipteki istatistik kartı gibi serif büyük tutar; yeri eskisi gibi bölümlerin arasında. */}
+      <div className={`${styles.stat} ${styles.monthStat}`}>
+        <span className={styles.muted}>Bu ay alınan · {data.thisMonth.count} ödeme</span>
+        <strong className={styles.monthAmount}>{formatMoney(data.thisMonth.totalKurus)}</strong>
+      </div>
 
       {/* Geçişte uzun olabilir (henüz kimsenin dönemi girilmemişken herkes burada); bu yüzden en altta. */}
       <Section title="Üyelik dönemi girilmemiş" rows={data.noMembership} multiBranch={multiBranch} onOpen={onOpenCustomer}>
@@ -81,9 +81,9 @@ export default function PaymentsPage({ studio, onOpenCustomer }) {
 function Section({ title, rows, multiBranch, onOpen, children }) {
   if (rows.length === 0) return null;
   return (
-    <>
-      <h2 className={styles.listLabel}>
-        {title} ({rows.length})
+    <section className={styles.paymentSection}>
+      <h2 className={styles.paymentSectionTitle}>
+        {title} <span>{rows.length}</span>
       </h2>
       <ul className={styles.people}>
         {rows.map((row) => {
@@ -102,6 +102,6 @@ function Section({ title, rows, multiBranch, onOpen, children }) {
           );
         })}
       </ul>
-    </>
+    </section>
   );
 }

@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import Sheet from '../components/Sheet.jsx';
+import Toast from '../components/Toast.jsx';
+import { useToast } from '../components/useToast.js';
 import { formatDay } from '../format.js';
 import CredentialsPage from './CredentialsPage.jsx';
 import CustomerDetailPage from './CustomerDetailPage.jsx';
@@ -14,7 +16,7 @@ import SessionRosterPage from './SessionRosterPage.jsx';
 import TodayPage from './TodayPage.jsx';
 import styles from './Admin.module.css';
 
-// Yönetici panelinin beş bölümü (alt çubuk). Hazır olmayanlar "hazırlanıyor" gösterir.
+// Yönetici panelinin beş bölümü: masaüstünde yan menü, telefonda alt çubuk. Hazır olmayanlar "hazırlanıyor" gösterir.
 const TABS = [
   { id: 'today', label: 'Bugün' },
   { id: 'customers', label: 'Müşteriler' },
@@ -31,6 +33,8 @@ export default function AdminApp({ user, studio, onStudioChange, onLogout }) {
   const [tab, setTab] = useState('today');
   const [view, setView] = useState(START);
   const [accountOpen, setAccountOpen] = useState(false);
+  // Başarı mesajları tek bir yerden: alt sayfalar showToast(tone, text) çağırır, toast burada bir kez çizilir.
+  const { toast, showToast } = useToast();
   // Bugün sekmesinde bakılan gün (null = bugün). Ders detayından geri dönünce aynı gün açılır.
   const [day, setDay] = useState(null);
   // "Bugün"deki şube süzgeci burada tutulur: o ekran her gün değişiminde yeniden kurulur (key), seçim kaybolmasın.
@@ -51,6 +55,7 @@ export default function AdminApp({ user, studio, onStudioChange, onLogout }) {
           sessionId={view.id}
           backLabel={day ? formatDay(day) : 'Bugün'}
           onBack={() => goTo(START)}
+          showToast={showToast}
         />
       ) : (
         <TodayPage
@@ -73,6 +78,7 @@ export default function AdminApp({ user, studio, onStudioChange, onLogout }) {
           studio={studio}
           customerId={view.id}
           onBack={() => goTo(START)}
+          showToast={showToast}
           onCredentials={(credentials) => goTo({ name: 'credentials', credentials, backTo: { name: 'detail', id: view.id } })}
         />
       );
@@ -95,10 +101,10 @@ export default function AdminApp({ user, studio, onStudioChange, onLogout }) {
         <GroupDetailPage
           studio={studio}
           groupId={view.id}
-          initialNotice={view.notice}
           onBack={() => goTo(START)}
           onEdit={(group) => goTo({ name: 'edit', group })}
           onOpenCustomer={openCustomer}
+          showToast={showToast}
         />
       );
     } else if (view.name === 'edit' || view.name === 'new') {
@@ -108,7 +114,10 @@ export default function AdminApp({ user, studio, onStudioChange, onLogout }) {
           onStudioChange={onStudioChange}
           group={view.group}
           onCancel={() => goTo(view.group ? { name: 'detail', id: view.group.id } : START)}
-          onSaved={(id, notice) => goTo({ name: 'detail', id, notice })}
+          onSaved={(id, notice) => {
+            if (notice) showToast('success', notice);
+            goTo({ name: 'detail', id });
+          }}
         />
       );
     } else {
@@ -117,7 +126,7 @@ export default function AdminApp({ user, studio, onStudioChange, onLogout }) {
   } else if (tab === 'payments') {
     content = <PaymentsPage studio={studio} onOpenCustomer={openCustomer} />;
   } else if (tab === 'settings') {
-    content = <SettingsPage onStudioChange={onStudioChange} />;
+    content = <SettingsPage onStudioChange={onStudioChange} showToast={showToast} />;
   } else {
     content = (
       <main className={styles.page}>
@@ -127,26 +136,43 @@ export default function AdminApp({ user, studio, onStudioChange, onLogout }) {
     );
   }
 
+  // Aynı sekme düğmeleri iki yerde: masaüstünde yan menüde, telefonda alt çubukta (CSS hangisinin görüneceğini seçer).
+  const tabButtons = (className, activeClassName) =>
+    TABS.map((item) => (
+      <button
+        key={item.id}
+        type="button"
+        className={`${className} ${tab === item.id ? activeClassName : ''}`}
+        aria-current={tab === item.id ? 'page' : undefined}
+        onClick={() => {
+          setTab(item.id);
+          setView(START);
+          setDay(null);
+        }}
+      >
+        {item.label}
+      </button>
+    ));
+
   return (
-    <>
-      {content}
+    <div className={styles.shell}>
+      <aside className={styles.sidebar}>
+        <div className={styles.sidebarBrand}>
+          <span className={styles.sidebarName}>{studio.name}</span>
+          <span className={styles.sidebarSub}>Yönetim</span>
+        </div>
+        <nav className={styles.sideNav} aria-label="Yönetici paneli">
+          {tabButtons(styles.sideTab, styles.sideTabActive)}
+        </nav>
+        <button type="button" className={styles.sidebarAccount} onClick={() => setAccountOpen(true)}>
+          {user.fullName}
+        </button>
+      </aside>
+
+      <div className={styles.content}>{content}</div>
 
       <nav className={styles.tabBar} aria-label="Yönetici paneli">
-        {TABS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className={`${styles.tab} ${tab === item.id ? styles.tabActive : ''}`}
-            aria-current={tab === item.id ? 'page' : undefined}
-            onClick={() => {
-              setTab(item.id);
-              setView(START);
-              setDay(null);
-            }}
-          >
-            {item.label}
-          </button>
-        ))}
+        {tabButtons(styles.tab, styles.tabActive)}
       </nav>
 
       <Sheet open={accountOpen} onClose={() => setAccountOpen(false)} title={user.fullName}>
@@ -154,6 +180,8 @@ export default function AdminApp({ user, studio, onStudioChange, onLogout }) {
           Çıkış yap
         </button>
       </Sheet>
-    </>
+
+      <Toast toast={toast} />
+    </div>
   );
 }

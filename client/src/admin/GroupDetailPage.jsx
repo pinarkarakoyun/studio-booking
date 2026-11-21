@@ -6,14 +6,13 @@ import { formatDateDayMonth } from '../format.js';
 import { WEEKDAYS } from './groupDays.js';
 import styles from './Admin.module.css';
 
-export default function GroupDetailPage({ studio, groupId, initialNotice = null, onBack, onEdit, onOpenCustomer }) {
+// showToast: başarı mesajları (grup kaydedildi, kapatıldı) AdminApp'teki ortak toast'ta.
+export default function GroupDetailPage({ studio, groupId, onBack, onEdit, onOpenCustomer, showToast }) {
   const [group, setGroup] = useState(null);
   const [error, setError] = useState(null);
   const [closing, setClosing] = useState(false);
   const [closeError, setCloseError] = useState(null);
   const [busy, setBusy] = useState(false);
-  // Düzenlemeden dönünce "Kaydedildi…" bildirimi burada gösterilir.
-  const [notice, setNotice] = useState(initialNotice);
 
   function load() {
     return api(`/api/admin/groups/${groupId}`).then(({ group: data }) => setGroup(data), (err) => setError(err.message));
@@ -30,7 +29,8 @@ export default function GroupDetailPage({ studio, groupId, initialNotice = null,
     try {
       const result = await api(`/api/admin/groups/${groupId}/close`, { method: 'POST' });
       setClosing(false);
-      setNotice(
+      showToast(
+        'success',
         result.refundedMakeups > 0
           ? `Grup kapatıldı. ${result.refundedMakeups} telafi kaydı iptal edildi, hakları iade edildi.`
           : 'Grup kapatıldı.',
@@ -80,15 +80,9 @@ export default function GroupDetailPage({ studio, groupId, initialNotice = null,
         {!group.isActive && ', grup kapalı'}
       </p>
 
-      {notice && (
-        <p className={styles.notice} role="status">
-          {notice}
-        </p>
-      )}
-
       {group.isActive && (
         <div className={styles.formSubmit}>
-          <Button variant="quiet" type="button" onClick={() => onEdit(group)}>
+          <Button variant="secondary" type="button" onClick={() => onEdit(group)}>
             Düzenle
           </Button>
         </div>
@@ -133,8 +127,8 @@ export default function GroupDetailPage({ studio, groupId, initialNotice = null,
           edilir. Geçmiş kayıtlar silinmez.
         </p>
         {closeError && <p className={styles.formError}>{closeError}</p>}
-        <div className={styles.dangerButton}>
-          <Button type="button" busy={busy} busyLabel="Kapatılıyor…" onClick={close}>
+        <div className={styles.formSubmit}>
+          <Button variant="danger" size="lg" type="button" busy={busy} busyLabel="Kapatılıyor…" onClick={close}>
             Grubu kapat
           </Button>
         </div>

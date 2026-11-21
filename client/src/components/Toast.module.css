@@ -1,0 +1,33 @@
+/* Prototipteki bildirim: koyu zemin, alttan kayarak gelir, ekranın altında ortada. */
+.toast {
+  position: fixed;
+  left: 50%;
+  /* --toast-offset: altta sabit bir çubuk varsa (yönetici panelinde telefonda) toast onun üstünde dursun. */
+  bottom: calc(var(--space-6) + var(--toast-offset, 0px) + env(safe-area-inset-bottom));
+  z-index: 20;
+  width: calc(100% - 40px);
+  max-width: 360px;
+  margin: 0;
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: var(--brand-strong);
+  color: var(--on-brand);
+  font-size: 14px;
+  line-height: 1.45;
+  text-align: center;
+  box-shadow: 0 10px 26px rgb(0 0 0 / 25%);
+  transform: translateX(-50%);
+  animation: toast-in 0.3s var(--ease) both;
+}
+
+.error {
+  background: var(--danger);
+  color: var(--on-danger);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 20px);
+  }
+}

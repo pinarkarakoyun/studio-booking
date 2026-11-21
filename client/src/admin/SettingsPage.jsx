@@ -53,7 +53,8 @@ function NumberRow({ label, hint, unit, error, ...inputProps }) {
       </label>
       <span className={styles.settingNumber}>
         <input id={id} type="number" inputMode="numeric" aria-invalid={error ? true : undefined} {...inputProps} />
-        {unit}
+        {/* Birim sabit genişlikte: "saat", "gün", "dk" farklı uzunlukta olsa da kutular alt alta hizalı kalsın. */}
+        <span className={styles.settingUnit}>{unit}</span>
       </span>
       {error && <p className={styles.settingError}>{error}</p>}
     </div>
@@ -80,12 +81,12 @@ function SwitchRow({ label, hint, checked, onChange }) {
   );
 }
 
-export default function SettingsPage({ onStudioChange }) {
+// showToast: "Kaydedildi" mesajı AdminApp'teki ortak toast'ta.
+export default function SettingsPage({ onStudioChange, showToast }) {
   const [form, setForm] = useState(null);
   const [loadError, setLoadError] = useState(null);
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState(null);
   // Açık şube sayısı: "diğer şubelerde telafi" anahtarı yalnızca çok şubeli stüdyoda görünür.
   const [branchCount, setBranchCount] = useState(null);
 
@@ -111,7 +112,6 @@ export default function SettingsPage({ onStudioChange }) {
   function set(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({ ...current, [field]: null, form: null }));
-    setNotice(null);
   }
 
   const number = (field) => ({
@@ -134,7 +134,7 @@ export default function SettingsPage({ onStudioChange }) {
         whatsappPhone: settings.whatsappPhone,
         creditValidityDays: settings.creditValidityDays,
       });
-      setNotice('Kaydedildi. Yeni kurallar bundan sonraki işlemlerde geçerli.');
+      showToast('success', 'Kaydedildi. Yeni kurallar bundan sonraki işlemlerde geçerli.');
     } catch (err) {
       setErrors({ [FIELD_FOR_CODE[err.code] ?? 'form']: err.message });
     } finally {
@@ -149,18 +149,25 @@ export default function SettingsPage({ onStudioChange }) {
       <p className={styles.muted}>Üyelik modeli: {packageModel ? 'Seans paketi' : 'Grup + telafi'}</p>
 
       <form onSubmit={submit} noValidate>
-        <h2 className={styles.settingSection}>İptal</h2>
-        {packageModel ? (
-          <>
-            <NumberRow label="İptal için son süre" hint="Dersten önce; sonrası geç iptal" unit="saat" min="0" max="72" {...number('cancellationDeadlineHours')} />
-            <SwitchRow label="Geç iptalde seans yansın" hint="Kapalıysa geç iptal de paketten düşmez" {...toggle('lateCancelBurnsSession')} />
-          </>
-        ) : (
-          <>
-            <NumberRow label="İptal için son süre" hint="Dersten önce" unit="saat" min="0" max="72" {...number('cancellationDeadlineHours')} />
-            <SwitchRow label="İptali geri alma" hint="Yer hâlâ boşsa" {...toggle('allowUndoCancel')} />
-            <SwitchRow label="Stüdyo iptalinde telafi hakkı" hint="Stüdyo dersi iptal edince gelecek olanlara" {...toggle('creditOnStudioCancel')} />
+        <section className={styles.settingCard}>
+          <h2 className={styles.settingSection}>İptal</h2>
+          {packageModel ? (
+            <>
+              <NumberRow label="İptal için son süre" hint="Dersten önce; sonrası geç iptal" unit="saat" min="0" max="72" {...number('cancellationDeadlineHours')} />
+              <SwitchRow label="Geç iptalde seans yansın" hint="Kapalıysa geç iptal de paketten düşmez" {...toggle('lateCancelBurnsSession')} />
+            </>
+          ) : (
+            <>
+              <NumberRow label="İptal için son süre" hint="Dersten önce" unit="saat" min="0" max="72" {...number('cancellationDeadlineHours')} />
+              <SwitchRow label="İptali geri alma" hint="Yer hâlâ boşsa" {...toggle('allowUndoCancel')} />
+              <SwitchRow label="Stüdyo iptalinde telafi hakkı" hint="Stüdyo dersi iptal edince gelecek olanlara" {...toggle('creditOnStudioCancel')} />
+            </>
+          )}
+        </section>
 
+        {/* Paket modelinde telafi yok: bu kart yalnızca grup modelinde. */}
+        {!packageModel && (
+          <section className={styles.settingCard}>
             <h2 className={styles.settingSection}>Telafi</h2>
             <NumberRow label="Telafi hakkı geçerliliği" hint="Kaçırılan dersten itibaren" unit="gün" min="1" max="365" {...number('creditValidityDays')} />
             <NumberRow label="En fazla ne kadar ileriye" hint="Telafi seçerken" unit="gün" min="1" max="90" {...number('bookingWindowDays')} />
@@ -171,38 +178,37 @@ export default function SettingsPage({ onStudioChange }) {
             {branchCount > 1 && (
               <SwitchRow label="Diğer şubelerde telafi" hint="Kapalıysa üye yalnızca kendi şubesine telafiye gelir" {...toggle('makeupOtherBranches')} />
             )}
-          </>
+          </section>
         )}
 
-        <h2 className={styles.settingSection}>Ödeme</h2>
-        <NumberRow label="Bitişe kaç gün kala uyar" hint="Ödemeler'de “Bitişi yaklaşıyor”" unit="gün" min="0" max="60" {...number('paymentReminderDays')} />
-        <SwitchRow label="Üyeler ödeme bilgisini görsün" hint="Derslerim'de ücret, ödenen ve kalan" {...toggle('showPaymentsToCustomers')} />
+        <section className={styles.settingCard}>
+          <h2 className={styles.settingSection}>Ödeme</h2>
+          <NumberRow label="Bitişe kaç gün kala uyar" hint="Ödemeler'de “Bitişi yaklaşıyor”" unit="gün" min="0" max="60" {...number('paymentReminderDays')} />
+          <SwitchRow label="Üyeler ödeme bilgisini görsün" hint="Derslerim'de ücret, ödenen ve kalan" {...toggle('showPaymentsToCustomers')} />
+        </section>
 
-        <h2 className={styles.settingSection}>Stüdyo</h2>
-        <TextField
-          label="Stüdyo adı"
-          value={form.studioName}
-          onChange={(event) => set('studioName', event.target.value)}
-          error={errors.studioName}
-        />
-        <TextField
-          label="WhatsApp numarası"
-          type="tel"
-          inputMode="tel"
-          value={form.whatsappPhone}
-          onChange={(event) => set('whatsappPhone', event.target.value)}
-          error={errors.whatsappPhone}
-          hint="Müşterilerin “Stüdyoya WhatsApp'tan yaz” bağlantısı bu numaraya gider."
-        />
+        <section className={`${styles.settingCard} ${styles.formCard}`}>
+          <h2 className={styles.settingSection}>Stüdyo</h2>
+          <TextField
+            label="Stüdyo adı"
+            value={form.studioName}
+            onChange={(event) => set('studioName', event.target.value)}
+            error={errors.studioName}
+          />
+          <TextField
+            label="WhatsApp numarası"
+            type="tel"
+            inputMode="tel"
+            value={form.whatsappPhone}
+            onChange={(event) => set('whatsappPhone', event.target.value)}
+            error={errors.whatsappPhone}
+            hint="Müşterilerin “Stüdyoya WhatsApp'tan yaz” bağlantısı bu numaraya gider."
+          />
+        </section>
 
         {errors.form && <p className={styles.formError}>{errors.form}</p>}
-        {notice && (
-          <p className={styles.notice} role="status">
-            {notice}
-          </p>
-        )}
         <div className={styles.formSubmit}>
-          <Button type="submit" busy={busy} busyLabel="Kaydediliyor…">
+          <Button size="lg" type="submit" busy={busy} busyLabel="Kaydediliyor…">
             Kaydet
           </Button>
         </div>

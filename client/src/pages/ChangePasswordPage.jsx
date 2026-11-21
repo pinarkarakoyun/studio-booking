@@ -68,11 +68,13 @@ export default function ChangePasswordPage({ user, studio, currentPassword, onCh
 
   return (
     <main className={styles.page}>
-      <Monogram size="small" logoUrl={studio?.logoUrl} name={studio?.name} />
-      <h1 className={styles.title}>Hoş geldin, {firstName}</h1>
-      <p className={styles.lead}>
-        Stüdyonun verdiği geçici şifreyi kendi şifrenle değiştir. Bundan sonra bununla gireceksin.
-      </p>
+      <div className={styles.brand}>
+        <Monogram size="small" logoUrl={studio?.logoUrl} name={studio?.name} />
+        <h1 className={styles.title}>Hoş geldin, {firstName}</h1>
+        <p className={styles.lead}>
+          Stüdyonun verdiği geçici şifreyi kendi şifrenle değiştir. Bundan sonra bununla gireceksin.
+        </p>
+      </div>
 
       <form className={styles.form} onSubmit={handleSubmit} noValidate>
         {needsTemporary && (
@@ -108,7 +110,7 @@ export default function ChangePasswordPage({ user, studio, currentPassword, onCh
           onChange={update(setRepeat, 'repeat')}
           error={errors.repeat}
         />
-        <Button type="submit" busy={busy} busyLabel="Kaydediliyor…">
+        <Button type="submit" size="lg" busy={busy} busyLabel="Kaydediliyor…">
           Şifremi kaydet
         </Button>
       </form>

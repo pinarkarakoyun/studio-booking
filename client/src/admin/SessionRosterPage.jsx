@@ -18,13 +18,27 @@ function reasonText(person, sessionCancelled, packageModel) {
   return 'iptal etti';
 }
 
+// Katılımcının baş harfleri (en fazla iki): "Ayşe Nur Deneme" -> "AD".
+function initials(fullName) {
+  const words = fullName.trim().split(/\s+/);
+  const letters = words.length > 1 ? [words[0], words[words.length - 1]] : words;
+  return letters.map((word) => word.charAt(0).toLocaleUpperCase('tr')).join('');
+}
+
+// Gelecekler listesinde adın altındaki satır: düzenli üye mi, telafiyle mi geldi, yönetici mi ekledi.
+function attendeeLine(person, packageModel) {
+  if (person.state !== 'makeup') return 'Grup üyesi';
+  if (person.creditState === 'added') return 'Yönetici ekledi';
+  return packageModel ? 'Derse eklendi' : 'Telafi';
+}
+
 // Bir dersin katılımcı listesi; başlamamış bir ders buradan iptal edilebilir.
-export default function SessionRosterPage({ studio, sessionId, backLabel = 'Bugün', onBack }) {
+// showToast: başarı mesajı AdminApp'teki ortak toast'ta görünür; form hataları pencerenin içinde kalır.
+export default function SessionRosterPage({ studio, sessionId, backLabel = 'Bugün', onBack, showToast }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   // Açık panel: 'cancel' | 'add' | { remove: kişi } | null
   const [panel, setPanel] = useState(null);
-  const [notice, setNotice] = useState(null);
   const [absentError, setAbsentError] = useState(null);
   const [absentBusy, setAbsentBusy] = useState(null); // işaretlenmekte olan kişinin id'si
 
@@ -43,7 +57,7 @@ export default function SessionRosterPage({ studio, sessionId, backLabel = 'Bug�
 
   async function done(message) {
     setPanel(null);
-    setNotice(message);
+    showToast('success', message);
     await load();
   }
 
@@ -101,12 +115,6 @@ export default function SessionRosterPage({ studio, sessionId, backLabel = 'Bug�
       </p>
       {isCancelled && session.cancelReason && <p className={styles.muted}>Sebep: {session.cancelReason}</p>}
 
-      {notice && (
-        <p className={styles.notice} role="status">
-          {notice}
-        </p>
-      )}
-
       <div className={styles.rosterFill}>
         <span className={styles.bar} aria-hidden="true">
           <span style={{ width: `${fill}%` }} />
@@ -128,11 +136,14 @@ export default function SessionRosterPage({ studio, sessionId, backLabel = 'Bug�
         <ul className={styles.people}>
           {attending.map((person) => (
             <li key={person.id} className={styles.person}>
-              <span className={person.absent ? styles.inactive : undefined}>{person.fullName}</span>
+              <span className={styles.avatar} aria-hidden="true">
+                {initials(person.fullName)}
+              </span>
+              <span className={`${styles.personText} ${person.absent ? styles.inactive : ''}`}>
+                <span className={styles.personName}>{person.fullName}</span>
+                <small>{person.absent ? 'Gelmedi olarak işaretlendi' : attendeeLine(person, packageModel)}</small>
+              </span>
               <span className={styles.personEnd}>
-                {person.state === 'makeup' && (
-                  <span className={styles.tagMakeup}>{person.creditState === 'added' ? 'Yönetici ekledi' : 'Telafi'}</span>
-                )}
                 {canMarkAbsent && (
                   <button
                     type="button"
@@ -167,8 +178,13 @@ export default function SessionRosterPage({ studio, sessionId, backLabel = 'Bug�
           <ul className={styles.people}>
             {notAttending.map((person) => (
               <li key={person.id} className={`${styles.person} ${styles.inactive}`}>
-                <span>{person.fullName}</span>
-                <span className={styles.reason}>{reasonText(person, isCancelled, packageModel)}</span>
+                <span className={`${styles.avatar} ${styles.avatarMuted}`} aria-hidden="true">
+                  {initials(person.fullName)}
+                </span>
+                <span className={styles.personText}>
+                  <span className={styles.personName}>{person.fullName}</span>
+                  <small>{reasonText(person, isCancelled, packageModel)}</small>
+                </span>
               </li>
             ))}
           </ul>
@@ -257,8 +273,8 @@ function CancelSessionForm({ sessionId, packageModel, onDone }) {
         hint={`Müşteriler Derslerim'de iptal edilen dersin altında görür. ${NO_HEALTH_DATA_HINT}`}
       />
       {error && <p className={styles.formError}>{error}</p>}
-      <div className={`${styles.formSubmit} ${styles.dangerButton}`}>
-        <Button type="button" busy={busy} busyLabel="İptal ediliyor…" onClick={confirm} disabled={busy || !preview}>
+      <div className={styles.formSubmit}>
+        <Button variant="danger" size="lg" type="button" busy={busy} busyLabel="İptal ediliyor…" onClick={confirm} disabled={busy || !preview}>
           Dersi iptal et
         </Button>
       </div>
@@ -329,7 +345,7 @@ function AddPersonForm({ sessionId, packageModel, excludedIds, onDone }) {
         {full && <p className={styles.formError}>{full} Yine de eklemek istiyor musun?</p>}
         {error && <p className={styles.formError}>{error}</p>}
         <div className={styles.formSubmit}>
-          <Button type="button" busy={busy} busyLabel="Ekleniyor…" onClick={() => submit(Boolean(full))}>
+          <Button size="lg" type="button" busy={busy} busyLabel="Ekleniyor…" onClick={() => submit(Boolean(full))}>
             {full ? 'Yine de ekle' : 'Derse ekle'}
           </Button>
           <Button variant="quiet" type="button" onClick={() => { setChosen(null); setFull(null); setError(null); }}>
@@ -393,7 +409,7 @@ function RemovePerson({ sessionId, person, onDone }) {
       </p>
       {error && <p className={styles.formError}>{error}</p>}
       <div className={styles.formSubmit}>
-        <Button type="button" busy={busy} busyLabel="Çıkarılıyor…" onClick={run}>
+        <Button size="lg" type="button" busy={busy} busyLabel="Çıkarılıyor…" onClick={run}>
           Dersten çıkar
         </Button>
       </div>

@@ -168,7 +168,7 @@ export default function GroupFormPage({ studio, group, onStudioChange, onCancel,
       </button>
       <h1 className={styles.rosterTitle}>{group ? 'Grubu düzenle' : 'Yeni grup'}</h1>
 
-      <form onSubmit={submit} noValidate>
+      <form className={styles.formCard} onSubmit={submit} noValidate>
         <TextField label="Grup adı" value={form.name} onChange={update('name')} error={errors.name} placeholder="Pzt-Çar-Cum sabah" />
 
         {multiBranch && (
@@ -271,7 +271,7 @@ export default function GroupFormPage({ studio, group, onStudioChange, onCancel,
 
         {errors.form && <p className={styles.formError}>{errors.form}</p>}
         <div className={styles.formSubmit}>
-          <Button type="submit" busy={busy} busyLabel="Kaydediliyor…">
+          <Button size="lg" type="submit" busy={busy} busyLabel="Kaydediliyor…">
             {group ? 'Kaydet' : 'Grubu oluştur'}
           </Button>
         </div>

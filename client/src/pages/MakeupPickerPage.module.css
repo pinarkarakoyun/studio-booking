@@ -1,3 +1,4 @@
+/* Telafi dersi seçme (prototipteki ders listesi): krem zemin, koyu gün şeridi, yuvarlak ders kartları. */
 .page {
   width: 100%;
   max-width: 480px;
@@ -7,40 +8,42 @@
 }
 
 .back {
+  min-height: var(--tap);
   padding: var(--space-2) 0;
   border: 0;
   background: none;
   font: inherit;
-  font-size: var(--text-sm);
-  font-weight: 700;
-  color: var(--violet);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--brand);
   cursor: pointer;
 }
 
 .title {
   margin: var(--space-2) 0 0;
   font-family: var(--font-brand);
-  font-weight: 500;
-  font-size: 2rem;
+  font-weight: 700;
+  font-size: 1.75rem;
   line-height: 1.05;
-  color: var(--violet);
+  color: var(--ink);
 }
 
 .subtitle {
   margin: 4px 0 0;
-  font-size: var(--text-sm);
+  font-size: 14px;
   color: var(--ink-soft);
 }
 
 .empty {
   margin: var(--space-6) 0 0;
-  padding: var(--space-4);
-  border-radius: 16px;
-  background: var(--blush);
+  padding: var(--space-6);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
   color: var(--ink-soft);
+  text-align: center;
 }
 
-/* Gün şeridi: telefonda yana kaydırılabilir. */
+/* Gün şeridi: telefonda yana kaydırılabilir; seçili gün koyu. */
 .days {
   display: flex;
   gap: var(--space-2);
@@ -54,54 +57,69 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  flex-shrink: 0;
-  min-width: 48px;
-  padding: 7px 10px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  background: var(--white);
+  flex: none;
+  width: 56px;
+  padding: 10px 0;
+  border: 0;
+  border-radius: 16px;
+  background: var(--surface-raised);
   font: inherit;
   color: var(--ink);
   cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.dayChip:active {
+  transform: scale(0.97);
 }
 
 .dayChipSelected {
-  border-color: var(--violet);
-  background: var(--violet);
-  color: var(--white);
+  background: var(--brand-strong);
+  color: var(--on-brand);
 }
 
 .dayChipWeekday {
-  font-size: 0.6875rem;
-  opacity: 0.75;
+  font-size: 12px;
+  opacity: 0.8;
 }
 
 .dayChipNumber {
-  font-weight: 800;
-  font-size: 1.0625rem;
-  font-variant-numeric: tabular-nums;
+  font-family: var(--font-brand);
+  font-weight: 700;
+  font-size: 1.375rem;
+  line-height: 1.1;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 .dayTitle {
-  margin: var(--space-6) 0 0;
-  font-family: var(--font-brand);
-  font-weight: 500;
-  font-size: 1.3rem;
+  margin: var(--space-6) 0 var(--space-2);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ink-soft);
 }
 
 .list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+/* Ders kartı: saat | grup ve doluluk | eylem. */
 .option {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: 14px 0;
-  border-bottom: 1px solid var(--line);
+  gap: 14px;
+  min-height: 72px;
+  padding: 14px 16px;
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+  animation: fade-up 0.45s var(--ease) both;
 }
 
 .optionUnavailable {
@@ -109,33 +127,31 @@
 }
 
 .time {
-  display: block;
-  font-weight: 800;
-  font-size: 1.125rem;
-  font-variant-numeric: tabular-nums;
+  flex: none;
+  width: 56px;
+  font-family: var(--font-brand);
+  font-weight: 700;
+  font-size: 1.5rem;
+  line-height: 1;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
-/* Doluluk çubuğu: dolu kısım mor. */
-.bar {
-  display: block;
-  width: 130px;
-  height: 5px;
-  margin-top: 6px;
-  border-radius: 3px;
-  background: var(--violet-soft);
+.info {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
 
-.bar span {
-  display: block;
-  height: 100%;
-  border-radius: 3px;
-  background: var(--violet);
+.group {
+  font-weight: 500;
+  font-size: 15px;
+  overflow-wrap: anywhere;
 }
 
 .spots {
-  display: block;
-  margin-top: 4px;
-  font-size: var(--text-sm);
+  font-size: 13px;
   color: var(--ink-soft);
 }
 
@@ -144,36 +160,63 @@
 }
 
 .pick {
-  flex-shrink: 0;
-  padding: 9px 18px;
+  flex: none;
+  min-height: var(--tap);
+  padding: 12px 14px;
   border: 0;
   border-radius: var(--radius-pill);
-  background: var(--pink);
+  background: var(--brand);
   font: inherit;
-  font-size: var(--text-sm);
-  font-weight: 700;
-  color: var(--white);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--on-brand);
   cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.pick:hover {
+  background: var(--brand-strong);
+}
+
+.pick:active {
+  transform: scale(0.97);
 }
 
 .pick:disabled {
   cursor: progress;
-  background: var(--pink-disabled);
+  opacity: 0.6;
 }
 
+/* Dolu ya da kaydı kapanmış ders: sakin, gömük rozet. */
+.badge {
+  flex: none;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
+/* Onay adımı kartın alt satırına iner: telefonda grup adı sıkışmasın. */
 .confirm {
   display: flex;
+  flex-basis: 100%;
   align-items: center;
-  gap: var(--space-2);
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
 }
 
 .cancel {
-  padding: 9px 6px;
+  min-height: var(--tap);
+  padding: 0 8px;
   border: 0;
   background: none;
   font: inherit;
-  font-size: var(--text-sm);
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 500;
   color: var(--ink-soft);
   cursor: pointer;
 }

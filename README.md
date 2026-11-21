@@ -173,6 +173,14 @@ BRAND_DIR/
 
 `/brand/...` is served from the folder of the studio the request came to, so one studio can never load another's files. Every file in a studio's folder is public. Missing fields show placeholders.
 
+### UI conventions
+
+- **Role-based CSS variables.** Colours are named by what they do, not by how they look: `--brand`, `--brand-strong`, `--brand-soft`, `--accent`, `--surface`, `--surface-raised`, `--surface-sunken`, `--ink`, `--ink-soft`, `--ink-faint`, `--line`, `--warning`, `--danger`, plus text colours for filled backgrounds (`--on-brand`, `--on-danger`) (`client/src/index.css`). Components use only these names, so a studio's theme changes every screen at once. Body text pairs are checked for WCAG AA contrast (4.5:1); `--ink-faint` is kept for secondary, non-essential text.
+- **Default palette.** Cream surfaces with olive green and a muted gold accent; DM Sans for interface text and Cormorant Garamond for headings and large numbers (served from npm via `@fontsource`, no third-party font requests). Numbers use lining figures so times and counts line up.
+- **Theme override.** A studio's `theme.css` sets the same variables under `html:root`; it needs no knowledge of the components.
+- **Layout.** The member app is a single phone-width column. The admin panel shows a dark sidebar from 900px wide and a bottom tab bar below that; the customer list becomes a table on wide screens and cards on phones.
+- **Feedback.** Success messages appear in one shared toast (`useToast` + `<Toast>`, shown once per app and passed to pages as `showToast(tone, text)`); form errors stay next to the field or inside the open sheet. Confirmations and forms open in a `<Sheet>` (a bottom sheet on phones, a centred dialog on wider screens). Actions that cannot be undone, such as a late cancel that uses up a session, use the red `danger` button.
+
 ## Not in the first version
 
 Online payments (payments are collected in person and only recorded in the system), WhatsApp/SMS reminders, waiting list, self sign-up, instructor role, reporting, native mobile app. Several studios already run on one installation, each on its own subdomain; there is no screen yet for opening a studio or changing its address (studios are created with `create-admin`).
