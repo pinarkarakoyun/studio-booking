@@ -80,6 +80,15 @@ body {
   outline-offset: 2px;
 }
 
+/* Prototipteki kısa giriş animasyonu: kartlar ve listeler aşağıdan hafifçe belirir. Ekranlar
+   "animation: fade-up 0.45s var(--ease) both;" ile kullanır. */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
 /* Hareketi azaltmak isteyenler için (işletim sistemi ayarı) animasyonları kapat. */
 @media (prefers-reduced-motion: reduce) {
   *,

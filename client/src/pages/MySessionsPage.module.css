@@ -323,34 +323,6 @@
 }
 
 /* İşlem sonucu bildirimi: ekranın altında, birkaç saniye görünür. */
-.toast {
-  position: fixed;
-  left: 50%;
-  bottom: calc(var(--space-6) + env(safe-area-inset-bottom));
-  z-index: 10;
-  width: calc(100% - 40px);
-  max-width: 440px;
-  margin: 0;
-  padding: 12px 16px;
-  border-radius: 14px;
-  background: var(--ink);
-  color: var(--on-brand);
-  font-size: var(--text-sm);
-  transform: translateX(-50%);
-  animation: toast-in 0.25s var(--ease);
-}
-
-.toastError {
-  background: var(--danger);
-}
-
-@keyframes toast-in {
-  from {
-    opacity: 0;
-    transform: translate(-50%, 8px);
-  }
-}
-
 .showLater {
   display: block;
   width: 100%;

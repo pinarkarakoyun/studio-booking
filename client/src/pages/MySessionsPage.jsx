@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import Monogram from '../components/Monogram.jsx';
 import Sheet from '../components/Sheet.jsx';
+import Toast from '../components/Toast.jsx';
+import { useToast } from '../components/useToast.js';
 import {
   addDays,
   formatDateDayMonth,
@@ -56,7 +58,7 @@ export default function MySessionsPage({ user, studio, onLogout }) {
   // Telafi seçme ekranı: { from: ders } "yerine şuna gel" için, { from: null } hakkını kullanmak için.
   const [picker, setPicker] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [toast, setToast] = useState(null);
+  const { toast, showToast } = useToast();
   const timeZone = studio.timezone;
   // Seans paketi modelinde telafi yok: iptal paketten düşmeyi belirler, telafi seçme ve hak metinleri gizli.
   const packageModel = studio.membershipModel === 'package';
@@ -70,24 +72,17 @@ export default function MySessionsPage({ user, studio, onLogout }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- sadece açılışta bir kez
   }, []);
 
-  // Bildirim birkaç saniye sonra kendiliğinden kaybolur.
-  useEffect(() => {
-    if (!toast) return undefined;
-    const timer = setTimeout(() => setToast(null), 5000);
-    return () => clearTimeout(timer);
-  }, [toast]);
-
   // Her işlem aynı kalıpta: gönder, listeyi yenile, sonucu bildirimle söyle. Hata olursa da liste
   // yenilenir (ör. "ders doldu" dendiyse ekran güncel doluluğu göstersin).
   async function perform(request, successText) {
     setBusy(true);
     try {
       const result = await request();
-      setToast({ tone: 'success', text: typeof successText === 'function' ? successText(result) : successText });
+      showToast('success', typeof successText === 'function' ? successText(result) : successText);
       setSheetSession(null);
       setPicker(null);
     } catch (err) {
-      setToast({ tone: 'error', text: err.message });
+      showToast('error', err.message);
     } finally {
       await reload().catch(() => {});
       setBusy(false);
@@ -128,11 +123,7 @@ export default function MySessionsPage({ user, studio, onLogout }) {
     return perform(() => api(`/api/sessions/${target.id}/makeup`, { method: 'PUT' }), `Telafin kaydedildi: ${label}.`);
   }
 
-  const toastView = toast && (
-    <p className={`${styles.toast} ${toast.tone === 'error' ? styles.toastError : ''}`} role="status">
-      {toast.text}
-    </p>
-  );
+  const toastView = <Toast toast={toast} />;
 
   if (picker) {
     return (

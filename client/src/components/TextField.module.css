@@ -14,7 +14,8 @@
   align-items: center;
   background: var(--surface-raised);
   border: 1.5px solid var(--line-strong);
-  border-radius: var(--radius-md);
+  min-height: var(--tap);
+  border-radius: 14px;
   transition: border-color 0.15s var(--ease);
 }
 
