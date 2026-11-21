@@ -75,8 +75,8 @@ export default function TodayPage({
     return (
       <main className={styles.page}>
         {header}
-        <h1 className={styles.title}>{title}</h1>
         {dayNav}
+        <h1 className={styles.title}>{title}</h1>
         {error && <p className={styles.muted}>{error}</p>}
       </main>
     );
@@ -88,25 +88,39 @@ export default function TodayPage({
     : data.sessions;
   const scheduled = sessions.filter((s) => s.status === 'scheduled');
   const people = scheduled.reduce((sum, s) => sum + s.bookedCount, 0);
+  const fullCount = scheduled.filter((s) => s.bookedCount >= s.capacity).length;
   const { fullSessions, recentCancellations } = data.alerts ?? { fullSessions: [], recentCancellations: [] };
   const hasAlerts = fullSessions.length > 0 || recentCancellations.length > 0;
 
   return (
     <main className={styles.page}>
       {header}
-      <h1 className={styles.title}>{title}</h1>
+      {/* Prototipteki gibi tarih başlığın üstünde; ‹ › ile gün değişir. */}
       {dayNav}
-      <p className={styles.subtitle}>
-        {scheduled.length > 0 ? `${scheduled.length} ders, ${people} kişi` : 'Ders yok'}
-        {!isToday && (
-          <>
-            {', '}
-            <button type="button" className={styles.inlineButton} onClick={() => onChangeDate(null)}>
-              bugüne dön
-            </button>
-          </>
-        )}
-      </p>
+      <h1 className={styles.title}>{title}</h1>
+      {!isToday && (
+        <p className={styles.subtitle}>
+          <button type="button" className={styles.inlineButton} onClick={() => onChangeDate(null)}>
+            Bugüne dön
+          </button>
+        </p>
+      )}
+
+      {/* Özet kartları: yalnızca bu ekranın zaten çektiği günün derslerinden (yeni istek yok). */}
+      <dl className={styles.stats}>
+        <div className={styles.stat}>
+          <dt>Ders</dt>
+          <dd>{scheduled.length}</dd>
+        </div>
+        <div className={styles.stat}>
+          <dt>Kayıtlı kişi</dt>
+          <dd>{people}</dd>
+        </div>
+        <div className={styles.stat}>
+          <dt>Dolu ders</dt>
+          <dd>{fullCount}</dd>
+        </div>
+      </dl>
 
       {multiBranch && (
         <label className={styles.muted}>
@@ -144,7 +158,9 @@ export default function TodayPage({
         </section>
       )}
 
-      <ul className={styles.list}>
+      <h2 className={styles.sectionLabel}>{isToday ? 'Bugünün dersleri' : 'Dersler'}</h2>
+      {sessions.length === 0 && <p className={styles.emptyCard}>Bu gün ders yok.</p>}
+      <ul className={styles.sessionList}>
         {sessions.map((session) => (
           <li key={session.id}>
             <SessionRow
@@ -168,10 +184,11 @@ export default function TodayPage({
   );
 }
 
+// Prototipteki ders kartı: solda serif saat, ortada grup adı ve doluluk, sağda sayı.
 function SessionRow({ session, multiBranch, packageModel, timeZone, onOpen }) {
   const cancelledByStudio = session.status === 'cancelled';
   const full = session.bookedCount >= session.capacity;
-  const fill = Math.min(100, Math.round((session.bookedCount / session.capacity) * 100));
+  const freeSpots = Math.max(0, session.capacity - session.bookedCount);
 
   return (
     <button
@@ -187,20 +204,16 @@ function SessionRow({ session, multiBranch, packageModel, timeZone, onOpen }) {
         <span className={styles.sessionGroup}>
           {session.groupName}
           {multiBranch && ` · ${session.branch.name}`}
+        </span>
+        <span className={styles.sessionMeta}>
+          {cancelledByStudio ? 'Ders iptal edildi' : full ? 'Dolu' : `${freeSpots} yer boş`}
           {session.makeupCount > 0 && <span className={styles.tagMakeup}>+{session.makeupCount} {packageModel ? 'eklendi' : 'telafi'}</span>}
           {!cancelledByStudio && session.cancelledCount > 0 && (
             <span className={styles.tagCancel}>{session.cancelledCount} iptal</span>
           )}
         </span>
-        {cancelledByStudio ? (
-          <span className={styles.ended}>Ders iptal edildi</span>
-        ) : (
-          <span className={styles.bar} aria-hidden="true">
-            <span style={{ width: `${fill}%` }} />
-          </span>
-        )}
       </span>
-      <span className={`${styles.sessionCount} ${full ? styles.full : ''}`}>
+      <span className={`${styles.sessionCount} ${full && !cancelledByStudio ? styles.full : ''}`}>
         {session.bookedCount}/{session.capacity}
       </span>
     </button>

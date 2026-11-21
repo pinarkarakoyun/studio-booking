@@ -2,7 +2,8 @@
 .toast {
   position: fixed;
   left: 50%;
-  bottom: calc(var(--space-6) + env(safe-area-inset-bottom));
+  /* --toast-offset: altta sabit bir çubuk varsa (yönetici panelinde telefonda) toast onun üstünde dursun. */
+  bottom: calc(var(--space-6) + var(--toast-offset, 0px) + env(safe-area-inset-bottom));
   z-index: 20;
   width: calc(100% - 40px);
   max-width: 360px;
