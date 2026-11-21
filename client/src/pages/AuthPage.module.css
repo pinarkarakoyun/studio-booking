@@ -1,9 +1,10 @@
-/* Giriş ve yeni şifre ekranlarının ortak düzeni: telefonda tek sütun, büyük ekranda ortada dar bir sütun. */
+/* Giriş, yeni şifre ve bağlantı hatası ekranlarının ortak düzeni (prototip): krem zemin, ortada serif başlık,
+   form açık renkli yuvarlak bir kart içinde. Telefonda tek sütun, büyük ekranda ortada dar bir sütun. */
 .page {
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 400px;
+  max-width: 420px;
   min-height: 100dvh;
   margin: 0 auto;
   padding: var(--space-8) 20px var(--space-6);
@@ -11,6 +12,7 @@
 
 .brand {
   text-align: center;
+  animation: fade-up 0.45s var(--ease) both;
 }
 
 .brand > :first-child {
@@ -20,31 +22,39 @@
 .studioName {
   margin: var(--space-3) 0 0;
   font-family: var(--font-brand);
-  font-weight: 500;
-  font-size: 1.625rem;
-  line-height: 1.1;
-  letter-spacing: 0.06em;
-  color: var(--brand);
+  font-weight: 700;
+  font-size: 2rem;
+  line-height: 1.05;
+  color: var(--ink);
   /* Uzun stüdyo adları dengeli satırlara bölünsün ("Studio" tek başına alt satırda kalmasın). */
   text-wrap: balance;
 }
 
 .lead {
   margin: var(--space-2) 0 0;
+  line-height: 1.5;
   color: var(--ink-soft);
+  text-wrap: balance;
 }
 
 .title {
-  margin: var(--space-6) 0 0;
+  margin: var(--space-4) 0 0;
   font-family: var(--font-brand);
-  font-weight: 500;
-  font-size: var(--text-xl);
+  font-weight: 700;
+  font-size: 1.75rem;
   line-height: 1.1;
-  color: var(--brand);
+  color: var(--ink);
+  overflow-wrap: anywhere;
 }
 
+/* Form kartı: alanlar kartın renginden ayrışsın diye krem zemin alır (--field-bg). */
 .form {
-  margin-top: var(--space-2);
+  --field-bg: var(--surface);
+  margin-top: var(--space-6);
+  padding: 4px 20px 20px;
+  border-radius: var(--radius-panel);
+  background: var(--surface-raised);
+  animation: fade-up 0.45s var(--ease) both;
 }
 
 .form > button[type='submit'] {
@@ -59,14 +69,36 @@
   color: var(--ink-soft);
 }
 
+.footer + .footer {
+  margin-top: 0;
+  padding-top: var(--space-3);
+}
+
 .footer a {
   color: var(--brand);
-  font-weight: 600;
+  font-weight: 500;
   text-decoration: none;
 }
 
 .footer a:hover {
   text-decoration: underline;
+}
+
+/* Tek mesajlık ekran (bağlantı hatası): kart sayfanın ortasında, buton metnin hemen altında. */
+.centered {
+  justify-content: center;
+}
+
+.messageCard {
+  padding: 8px 24px 24px;
+  border-radius: var(--radius-panel);
+  background: var(--surface-raised);
+  text-align: center;
+  animation: fade-up 0.45s var(--ease) both;
+}
+
+.messageCard > button {
+  margin-top: var(--space-6);
 }
 
 /* Şifre gücü çubuğu: üç parça, dolu parça sayısı şifrenin gücünü gösterir. */
@@ -80,7 +112,7 @@
   flex: 1;
   height: 4px;
   border-radius: 2px;
-  background: var(--brand-soft);
+  background: var(--line-strong);
   transition: background-color 0.2s var(--ease);
 }
 

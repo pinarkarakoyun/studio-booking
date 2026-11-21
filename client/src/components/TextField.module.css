@@ -12,7 +12,8 @@
 .control {
   display: flex;
   align-items: center;
-  background: var(--surface-raised);
+  /* Kart içindeki formda alan, kartla aynı renge karışmasın diye --field-bg ile zemin rengini alır. */
+  background: var(--field-bg, var(--surface-raised));
   border: 1.5px solid var(--line-strong);
   min-height: var(--tap);
   border-radius: 14px;

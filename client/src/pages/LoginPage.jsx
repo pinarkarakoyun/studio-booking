@@ -78,7 +78,7 @@ export default function LoginPage({ studio, onLoggedIn }) {
           onChange={update(setPassword, 'password')}
           error={errors.password}
         />
-        <Button type="submit" busy={busy} busyLabel="Giriş yapılıyor…">
+        <Button type="submit" size="lg" busy={busy} busyLabel="Giriş yapılıyor…">
           Giriş yap
         </Button>
       </form>
