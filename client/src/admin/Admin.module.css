@@ -677,6 +677,10 @@
 }
 
 .customerRow:hover .customerName {
+  color: var(--brand);
+}
+
+.customerName {
   grid-area: name;
   font-weight: 500;
   overflow-wrap: anywhere;
@@ -692,6 +696,18 @@
   font-size: 13px;
   color: var(--ink-soft);
   overflow-wrap: anywhere;
+}
+
+/* Grubu olmayan müşteride (ör. ayrılanlar) telefonda ikinci satırda grup yerine telefon numarası. */
+.noGroup .customerGroup {
+  display: none;
+}
+
+.noGroup .customerPhone {
+  display: block;
+  grid-area: group;
+  font-size: 13px;
+  color: var(--ink-soft);
 }
 
 .customerStatus {
@@ -786,10 +802,15 @@
   .customerStatus:empty {
     display: block;
   }
-}
 
-.customerName {
-  display: block;
+  .noGroup .customerGroup {
+    display: block;
+  }
+
+  .noGroup .customerPhone {
+    grid-area: auto;
+    font-size: 14px;
+  }
 }
 
 .customerMeta {
@@ -987,25 +1008,44 @@
 }
 
 /* --- Gruplar --- */
+/* Grup ve şube kartları */
 .groupRow {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   width: 100%;
-  padding: 13px 0;
+  margin-bottom: 10px;
+  padding: 14px 16px;
   border: 0;
-  border-bottom: 1px solid var(--line);
-  background: none;
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
   font: inherit;
   color: inherit;
   text-align: left;
   cursor: pointer;
+  animation: fade-up 0.45s var(--ease) both;
+  transition: transform 0.15s ease;
+}
+
+.groupRow:active {
+  transform: scale(0.99);
+}
+
+.groupRow.inactive {
+  border: 1.5px dashed var(--line-strong);
+  background: transparent;
 }
 
 .groupTop {
   display: flex;
   justify-content: space-between;
   gap: var(--space-3);
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+
+.groupTop strong {
+  font-weight: 500;
 }
 
 .groupBar {
@@ -1014,13 +1054,15 @@
 }
 
 .closedToggle {
-  margin-top: var(--space-4);
+  min-height: var(--tap);
+  margin-top: var(--space-3);
   padding: var(--space-2) 0;
   border: 0;
   background: none;
   font: inherit;
-  font-size: var(--text-sm);
-  color: var(--ink-faint);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-soft);
   cursor: pointer;
 }
 
@@ -1035,26 +1077,27 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  border: 1px solid var(--line);
-  border-radius: 50%;
-  background: var(--surface-raised);
+  min-width: 40px;
+  height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
   font: inherit;
-  font-size: 0.75rem;
-  color: var(--ink-faint);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-soft);
 }
 
 .dayLarge {
-  width: 40px;
-  height: 40px;
-  font-size: var(--text-sm);
+  min-width: 48px;
+  height: var(--tap);
+  font-size: 14px;
+  color: var(--ink);
   cursor: pointer;
 }
 
 .dayOn {
-  border-color: var(--brand);
   background: var(--brand);
   color: var(--on-brand);
 }
@@ -1077,7 +1120,8 @@
   justify-content: space-between;
   gap: var(--space-3);
   width: 100%;
-  padding: 11px 0;
+  min-height: 52px;
+  padding: 10px 0;
   border: 0;
   border-bottom: 1px solid var(--line);
   background: none;
@@ -1092,11 +1136,29 @@
 }
 
 /* Ayarlar */
+/* Ayarlar: her bölüm yuvarlak açık kart. */
+.settingCard {
+  margin-top: var(--space-4);
+  padding: 4px 20px 8px;
+  border-radius: var(--radius-panel);
+  background: var(--surface-raised);
+}
+
 .settingSection {
-  margin: var(--space-6) 0 var(--space-2);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--brand);
+  margin: var(--space-4) 0 var(--space-1);
+  font-family: var(--font-brand);
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--ink);
+}
+
+.settingCard.formCard {
+  padding-bottom: 20px;
+}
+
+.settingCard .settingRow:last-child {
+  border-bottom: 0;
 }
 
 .settingRow {
@@ -1105,7 +1167,8 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  padding: 11px 0;
+  min-height: 56px;
+  padding: 10px 0;
   border-bottom: 1px solid var(--line);
 }
 
@@ -1116,7 +1179,8 @@
 
 .settingText small {
   display: block;
-  font-size: var(--text-sm);
+  margin-top: 2px;
+  font-size: 13px;
   color: var(--ink-soft);
 }
 
@@ -1130,16 +1194,22 @@
 }
 
 .settingNumber input {
-  width: 56px;
+  width: 64px;
+  min-height: var(--tap);
   padding: 6px 4px;
   border: 1.5px solid var(--line-strong);
-  border-radius: 10px;
-  background: var(--surface-raised);
+  border-radius: 12px;
+  background: var(--surface);
   font: inherit;
   font-size: 1rem;
-  font-weight: 600;
+  font-weight: 500;
   text-align: center;
   color: var(--ink);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.settingUnit {
+  min-width: 2.25em;
 }
 
 .settingNumber input[aria-invalid] {
@@ -1157,6 +1227,112 @@
   margin: 0;
   font-size: var(--text-sm);
   color: var(--danger);
+}
+
+/* Ayarlar > Paketler: prototipteki paket kartları ızgarası. */
+.packageGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.packageCard,
+.packageAdd {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  height: 100%;
+  min-height: 160px;
+  padding: 20px;
+  border-radius: var(--radius-panel);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.packageCard {
+  border: 0;
+  background: var(--surface-raised);
+  color: var(--ink);
+}
+
+.packageCard:active,
+.packageAdd:active {
+  transform: scale(0.98);
+}
+
+.packageClosed {
+  border: 1.5px dashed var(--line-strong);
+  background: transparent;
+  color: var(--ink-faint);
+}
+
+.packageClosed .packagePrice {
+  color: inherit;
+}
+
+.packageBadge {
+  align-self: flex-start;
+  color: var(--ink);
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--brand-soft);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.packageName {
+  font-family: var(--font-brand);
+  font-weight: 600;
+  font-size: 1.75rem;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+
+.packagePrice {
+  font-family: var(--font-brand);
+  font-weight: 700;
+  font-size: 2rem;
+  line-height: 1.1;
+  color: var(--brand);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.packageAdd {
+  min-height: 64px;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--line-strong);
+  background: transparent;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--brand);
+  text-align: center;
+}
+
+@media (min-width: 600px) {
+  .packageAdd {
+    min-height: 160px;
+  }
+}
+
+/* "+ Şube ekle" gibi kart listesinin altındaki ekleme satırı. */
+.addRow {
+  width: 100%;
+  min-height: var(--tap);
+  padding: 12px;
+  border: 2px dashed var(--line-strong);
+  border-radius: var(--radius-card);
+  background: transparent;
+  font: inherit;
+  font-weight: 500;
+  color: var(--brand);
+  cursor: pointer;
 }
 
 /* Açma/kapama anahtarı: gerçek checkbox, sadece görünümü değişir (klavye ve ekran okuyucu çalışır). */
@@ -1367,12 +1543,49 @@
   color: var(--ink);
 }
 
-.monthTotal {
+/* Ödemeler: bu ayın toplamı ve başlıklı bölüm kartları. */
+.monthStat {
+  margin-top: var(--space-4);
+}
+
+.monthAmount {
+  font-family: var(--font-brand);
+  font-weight: 700;
+  font-size: 2.5rem;
+  line-height: 1;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.paymentSection {
+  margin-top: var(--space-4);
+  padding: 4px 20px 6px;
+  border-radius: var(--radius-panel);
+  background: var(--surface-raised);
+}
+
+.paymentSection .people li:last-child .memberRow {
+  border-bottom: 0;
+}
+
+.paymentSectionTitle {
   display: flex;
-  justify-content: space-between;
-  margin: var(--space-2) 0 0;
-  padding: 11px 0;
-  border-bottom: 1px solid var(--line);
+  align-items: center;
+  gap: 8px;
+  margin: var(--space-4) 0 var(--space-1);
+  font-family: var(--font-brand);
+  font-size: 1.375rem;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.paymentSectionTitle span {
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-soft);
 }
 
 /* Bugün ekranında gün değiştirme: ‹ Cumartesi 24 Ekim › */

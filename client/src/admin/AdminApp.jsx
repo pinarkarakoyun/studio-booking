@@ -101,10 +101,10 @@ export default function AdminApp({ user, studio, onStudioChange, onLogout }) {
         <GroupDetailPage
           studio={studio}
           groupId={view.id}
-          initialNotice={view.notice}
           onBack={() => goTo(START)}
           onEdit={(group) => goTo({ name: 'edit', group })}
           onOpenCustomer={openCustomer}
+          showToast={showToast}
         />
       );
     } else if (view.name === 'edit' || view.name === 'new') {
@@ -114,7 +114,10 @@ export default function AdminApp({ user, studio, onStudioChange, onLogout }) {
           onStudioChange={onStudioChange}
           group={view.group}
           onCancel={() => goTo(view.group ? { name: 'detail', id: view.group.id } : START)}
-          onSaved={(id, notice) => goTo({ name: 'detail', id, notice })}
+          onSaved={(id, notice) => {
+            if (notice) showToast('success', notice);
+            goTo({ name: 'detail', id });
+          }}
         />
       );
     } else {
@@ -123,7 +126,7 @@ export default function AdminApp({ user, studio, onStudioChange, onLogout }) {
   } else if (tab === 'payments') {
     content = <PaymentsPage studio={studio} onOpenCustomer={openCustomer} />;
   } else if (tab === 'settings') {
-    content = <SettingsPage onStudioChange={onStudioChange} />;
+    content = <SettingsPage onStudioChange={onStudioChange} showToast={showToast} />;
   } else {
     content = (
       <main className={styles.page}>

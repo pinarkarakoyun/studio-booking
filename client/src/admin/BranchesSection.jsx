@@ -117,13 +117,13 @@ export default function BranchesSection({ onCountChange }) {
       </ul>
 
       {editing === null && (
-        <button type="button" className={styles.inlineButton} onClick={() => startEdit(null)}>
+        <button type="button" className={styles.addRow} onClick={() => startEdit(null)}>
           + Şube ekle
         </button>
       )}
 
       {editing !== null && (
-        <form onSubmit={save} noValidate>
+        <form className={styles.formCard} onSubmit={save} noValidate>
           <TextField label="Şube adı" value={draft.name} onChange={(e) => set('name', e.target.value)} error={errors.name} />
           <TextField
             label="Adres"
@@ -144,7 +144,7 @@ export default function BranchesSection({ onCountChange }) {
           />
           {errors.form && <p className={styles.formError}>{errors.form}</p>}
           <div className={styles.formSubmit}>
-            <Button type="submit" variant="quiet" busy={busy} busyLabel="Kaydediliyor…">
+            <Button size="lg" type="submit" busy={busy} busyLabel="Kaydediliyor…">
               {editing === 'new' ? 'Şubeyi ekle' : 'Şubeyi kaydet'}
             </Button>
           </div>

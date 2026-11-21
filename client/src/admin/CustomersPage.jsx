@@ -89,7 +89,11 @@ export default function CustomersPage({ studio, onOpen, onAdd }) {
           <ul className={styles.customerList}>
             {visible.map((customer) => (
               <li key={customer.id}>
-                <button type="button" className={styles.customerRow} onClick={() => onOpen(customer.id)}>
+                <button
+                  type="button"
+                  className={`${styles.customerRow} ${customer.group || customer.upcomingGroup ? '' : styles.noGroup}`}
+                  onClick={() => onOpen(customer.id)}
+                >
                   <span className={styles.customerName}>{customer.fullName}</span>
                   <span className={styles.customerPhone}>{formatPhone(customer.phone)}</span>
                   <span className={styles.customerGroup}>{groupText(customer, multiBranch)}</span>

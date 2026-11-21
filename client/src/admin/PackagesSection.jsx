@@ -117,36 +117,36 @@ export default function PackagesSection() {
         Müşteriye paket eklerken bu listeden seçersin. Fiyat değişikliği satılmış paketleri etkilemez.
       </p>
 
-      {packages.length > 0 && (
-        <ul className={styles.list}>
-          {packages.map((pkg) => (
-            <li key={pkg.id}>
-              <button
-                type="button"
-                className={`${styles.groupRow} ${pkg.isActive ? '' : styles.inactive}`}
-                onClick={() => startEdit(pkg)}
-              >
-                <span className={styles.groupTop}>
-                  <strong>{pkg.name}</strong>
-                  <span className={styles.customerMeta}>{pkg.isActive ? formatMoney(pkg.priceKurus) : 'Kapalı'}</span>
-                </span>
-                <span className={styles.customerMeta}>
-                  {pkg.sessionCount} seans · {pkg.validityDays} gün geçerli
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {editing === null && (
-        <button type="button" className={styles.inlineButton} onClick={() => startEdit(null)}>
-          + Paket ekle
-        </button>
-      )}
+      {/* Prototipteki paket kartları: serif ad, serif fiyat, seans ve geçerlilik; kapalı pakette "Kapalı" rozeti. Karta dokununca düzenlenir.
+          "Aktif üye" sayısı katalog verisinde yok, o yüzden kartta da yok. */}
+      <ul className={styles.packageGrid}>
+        {packages.map((pkg) => (
+          <li key={pkg.id}>
+            <button
+              type="button"
+              className={`${styles.packageCard} ${pkg.isActive ? '' : styles.packageClosed}`}
+              onClick={() => startEdit(pkg)}
+            >
+              {!pkg.isActive && <span className={styles.packageBadge}>Kapalı</span>}
+              <span className={styles.packageName}>{pkg.name}</span>
+              <span className={styles.packagePrice}>{formatMoney(pkg.priceKurus)}</span>
+              <span className={styles.muted}>
+                {pkg.sessionCount} seans · Geçerlilik: {pkg.validityDays} gün
+              </span>
+            </button>
+          </li>
+        ))}
+        {editing === null && (
+          <li>
+            <button type="button" className={styles.packageAdd} onClick={() => startEdit(null)}>
+              + Yeni paket tanımla
+            </button>
+          </li>
+        )}
+      </ul>
 
       {editing !== null && (
-        <form onSubmit={save} noValidate>
+        <form className={styles.formCard} onSubmit={save} noValidate>
           <TextField
             label="Paket adı"
             placeholder="ör. 8 seans"
@@ -184,7 +184,7 @@ export default function PackagesSection() {
           />
           {errors.form && <p className={styles.formError}>{errors.form}</p>}
           <div className={styles.formSubmit}>
-            <Button type="submit" variant="quiet" busy={busy} busyLabel="Kaydediliyor…">
+            <Button size="lg" type="submit" busy={busy} busyLabel="Kaydediliyor…">
               {editing === 'new' ? 'Paketi ekle' : 'Paketi kaydet'}
             </Button>
           </div>

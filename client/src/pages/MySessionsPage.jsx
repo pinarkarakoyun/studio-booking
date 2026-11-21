@@ -44,6 +44,13 @@ export default function MySessionsPage({ user, studio, onLogout }) {
   const [data, setData] = useState(null);
   const [loadError, setLoadError] = useState(null);
   const [sheetSession, setSheetSession] = useState(null);
+  // "Gelemiyorum" penceresinin açıldığı an: son iptal saati geçti mi kararı sayfanın yüklendiği ana değil buna bakar
+  // (sayfa sabah açılıp öğlen dokunulursa geç iptal uyarısı atlanmasın).
+  const [sheetOpenedAt, setSheetOpenedAt] = useState(null);
+  const openSheet = (session) => {
+    setSheetOpenedAt(Date.now());
+    setSheetSession(session);
+  };
   const [accountOpen, setAccountOpen] = useState(false);
   // Liste varsayılan olarak bu hafta + gelecek haftayı gösterir; sonrası istenirse açılır.
   const [showLater, setShowLater] = useState(false);
@@ -180,7 +187,7 @@ export default function MySessionsPage({ user, studio, onLogout }) {
           </p>
           <div className={styles.nextBottom}>
             <span className={styles.nextTime}>{formatTime(next.startsAt, timeZone)}</span>
-            <button type="button" className={styles.nextButton} onClick={() => setSheetSession(next)}>
+            <button type="button" className={styles.nextButton} onClick={() => openSheet(next)}>
               Gelemiyorum
             </button>
           </div>
@@ -204,7 +211,7 @@ export default function MySessionsPage({ user, studio, onLogout }) {
                 timeZone={timeZone}
                 now={data.loadedAt}
                 busy={busy}
-                onOpen={() => setSheetSession(session)}
+                onOpen={() => openSheet(session)}
                 onUndo={() => undoCancel(session)}
               />
             ))}
@@ -227,7 +234,7 @@ export default function MySessionsPage({ user, studio, onLogout }) {
           <CantComeOptions
             session={sheetSession}
             studio={studio}
-            now={data.loadedAt}
+            now={sheetOpenedAt}
             busy={busy}
             onSwap={() => setPicker({ from: sheetSession })}
             onCancelOnly={() => cancelOnly(sheetSession)}
