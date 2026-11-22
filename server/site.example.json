@@ -22,7 +22,7 @@
   ],
   "reasons": [
     { "title": "Küçük gruplar", "text": "Eğitmen herkesi tek tek görür." },
-    { "title": "Telafi hakkı", "text": "Kaçırdığın dersi başka bir güne al." }
+    { "title": "Sana göre program", "text": "Seviyene göre başlar, birlikte ilerleriz." }
   ],
   "courses": [
     { "title": "Reformer", "text": "Aletle, küçük grupta, tüm vücut çalışması.", "highlight": true, "link": "test" },

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { displayPhone, telLink } from './siteParts.js';
+import { displayPhone, onTabKeyDown, telLink } from './siteParts.js';
 import styles from './PublicSite.module.css';
 
 // Şubeler: şube adı ve adresi panelden; rozet, açıklama ve haftalık program site.json'daki branchDetails'ten
@@ -34,7 +34,9 @@ export default function Branches({ site }) {
                 aria-selected={i === selected}
                 aria-controls="sube-panel"
                 className={`${styles.segment} ${i === selected ? styles.segmentOn : ''}`}
+                tabIndex={i === selected ? 0 : -1}
                 onClick={() => setSelected(i)}
+                onKeyDown={(event) => onTabKeyDown(event, i, branches.length, setSelected)}
               >
                 {b.name}
               </button>

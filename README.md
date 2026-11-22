@@ -45,8 +45,11 @@ Each studio picks one model when it is set up (`create-admin --model grup|paket`
 
 ### Public page
 
-- Studio landing page at `/` with how it works, benefits and FAQ; the app itself lives under `/giris`
-- The contact section lists each branch's address and map link
+- Studio landing page at `/`; the app itself lives under `/giris`
+- Sections: hero, why us, courses, a "which class suits you?" quiz, a featured programme, branches (tabs with address, map link and weekly schedule), instructor with count-up stats, how it works, FAQ, footer and a floating WhatsApp button
+- Each studio fills only the sections it has content for; a section without content is left out of both the page and the menu
+- The page's built-in texts follow the studio's membership model: no make-up promises on a session-package studio (and none when the model cannot be loaded). Texts the studio writes in `site.json` are shown as written, so they must match its own rules
+- Quiz answers stay in the browser and are never sent anywhere
 - The studio's own logo, photos and texts are kept outside the repository (see [Studio branding](#studio-branding))
 
 ## Key design decisions
@@ -171,7 +174,23 @@ BRAND_DIR/
     logo.png     photos and other public files
 ```
 
-`/brand/...` is served from the folder of the studio the request came to, so one studio can never load another's files. Every file in a studio's folder is public. Missing fields show placeholders.
+`/brand/...` is served from the folder of the studio the request came to, so one studio can never load another's files. Every file in a studio's folder is public.
+
+`site.json` fields (all optional except `privacyNotice` in production; `server/site.example.json` shows every one):
+
+| Field | Used for |
+|---|---|
+| `hero.eyebrow`, `tagline`, `subline` | Handwritten line, heading and text at the top |
+| `reasons` | Up to four "why us" cards; generic cards are shown when missing |
+| `courses` | Up to six course cards; `highlight` makes one dark, `link` points to a section on the page (e.g. `test`) |
+| `quiz` | Questions whose options lead either to a later question (`next`) or to a result (`result`); options that would loop or point nowhere are dropped |
+| `spotlight` | Featured programme with tabs (`label`, `meta`, `title`, `items`) |
+| `instructor`, `stats` | Instructor section and up to three stats (short values such as `8` or `500+`) |
+| `branchDetails` | Badge, description and weekly schedule per branch, matched by the branch name in the admin panel |
+| `phone`, `workingHours`, `groupSize`, `equipment`, `address`, `mapsUrl`, `instagramUrl`, `photos` | Contact details, FAQ answers and photos; branch addresses entered in the admin panel take the place of `address` |
+| `privacyNotice` | The studio's KVKK privacy notice page |
+
+Invalid values are dropped field by field, so a typo hides one card instead of breaking the page; a file that is not valid JSON is logged and the page falls back to its defaults.
 
 ### UI conventions
 
@@ -202,7 +221,7 @@ Next: turning the app into a product several studios can use. Order and decision
 - [x] Multi-studio foundation: each studio on its own subdomain, separate accounts per studio, data isolation proven by tests
 - [x] Branches: a studio can have several locations; groups belong to a branch
 - [x] Session packages (e.g. 8 or 12 sessions) as a second membership model, chosen per studio at setup
-- [ ] New look for the customer and admin panels
+- [x] New look for the customer and admin panels and the public page
 - [ ] Appearance settings: brand and accent colours (other shades derived automatically) and logo
 - [ ] Instructor role and panel
 - [ ] Deployment and production setup (data stays in Turkey)

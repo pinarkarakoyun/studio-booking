@@ -66,6 +66,12 @@ export async function readSiteFile(slug, brandDir = process.env.BRAND_DIR) {
 }
 
 const text = (value) => (typeof value === 'string' && value.trim() ? value.trim() : null);
+// Sitede tıklanabilir bağlantı olacak adresler yalnızca https: "javascript:" ya da "data:" gibi bir değer siteye
+// giremez (paneldeki şube harita bağlantısıyla aynı kural, services/adminBranches.js).
+const httpsUrl = (value) => {
+  const url = text(value);
+  return url && /^https:\/\/\S+$/.test(url) ? url : null;
+};
 // Sadece dosya adı kabul edilir ("foto1.jpg"): "../" ile marka klasörünün dışına çıkılamaz.
 const brandFile = (value) => (text(value) && path.basename(value) === value ? `/brand/${value}` : null);
 
@@ -240,8 +246,8 @@ router.get('/api/site', requireStudio, async (req, res) => {
       privacyNotice: privacyNotice(site.privacyNotice),
       branches,
       address: useSiteAddress ? text(site.address) : null,
-      mapsUrl: useSiteAddress ? text(site.mapsUrl) : null,
-      instagramUrl: text(site.instagramUrl),
+      mapsUrl: useSiteAddress ? httpsUrl(site.mapsUrl) : null,
+      instagramUrl: httpsUrl(site.instagramUrl),
       photos: Array.isArray(site.photos)
         ? site.photos.map((p) => ({ url: brandFile(p?.file), alt: text(p?.alt) ?? '' })).filter((p) => p.url)
         : [],

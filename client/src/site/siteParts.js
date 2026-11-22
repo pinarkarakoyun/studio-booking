@@ -21,6 +21,35 @@ export function telLink(phone) {
   return phone ? `tel:+${digits(phone)}` : null;
 }
 
+// Sekme çubuğunda (role="tablist") bir tuşa basılınca hangi sekmeye geçileceği. index: şu an seçili sekme,
+// count: sekme sayısı. Tuş sekme gezintisi için değilse null döner (o zaman tarayıcının kendi davranışı kalır).
+// WAI-ARIA sekme kalıbı: ArrowRight sonraki, ArrowLeft önceki sekme; Home ilk, End son sekme.
+// Uçlarda başa / sona döner: son sekmede ArrowRight ilk sekmeye gider (WAI-ARIA örneklerindeki davranış).
+export function nextTabIndex(key, index, count) {
+  switch (key) {
+    case 'ArrowRight':
+      return (index + 1) % count;
+    case 'ArrowLeft':
+      return (index - 1 + count) % count;
+    case 'Home':
+      return 0;
+    case 'End':
+      return count - 1;
+    default:
+      return null;
+  }
+}
+
+// Sekme düğmesinin onKeyDown'ı: yeni sekmeyi seçer ve odağı ona taşır. Seçili olmayan sekmeler tabIndex=-1
+// olduğu için Tab tuşu sekme çubuğunda tek bir kez durur; sekmeler arasında oklarla gezilir.
+export function onTabKeyDown(event, index, count, select) {
+  const next = nextTabIndex(event.key, index, count);
+  if (next == null || next === index) return;
+  event.preventDefault();
+  select(next);
+  event.currentTarget.parentElement.children[next]?.focus();
+}
+
 // Şubeler bölümü gösterilecek bir şey var mı: birden çok şube, ya da adres / açıklama / program.
 export function hasBranchContent(site) {
   const branches = site.branches ?? [];

@@ -183,6 +183,16 @@ describe('public site content', () => {
       assert.equal(raw.includes('Görünmemeli'), false);
     });
   });
+  test('site.json links: instagramUrl and mapsUrl only as https, like branch map links in the panel', async () => {
+    await withSite({ address: 'Adres', instagramUrl: 'javascript:alert(1)', mapsUrl: 'http://maps.example' }, (site) => {
+      assert.equal(site.instagramUrl, null);
+      assert.equal(site.mapsUrl, null);
+    });
+    await withSite({ address: 'Adres', instagramUrl: ' https://instagram.example/studyo ', mapsUrl: 'https://maps.example/x' }, (site) => {
+      assert.equal(site.instagramUrl, 'https://instagram.example/studyo');
+      assert.equal(site.mapsUrl, 'https://maps.example/x');
+    });
+  });
 });
 
 // Geçici marka klasörüne site.json yazar, ilk test stüdyosunu açar, /api/site cevabıyla check'i çağırır.

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import PhotoSlot from './PhotoSlot.jsx';
+import { onTabKeyDown } from './siteParts.js';
 import styles from './PublicSite.module.css';
 
 // Öne çıkan program (prototipteki dönem sekmeli bölümün genel hâli): solda başlık, metin ve fotoğraf; sağda
@@ -30,7 +31,9 @@ export default function Spotlight({ spotlight }) {
                   aria-selected={i === selected}
                   aria-controls="program-panel"
                   className={`${styles.tab} ${i === selected ? styles.tabOn : ''}`}
+                  tabIndex={i === selected ? 0 : -1}
                   onClick={() => setSelected(i)}
+                  onKeyDown={(event) => onTabKeyDown(event, i, spotlight.tabs.length, setSelected)}
                 >
                   {t.label}
                 </button>

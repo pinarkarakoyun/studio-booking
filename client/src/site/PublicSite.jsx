@@ -37,7 +37,9 @@ export default function PublicSite() {
 
   if (!data) return null;
   const { site, studio } = data;
-  const packageModel = studio.membershipModel === 'package';
+  // Telafi yalnızca grup modelinde var. Model bilinmiyorsa (/api/studio hata verdi) telafi sözü veren metinler
+  // yerine paket metinleri gösterilir: onlar hiçbir modelde gerçekleşmeyecek bir şey vaat etmez.
+  const packageModel = studio.membershipModel !== 'group';
   const sections = visibleSections(site);
   const visible = new Set(sections.map((section) => section.id));
   const hello = whatsappLink(site.whatsappPhone, HELLO);
