@@ -91,6 +91,9 @@ describe('studio and public site', () => {
     return dir;
   }
 
+  // site.json'da şube ayrıntısı (branchDetails) olmayan şubenin sitedeki ek alanları boş gelir.
+  const NO_DETAILS = { badge: null, description: null, schedule: [] };
+
   test('/api/site lists open branches and falls back to site.json while no branch has an address', async () => {
     const { studio } = await twoBranches();
     await createBranch(studio, { name: 'Kapalı', isActive: false });
@@ -98,8 +101,8 @@ describe('studio and public site', () => {
 
     const { body } = await client().request('GET', '/api/site');
     assert.deepEqual(body.site.branches, [
-      { name: 'Merkez', address: null, mapsUrl: null },
-      { name: 'Kuzey', address: null, mapsUrl: null },
+      { name: 'Merkez', address: null, mapsUrl: null, ...NO_DETAILS },
+      { name: 'Kuzey', address: null, mapsUrl: null, ...NO_DETAILS },
     ]);
     assert.equal(body.site.address, 'Eski adres');
     assert.equal(body.site.mapsUrl, 'https://maps.example.com/eski');
@@ -114,8 +117,8 @@ describe('studio and public site', () => {
 
     const { body } = await client().request('GET', '/api/site');
     assert.deepEqual(body.site.branches, [
-      { name: 'Merkez', address: null, mapsUrl: null },
-      { name: 'Kuzey', address: 'Kuzey Mah. 5', mapsUrl: 'https://maps.example.com/k' },
+      { name: 'Merkez', address: null, mapsUrl: null, ...NO_DETAILS },
+      { name: 'Kuzey', address: 'Kuzey Mah. 5', mapsUrl: 'https://maps.example.com/k', ...NO_DETAILS },
     ]);
     assert.equal(body.site.address, null);
     assert.equal(body.site.mapsUrl, null);

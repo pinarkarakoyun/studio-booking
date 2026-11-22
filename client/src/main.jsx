@@ -1,12 +1,12 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 // Yazı tipleri projenin içinden geliyor (Google Fonts değil): ziyaretçinin IP'si üçüncü tarafa gitmez,
-// site daha hızlı açılır. Arayüz yazısı DM Sans, başlıklar Cormorant Garamond. Archivo'nun "wdth" dosyası yalnızca
-// eski tanıtım sitesinin değişen kelimesi için kaldı (site yeniden yazılınca çıkacak).
+// site daha hızlı açılır. Arayüz yazısı DM Sans, başlıklar Cormorant Garamond, tanıtım sitesindeki el yazısı
+// üst başlıklar Great Vibes (yalnızca sitede).
 import '@fontsource/dm-sans/400.css'
 import '@fontsource/dm-sans/500.css'
 import '@fontsource/dm-sans/700.css'
-import '@fontsource-variable/archivo/wdth.css'
+import '@fontsource/great-vibes/400.css'
 import '@fontsource/cormorant-garamond/400.css'
 import '@fontsource/cormorant-garamond/500.css'
 import '@fontsource/cormorant-garamond/500-italic.css'
