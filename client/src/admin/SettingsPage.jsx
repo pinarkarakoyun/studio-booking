@@ -4,6 +4,7 @@ import Button from '../components/Button.jsx';
 import TextField from '../components/TextField.jsx';
 import { formatPhone } from '../format.js';
 import styles from './Admin.module.css';
+import AppearanceSection from './AppearanceSection.jsx';
 import BranchesSection from './BranchesSection.jsx';
 import PackagesSection from './PackagesSection.jsx';
 
@@ -213,6 +214,9 @@ export default function SettingsPage({ onStudioChange, showToast }) {
           </Button>
         </div>
       </form>
+
+      {/* Görünümün kendi Kaydet düğmesi var: renkler ayarlar formuna karışmaz. */}
+      <AppearanceSection showToast={showToast} />
 
       {packageModel && <PackagesSection />}
 
