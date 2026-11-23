@@ -30,7 +30,8 @@ assertDemoSeedAllowed('seed:dev');
 const demo = process.env.DEMO_SEED_FILE ? JSON.parse(await readFile(process.env.DEMO_SEED_FILE, 'utf8')) : {};
 
 // slug: stüdyonun adresi (demo -> demo.localhost:5173). Marka dosyaları BRAND_DIR/<slug>/ klasöründen gelir.
-const STUDIO = { name: 'Deneme Pilates Stüdyosu', slug: 'demo', whatsappPhone: '+905000000000', brandColor: null, logoUrl: null, ...demo.studio };
+// brandColor / accentColor: Görünüm ayarındaki ana ve vurgu rengi (#rrggbb); verilmezse varsayılan palet.
+const STUDIO = { name: 'Deneme Pilates Stüdyosu', slug: 'demo', whatsappPhone: '+905000000000', brandColor: null, accentColor: null, logoUrl: null, ...demo.studio };
 const slugError = slugProblem(STUDIO.slug);
 if (slugError) throw new Error(slugError);
 
@@ -79,8 +80,9 @@ try {
   await client.query('BEGIN');
 
   const { rows: [studio] } = await client.query(
-    `INSERT INTO studios (name, slug, whatsapp_phone, brand_color, logo_url) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-    [STUDIO.name, STUDIO.slug, STUDIO.whatsappPhone, STUDIO.brandColor, STUDIO.logoUrl],
+    `INSERT INTO studios (name, slug, whatsapp_phone, brand_color, accent_color, logo_url)
+     VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+    [STUDIO.name, STUDIO.slug, STUDIO.whatsappPhone, STUDIO.brandColor, STUDIO.accentColor, STUDIO.logoUrl],
   );
   await client.query(
     'INSERT INTO studio_settings (studio_id, membership_model) VALUES ($1, $2)',

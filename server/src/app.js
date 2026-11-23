@@ -13,6 +13,7 @@ import authRouter from './routes/auth.js';
 import healthRouter from './routes/health.js';
 import sessionsRouter from './routes/sessions.js';
 import studioRouter from './routes/studio.js';
+import themeRouter from './routes/theme.js';
 
 // Uygulama burada kuruluyor ama dinlemeye (listen) başlamıyor. Böylece testler uygulamayı
 // rastgele bir portta kendileri başlatabiliyor; index.js ise gerçek sunucuyu başlatıyor.
@@ -69,6 +70,8 @@ export function createApp({ rateLimits = DEFAULT_RATE_LIMITS } = {}) {
   // işaret eder ve isteğin geldiği stüdyonun klasöründen sunulur. Klasör yolu yalnızca veritabanındaki slug'dan
   // kurulur (biçimi CHECK ile sınırlı), istekten gelen bir değer yol oluşturmaz. Klasördeki HER dosya herkese
   // açıktır: oraya yalnızca sitede görünecek dosyalar konmalı (demo verisi, notlar vb. başka bir yerde durmalı).
+  // Tema dosyası (/brand/theme.css) klasörden değil veritabanındaki renklerden üretilir: static'ten önce gelmeli.
+  app.use(themeRouter);
   const brandHandlers = new Map();
   app.use('/brand', (req, res, next) => {
     if (!process.env.BRAND_DIR || !req.studio) {
