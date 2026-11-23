@@ -46,7 +46,7 @@ Each studio picks one model when it is set up (`create-admin --model grup|paket`
 ### Public page
 
 - Studio landing page at `/`; the app itself lives under `/giris`
-- Sections: hero, why us, courses, a "which class suits you?" quiz, a featured programme, branches (tabs with address, map link and weekly schedule), instructor with count-up stats, how it works, FAQ, footer and a floating WhatsApp button
+- Sections: hero, why us, courses, a "which class suits you?" quiz, a featured programme, branches (tabs with address, map link and weekly schedule), instructor with count-up stats, prices (optional), how it works, FAQ, footer and a floating WhatsApp button
 - Each studio fills only the sections it has content for; a section without content is left out of both the page and the menu
 - The page's built-in texts follow the studio's membership model: no make-up promises on a session-package studio (and none when the model cannot be loaded). Texts the studio writes in `site.json` are shown as written, so they must match its own rules
 - Quiz answers stay in the browser and are never sent anywhere
@@ -185,6 +185,7 @@ BRAND_DIR/
 | `quiz` | Questions whose options lead either to a later question (`next`) or to a result (`result`); options that would loop or point nowhere are dropped |
 | `spotlight` | Featured programme with tabs (`label`, `meta`, `title`, `items`) |
 | `instructor`, `stats` | Instructor section and up to three stats (short values such as `8` or `500+`) |
+| `pricing` | Optional prices section: up to four cards (`name` and `price` as text in quotes, optional `detail`, `badge` up to 20 characters, `highlight`); without it no prices are shown. Prices are kept here, not in the admin panel's package catalogue, so update both when a price changes |
 | `branchDetails` | Badge, description and weekly schedule per branch, matched by the branch name in the admin panel |
 | `phone`, `workingHours`, `groupSize`, `equipment`, `address`, `mapsUrl`, `instagramUrl`, `photos` | Contact details, FAQ answers and photos; branch addresses entered in the admin panel take the place of `address` |
 | `privacyNotice` | The studio's KVKK privacy notice page |
@@ -223,7 +224,7 @@ Next: turning the app into a product several studios can use. Order and decision
 - [x] Branches: a studio can have several locations; groups belong to a branch
 - [x] Session packages (e.g. 8 or 12 sessions) as a second membership model, chosen per studio at setup
 - [x] New look for the customer and admin panels and the public page
-- [ ] Appearance settings: brand and accent colours (other shades derived automatically) — colours done; prices on the public page next (logo upload later)
+- [x] Appearance settings: brand and accent colours (other shades derived automatically) and prices on the public page (logo upload later)
 - [ ] Instructor role and panel
 - [ ] Deployment and production setup (data stays in Turkey)
 - [ ] Pilot with a real studio

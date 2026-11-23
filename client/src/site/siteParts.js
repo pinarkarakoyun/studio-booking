@@ -70,6 +70,7 @@ export function visibleSections(site) {
     { id: 'program', label: site.spotlight?.eyebrow ?? 'Program', show: Boolean(site.spotlight) },
     { id: 'subeler', label: site.branches?.length > 1 ? 'Şubeler' : 'Stüdyo', show: hasBranchContent(site) },
     { id: 'egitmen', label: 'Eğitmen', show: Boolean(site.instructor?.name) },
+    { id: 'fiyatlar', label: site.pricing?.eyebrow ?? 'Fiyatlar', show: Boolean(site.pricing) },
     { id: 'isleyis', label: 'Nasıl işler', show: true },
     { id: 'sss', label: 'SSS', show: true },
   ].filter((section) => section.show);

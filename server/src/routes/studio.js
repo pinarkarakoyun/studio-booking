@@ -156,6 +156,29 @@ export function readSpotlight(site) {
   };
 }
 
+// Fiyatlar (isteğe bağlı): stüdyonun site.json'ına yazılır, panelden gelmez (site içeriğini bakım kapsamında Pınar
+// yönetir). Fiyat düz metindir ("3.200 ₺", "Açılışa özel"); tırnaksız sayı yazılmış kart atılır. Geçerli kart
+// kalmazsa bölüm yok (sitede de menüde de görünmez).
+export function readPricing(site) {
+  const p = site.pricing;
+  if (!p || typeof p !== 'object') return null;
+  const plans = list(p.plans, 10)
+    .map((plan) => {
+      const badge = text(plan?.badge);
+      return {
+        name: text(plan?.name),
+        price: text(plan?.price),
+        detail: text(plan?.detail),
+        badge: badge && badge.length <= 20 ? badge : null,
+        highlight: plan?.highlight === true,
+      };
+    })
+    .filter((plan) => plan.name && plan.price)
+    .slice(0, 4);
+  if (plans.length === 0) return null;
+  return { eyebrow: text(p.eyebrow), title: text(p.title), note: text(p.note), plans };
+}
+
 // Eğitmen bölümündeki sayı kartları ("12" yıl, "500+" üye gibi): en fazla üç, kısa değerler.
 export function readStats(site) {
   return (Array.isArray(site.stats) ? site.stats : [])
@@ -242,6 +265,7 @@ router.get('/api/site', requireStudio, async (req, res) => {
       courses: readCourses(site),
       quiz: readQuiz(site),
       spotlight: readSpotlight(site),
+      pricing: readPricing(site),
       stats: readStats(site),
       privacyNotice: privacyNotice(site.privacyNotice),
       branches,
