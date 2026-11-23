@@ -59,7 +59,7 @@ describe('admin appearance', () => {
     const res = await c.request('POST', `${URL}/preview`, { brandColor: '#777777', accentColor: null });
     assert.equal(res.status, 200);
     assert.equal(res.body.preview.vars['--brand'], '#777777');
-    assert.equal(res.body.preview.warnings.length, 1);
+    assert.ok(res.body.preview.warnings.includes('Bu ana renkte buton yazısı zor okunur; yazı rengi otomatik seçildi.'));
     assert.equal((await c.request('GET', URL)).body.appearance.brandColor, null);
 
     const bad = await c.request('POST', `${URL}/preview`, { brandColor: 'red', accentColor: null });

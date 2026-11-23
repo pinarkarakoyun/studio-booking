@@ -25,6 +25,8 @@ export default function AppearanceSection({ showToast }) {
   const [busy, setBusy] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const boxRef = useRef(null);
+  // Her önizleme isteğine sıra numarası: cevaplar ters sırayla gelirse yalnızca en sonuncusu uygulanır.
+  const latestPreview = useRef(0);
 
   useEffect(() => {
     api('/api/admin/appearance').then(
@@ -37,8 +39,11 @@ export default function AppearanceSection({ showToast }) {
   useEffect(() => {
     if (!form || !isValid(form.brandColor) || !isValid(form.accentColor)) return undefined;
     const timer = setTimeout(() => {
+      const request = ++latestPreview.current;
       api('/api/admin/appearance/preview', { method: 'POST', body: toBody(form) }).then(
-        ({ preview: result }) => setPreview(result),
+        ({ preview: result }) => {
+          if (request === latestPreview.current) setPreview(result);
+        },
         () => {},
       );
     }, 300);
@@ -105,6 +110,7 @@ export default function AppearanceSection({ showToast }) {
       <div ref={boxRef} className={styles.colorPreview} aria-hidden="true">
         <span className={styles.colorPreviewDark}>Koyu kart</span>
         <span className={styles.colorPreviewButton}>Birincil buton</span>
+        <span className={styles.colorPreviewLink}>Bağlantı</span>
         <span className={styles.colorPreviewAccent}>Vurgu yazısı</span>
       </div>
       {preview?.warnings.length > 0 && (

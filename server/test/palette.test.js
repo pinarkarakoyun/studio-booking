@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
-import { DEFAULT_ACCENT, DEFAULT_BRAND, buildPalette, contrastRatio, themeCss } from '../src/theme/palette.js';
+import { DEFAULT_ACCENT, DEFAULT_BRAND, WARNINGS, buildPalette, contrastRatio, themeCss } from '../src/theme/palette.js';
 
 // Palet modülü: iki renkten (ana, vurgu) bütün tema tonları ve okunurluk uyarıları. Veritabanı yok.
 const COLOURS = ['#4b5530', '#ffffff', '#ffff00', '#000000', '#e91e63', '#1565c0', '#777777', '#a0d8ef'];
@@ -75,7 +75,27 @@ describe('palette', () => {
     const { vars, warnings } = buildPalette({ brand: '#777777', accent: null });
     const other = contrastRatio('#ffffff', '#777777') > contrastRatio('#1a1a1a', '#777777') ? '#1a1a1a' : '#ffffff';
     assert.ok(contrastRatio(vars['--on-brand'], '#777777') >= contrastRatio(other, '#777777'));
-    assert.equal(warnings.length, 1);
+    assert.ok(warnings.includes(WARNINGS.brandText));
+  });
+
+  test('a brand that is hard to read as text on light surfaces warns', () => {
+    // --brand bağlantı, sessiz buton yazısı ve odak çerçevesi olarak açık zeminde de kullanılıyor.
+    for (const brand of ['#ffffff', '#ffff00', '#00ff00', '#e91e63']) {
+      assert.ok(buildPalette({ brand, accent: null }).warnings.includes(WARNINGS.brandOnSurface), brand);
+    }
+    for (const brand of [DEFAULT_BRAND, '#1565c0', '#000000']) {
+      assert.ok(!buildPalette({ brand, accent: null }).warnings.includes(WARNINGS.brandOnSurface), brand);
+    }
+  });
+
+  test('on-brand-soft is readable on brand-strong, and on brand as far as on-brand is', () => {
+    for (const brand of [...COLOURS, '#00ff00']) {
+      const { vars } = buildPalette({ brand, accent: null });
+      const soft = vars['--on-brand-soft'];
+      assert.ok(contrastRatio(soft, vars['--brand-strong']) >= 4.5, `${brand} on brand-strong`);
+      const target = Math.min(4.5, contrastRatio(vars['--on-brand'], brand));
+      assert.ok(contrastRatio(soft, brand) >= target - 0.05, `${brand} on brand`);
+    }
   });
 
   test('a pale accent warns that text uses a darker shade', () => {

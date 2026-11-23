@@ -21,6 +21,7 @@ const SURFACE_TINT = 0.04;
 export const WARNINGS = {
   brandText: 'Bu ana renkte buton yazısı zor okunur; yazı rengi otomatik seçildi.',
   accentText: 'Vurgu rengi açık zeminde zor okunur; yazılarda koyusu kullanılacak.',
+  brandOnSurface: 'Ana renk açık zeminde yazı olarak zor okunur; bağlantılar ve odak çerçevesi soluk görünebilir.',
 };
 
 const toRgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
@@ -82,6 +83,12 @@ export function buildPalette({ brand, accent }) {
   }
   // Koyu bantlar ve yan menü: buton yazısı onların üstünde de okunmalı.
   const brandStrong = ensureContrast(mix(b, BLACK, 0.4), [onBrand]);
+  // İkincil yazı (yan menünün seçili olmayan sekmeleri gibi): koyu bantta 4.5:1; ana renk üstünde buton yazısının
+  // ulaşabildiği kadar. Ulaşamıyorsa buton yazısının kendisi kullanılır.
+  let onBrandSoft = ensureContrast(mix(onBrand, b, 0.12), [brandStrong]);
+  if (contrastRatio(onBrandSoft, b) < Math.min(AA, contrastRatio(onBrand, b))) onBrandSoft = onBrand;
+  // Ana renk açık zeminde de yazı (bağlantılar, sessiz butonlar) ve odak çerçevesi olarak kullanılıyor.
+  if (contrastRatio(b, surface) < AA) warnings.push(WARNINGS.brandOnSurface);
 
   const accentText = ensureContrast(mix(a, BLACK, 0.06), surfaces);
   // Uyarı yalnızca vurgunun kendisi sayfa zemininde okunmuyorsa: yazılarda zaten koyusu (accent-text) kullanılıyor.
@@ -93,7 +100,7 @@ export function buildPalette({ brand, accent }) {
       '--brand-strong': brandStrong,
       '--brand-soft': mix(b, WHITE, 0.82),
       '--on-brand': onBrand,
-      '--on-brand-soft': mix(onBrand, b, 0.12),
+      '--on-brand-soft': onBrandSoft,
       '--accent': a,
       '--accent-text': accentText,
       '--accent-hover': mix(a, BLACK, 0.1),

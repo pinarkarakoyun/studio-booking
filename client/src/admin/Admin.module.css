@@ -1743,6 +1743,12 @@
   color: var(--on-brand);
 }
 
+.colorPreviewLink {
+  font-weight: 600;
+  color: var(--brand);
+  text-decoration: underline;
+}
+
 .colorPreviewAccent {
   font-weight: 600;
   color: var(--accent-text);

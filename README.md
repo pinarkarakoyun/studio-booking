@@ -164,13 +164,12 @@ docker-compose.yml  local PostgreSQL
 
 ### Studio branding
 
-A studio's own content (logo, colours, instructor, address, photos) is kept outside the repository. `BRAND_DIR` points to a folder with one subfolder per studio, named after its slug:
+A studio's own content (logo, instructor, address, photos) is kept outside the repository; its colours are set in the admin panel (see below). `BRAND_DIR` points to a folder with one subfolder per studio, named after its slug:
 
 ```
 BRAND_DIR/
   demo/
     site.json    texts for the public page (format: server/site.example.json)
-    theme.css    colour overrides
     logo.png     photos and other public files
 ```
 
@@ -192,11 +191,13 @@ BRAND_DIR/
 
 Invalid values are dropped field by field, so a typo hides one card instead of breaking the page; a file that is not valid JSON is logged and the page falls back to its defaults.
 
+**Colours.** Settings › Appearance takes two colours, a brand colour and an accent colour. The server derives every other shade from them (darker bands, light surfaces, text colours, hover states; `server/src/theme/palette.js`) and serves the result as `/brand/theme.css`. Text colours on brand-coloured surfaces are picked automatically for readability. The panel warns, but still saves, when button text cannot reach WCAG AA contrast (4.5:1), when the brand colour is hard to read as link text and focus outline on light surfaces, or when the accent colour is too pale (accent text then uses a darker shade). No colours means the default palette. A `theme.css` file in the brand folder is no longer read.
+
 ### UI conventions
 
 - **Role-based CSS variables.** Colours are named by what they do, not by how they look: `--brand`, `--brand-strong`, `--brand-soft`, `--accent`, `--surface`, `--surface-raised`, `--surface-sunken`, `--ink`, `--ink-soft`, `--ink-faint`, `--line`, `--warning`, `--danger`, plus text colours for filled backgrounds (`--on-brand`, `--on-danger`) (`client/src/index.css`). Components use only these names, so a studio's theme changes every screen at once. Body text pairs are checked for WCAG AA contrast (4.5:1); `--ink-faint` is kept for secondary, non-essential text.
 - **Default palette.** Cream surfaces with olive green and a muted gold accent; DM Sans for interface text and Cormorant Garamond for headings and large numbers (served from npm via `@fontsource`, no third-party font requests). Numbers use lining figures so times and counts line up.
-- **Theme override.** A studio's `theme.css` sets the same variables under `html:root`; it needs no knowledge of the components.
+- **Theme override.** The generated `/brand/theme.css` sets the same variables under `html:root`; it needs no knowledge of the components. It is sent with `Cache-Control: no-cache` and an ETag, so a saved colour shows on the next page load.
 - **Layout.** The member app is a single phone-width column. The admin panel shows a dark sidebar from 900px wide and a bottom tab bar below that; the customer list becomes a table on wide screens and cards on phones.
 - **Feedback.** Success messages appear in one shared toast (`useToast` + `<Toast>`, shown once per app and passed to pages as `showToast(tone, text)`); form errors stay next to the field or inside the open sheet. Confirmations and forms open in a `<Sheet>` (a bottom sheet on phones, a centred dialog on wider screens). Actions that cannot be undone, such as a late cancel that uses up a session, use the red `danger` button.
 
@@ -222,7 +223,7 @@ Next: turning the app into a product several studios can use. Order and decision
 - [x] Branches: a studio can have several locations; groups belong to a branch
 - [x] Session packages (e.g. 8 or 12 sessions) as a second membership model, chosen per studio at setup
 - [x] New look for the customer and admin panels and the public page
-- [ ] Appearance settings: brand and accent colours (other shades derived automatically) and logo
+- [ ] Appearance settings: brand and accent colours (other shades derived automatically) — colours done; prices on the public page next (logo upload later)
 - [ ] Instructor role and panel
 - [ ] Deployment and production setup (data stays in Turkey)
 - [ ] Pilot with a real studio
