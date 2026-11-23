@@ -1682,3 +1682,88 @@
   outline: 2px solid var(--brand);
   outline-offset: 2px;
 }
+
+/* Ayarlar › Görünüm: renk satırları ve önizleme kutusu. Önizleme kutusu kendi içinde stüdyonun önizlenen
+   renklerini alır (AppearanceSection değişkenleri yalnızca bu kutuya uygular). */
+.colorRow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.colorRow > :last-child {
+  flex: 1;
+}
+
+.colorSwatch {
+  flex: none;
+  width: var(--tap);
+  height: var(--tap);
+  padding: 0;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 14px;
+  background: none;
+  cursor: pointer;
+}
+
+.colorRow:has([aria-invalid]) .colorSwatch {
+  margin-bottom: 26px;
+}
+
+.colorPreview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  padding: var(--space-4);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.colorPreviewDark,
+.colorPreviewButton {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding: 0 18px;
+  font-weight: 600;
+}
+
+.colorPreviewDark {
+  border-radius: var(--radius-md);
+  background: var(--brand-strong);
+  color: var(--on-brand);
+}
+
+.colorPreviewButton {
+  border-radius: var(--radius-pill);
+  background: var(--brand);
+  color: var(--on-brand);
+}
+
+.colorPreviewAccent {
+  font-weight: 600;
+  color: var(--accent-text);
+}
+
+.colorWarning {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-sm);
+  color: var(--warning);
+}
+
+.colorNote {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}
+
+.colorActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}

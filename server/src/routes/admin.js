@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { AppError } from '../errors.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
+import { getAppearance, previewAppearance, updateAppearance } from '../services/adminAppearance.js';
 import { closeBranch, createBranch, listBranches, reopenBranch, updateBranch } from '../services/adminBranches.js';
 import { closePackage, createPackage, listPackages, reopenPackage, updatePackage } from '../services/adminPackages.js';
 import {
@@ -296,6 +297,20 @@ router.get('/api/admin/settings', async (req, res) => {
 
 router.put('/api/admin/settings', async (req, res) => {
   res.json({ settings: await updateSettings(req.user, req.body) });
+});
+
+// --- Görünüm (renkler) -------------------------------------------------------------------------
+
+router.get('/api/admin/appearance', async (req, res) => {
+  res.json({ appearance: await getAppearance(req.user) });
+});
+
+router.put('/api/admin/appearance', async (req, res) => {
+  res.json({ appearance: await updateAppearance(req.user, req.body) });
+});
+
+router.post('/api/admin/appearance/preview', (req, res) => {
+  res.json({ preview: previewAppearance(req.body) });
 });
 
 export default router;
