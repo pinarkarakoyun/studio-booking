@@ -5,6 +5,8 @@ import Sheet from '../components/Sheet.jsx';
 import TextField from '../components/TextField.jsx';
 import { formatDay, formatTime } from '../format.js';
 import { NO_HEALTH_DATA_HINT } from '../privacy.js';
+import { showExtraTag } from '../extraSession.js';
+import { extraSessionMessage, whatsappShareUrl } from '../whatsapp.js';
 import styles from './Admin.module.css';
 import { can, isInstructor } from './permissions.js';
 
@@ -133,7 +135,8 @@ export default function SessionRosterPage({ user, studio, sessionId, backLabel =
         {formatDay(session.date)}, {formatTime(session.startsAt, studio.timezone)}
       </h1>
       <p className={styles.subtitle}>
-        {session.groupName}, {session.durationMinutes} dk
+        {showExtraTag(session) && <span className={styles.tagExtra}>Ek ders</span>} {session.groupName},{' '}
+        {session.durationMinutes} dk
         {isCancelled && ' (ders iptal edildi)'}
       </p>
       {isCancelled && session.cancelReason && <p className={styles.muted}>Sebep: {session.cancelReason}</p>}
@@ -149,6 +152,26 @@ export default function SessionRosterPage({ user, studio, sessionId, backLabel =
             showToast('success', 'Dersin eğitmeni güncellendi.');
           }}
         />
+      )}
+
+      {/* Ek dersi duyurmak: WhatsApp hazır metinle açılır, "Gönder"e kişi basar. Ders başlayınca gerek kalmaz. */}
+      {session.kind === 'extra' && canCancel && (
+        <a
+          className={styles.whatsappButton}
+          href={whatsappShareUrl(
+            extraSessionMessage({
+              date: session.date,
+              startsAt: session.startsAt,
+              timeZone: studio.timezone,
+              branchName: studio.branchCount > 1 ? session.branch.name : null,
+              url: `${window.location.origin}/giris`,
+            }),
+          )}
+          target="_blank"
+          rel="noreferrer"
+        >
+          WhatsApp'ta paylaş
+        </a>
       )}
 
       <div className={styles.rosterFill}>

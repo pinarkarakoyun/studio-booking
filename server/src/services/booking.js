@@ -1,5 +1,7 @@
 import pool from '../db/pool.js';
 import { AppError } from '../errors.js';
+import { MEMBERSHIP_SELECT } from './membershipPeriods.js';
+import { packageUsage } from './packageUsage.js';
 
 // Rezervasyon kuralı ihlalleri. 409 Conflict: istek geçerli ama mevcut durumla çelişiyor
 // (ders dolu, hak yok...). API katmanı `code`a bakıp müşteriye anlamlı bir mesaj gösterecek.
@@ -33,7 +35,7 @@ async function withTransaction(db, work) {
 async function loadSession(client, sessionId, userId, { lock = false } = {}) {
   const { rows } = await client.query(
     `
-    SELECT s.id, s.group_id, s.date, s.starts_at, s.status, g.studio_id, g.branch_id,
+    SELECT s.id, s.group_id, s.date, s.starts_at, s.status, g.studio_id, g.branch_id, g.kind,
            ss.makeup_other_branches, ss.credit_validity_days, ss.refund_credit_on_makeup_cancel, ss.max_makeups_per_month,
            ss.allow_undo_cancel, ss.allow_makeup_before_missed, ss.membership_model, ss.late_cancel_burns_session,
            st.timezone,
@@ -186,14 +188,9 @@ export function cancelSession({ userId, sessionId }, { db = pool } = {}) {
 
 // --- Telafi (BR-02, BR-05, BR-12, BR-26) --------------------------------------------------------
 
-async function bookMakeupInTransaction(client, userId, targetSessionId) {
-  // Önce kilit: aynı derse aynı anda gelen ikinci istek burada bekler ve kapasiteyi
-  // ilk işlem bittikten sonraki güncel haliyle görür.
-  const target = await loadSession(client, targetSessionId, userId, { lock: true });
-  // Paket modelinde telafi yok: kaçırılan ders telafi edilmez, paketten düşmez (zamanında iptal edildiyse).
-  if (target.membership_model === 'package') {
-    throw new BookingError('MAKEUP_NOT_AVAILABLE', 'Bu stüdyoda telafi yok; seans paketinle gelmeye devam edebilirsin.');
-  }
+// Telafi ve ek ders kaydının ortak kuralları: şube, ders başlamamış, kayıt kapanmamış, rezervasyon penceresinde,
+// üye dondurulmamış.
+async function assertBookable(client, userId, target) {
   await assertBranchAllowed(client, userId, target);
   if (!target.is_future) {
     throw new BookingError('SESSION_STARTED', 'Bu ders başladı veya geçti.');
@@ -213,6 +210,21 @@ async function bookMakeupInTransaction(client, userId, targetSessionId) {
   if (await isFrozenOnAny(client, userId, [today.date, target.date])) {
     throw new BookingError('USER_FROZEN', 'Üyeliğin dondurulmuşken telafi yapılamaz.');
   }
+}
+
+async function bookMakeupInTransaction(client, userId, targetSessionId) {
+  // Önce kilit: aynı derse aynı anda gelen ikinci istek burada bekler ve kapasiteyi
+  // ilk işlem bittikten sonraki güncel haliyle görür.
+  const target = await loadSession(client, targetSessionId, userId, { lock: true });
+  // Paket modelinde telafi yok: kaçırılan ders telafi edilmez, paketten düşmez (zamanında iptal edildiyse).
+  // Tek istisna ek ders: paket üyesi ek derse paketinden bir seans düşecek şekilde yazılır.
+  if (target.membership_model === 'package') {
+    if (target.kind !== 'extra') {
+      throw new BookingError('MAKEUP_NOT_AVAILABLE', 'Bu stüdyoda telafi yok; seans paketinle gelmeye devam edebilirsin.');
+    }
+    return bookExtraWithPackage(client, userId, target);
+  }
+  await assertBookable(client, userId, target);
 
   // Zaten bu derste mi? (Aynı derse iki kez kayıt olunamaz, BR-05.)
   if (await isRegularMember(client, userId, target)) {
@@ -287,6 +299,63 @@ async function bookMakeupInTransaction(client, userId, targetSessionId) {
     [credit.id, targetSessionId],
   );
   return { creditId: credit.id };
+}
+
+// --- Paket modelinde ek ders (spec 5.5) ------------------------------------------------------------
+
+// Paket üyesinin ek ders kaydı: kaynağı boş, kullanılmış bir satır (yöneticinin "derse kişi ekle"siyle aynı iz).
+// Ders bitince chargeableSessions onu paketten düşer. Kalan seans denetimi: dersin gününde geçerli paketlerin
+// kalan seansları, üyenin henüz bitmemiş ek ders kayıtları düşüldükten sonra sıfırdan büyük olmalı (bir seansı
+// kalan üye iki ek derse yazılamasın). Normal grup dersleri bu hesaba katılmaz.
+async function bookExtraWithPackage(client, userId, target) {
+  await assertBookable(client, userId, target);
+  const { rows: existing } = await client.query(
+    'SELECT 1 FROM credits WHERE user_id = $1 AND used_session_id = $2',
+    [userId, target.id],
+  );
+  if (existing.length > 0 || (await isRegularMember(client, userId, target))) {
+    throw new BookingError('ALREADY_ATTENDING', 'Bu derse zaten kayıtlısın.');
+  }
+  if ((await freeSpots(client, target.id)) <= 0) {
+    throw new BookingError('SESSION_FULL', 'Bu derste boş yer yok.');
+  }
+  if ((await packageSessionsLeft(client, userId, target)) <= 0) {
+    throw new BookingError('NO_SESSIONS_LEFT', 'Paketinde kullanılabilir seans yok.');
+  }
+  // expires_at kısıt gereği dolu olmalı; satır hiçbir zaman "hak" olarak kullanılmaz.
+  await client.query(
+    `INSERT INTO credits (user_id, used_session_id, used_at, expires_at)
+     VALUES ($1, $2, now(), $3::timestamptz + interval '1 day')`,
+    [userId, target.id, target.starts_at],
+  );
+  return { creditId: null };
+}
+
+async function packageSessionsLeft(client, userId, target) {
+  const { rows: [{ today }] } = await client.query(
+    'SELECT (now() AT TIME ZONE $1)::date AS today',
+    [target.timezone],
+  );
+  const { rows: covering } = await client.query(
+    `${MEMBERSHIP_SELECT}
+     WHERE m.user_id = $1 AND m.session_count IS NOT NULL
+       AND m.starts_on <= $3::date AND (m.ends_on + ext.days) >= $3::date`,
+    [userId, today, target.date],
+  );
+  if (covering.length === 0) return 0;
+  const ids = new Set(covering.map((m) => m.id));
+  const usage = await packageUsage(userId, client);
+  const remaining = usage.packages.filter((p) => ids.has(p.membershipId)).reduce((sum, p) => sum + p.remaining, 0);
+  const { rows: [{ pending }] } = await client.query(
+    `SELECT count(*)::int AS pending
+     FROM credits c
+     JOIN sessions s ON s.id = c.used_session_id
+     JOIN groups g   ON g.id = s.group_id
+     WHERE c.user_id = $1 AND g.kind = 'extra' AND s.status = 'scheduled'
+       AND s.starts_at + make_interval(mins => g.duration_minutes) > now()`,
+    [userId],
+  );
+  return remaining - pending;
 }
 
 export function bookMakeup({ userId, sessionId }, { db = pool } = {}) {
@@ -374,6 +443,11 @@ export function cancelMakeup({ userId, sessionId }, { db = pool } = {}) {
     );
     if (!credit) {
       throw new BookingError('NO_MAKEUP_BOOKING', 'Bu derste telafi kaydın yok.');
+    }
+    // Paket modelinde (ek ders kaydı) satır silinir: süresinde vazgeçen paketinden düşmez.
+    if (session.membership_model === 'package') {
+      await client.query('DELETE FROM credits WHERE id = $1', [credit.id]);
+      return { refunded: false };
     }
     // Hakkın geri gelip gelmeyeceğine stüdyonun ayarı karar verir; kapalıysa hak yanar.
     const refunded = session.refund_credit_on_makeup_cancel;

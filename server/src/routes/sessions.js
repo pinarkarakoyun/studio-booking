@@ -9,7 +9,7 @@ import {
   undoCancel,
 } from '../services/booking.js';
 import { getMyMembership } from '../services/adminMemberships.js';
-import { listBookableSessions, listMyCredits, listMySessions } from '../services/schedule.js';
+import { listBookableSessions, listExtraSessions, listMyCredits, listMySessions } from '../services/schedule.js';
 
 const router = Router();
 
@@ -35,6 +35,11 @@ router.get('/api/me/sessions', async (req, res) => {
 
 router.get('/api/me/credits', async (req, res) => {
   res.json({ credits: await listMyCredits(req.user) });
+});
+
+// Ek dersler (paket modelinde Derslerim'deki "Ek dersler" bölümü).
+router.get('/api/me/extra-sessions', async (req, res) => {
+  res.json({ sessions: await listExtraSessions(req.user) });
 });
 
 router.get('/api/me/membership', async (req, res) => {

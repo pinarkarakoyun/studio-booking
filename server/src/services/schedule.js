@@ -20,6 +20,7 @@ const SESSIONS_WITH_MY_STATUS = `
          s.status AS session_status,
          s.cancel_reason,
          g.name AS group_name,
+         g.kind,
          g.duration_minutes,
          b.name AS branch_name,
          o.capacity,
@@ -75,6 +76,8 @@ function toSessionDto(row) {
     status: row.session_status,
     cancelReason: row.cancel_reason,
     groupName: row.group_name,
+    // 'extra' = ek ders (haftalık programın dışında tek seferlik); ekran "Ek ders" etiketi gösterir.
+    kind: row.kind,
     branchName: row.branch_name,
     durationMinutes: row.duration_minutes,
     capacity: row.capacity,
@@ -117,6 +120,23 @@ export async function listBookableSessions(user, { db = pool } = {}) {
       AND s.date <= (now() AT TIME ZONE st.timezone)::date + ss.booking_window_days
       AND (ss.makeup_other_branches OR me.my_branch_id IS NULL OR g.branch_id = me.my_branch_id)
     ORDER BY s.date, COALESCE(g.branch_id = me.my_branch_id, false) DESC, s.starts_at
+    `,
+    [user.id, user.studio_id],
+  );
+  return rows.map(toSessionDto);
+}
+
+// Ek dersler (paket modelinin "Ek dersler" bölümü için; grup modelinde ek dersler zaten telafi listesinde):
+// rezervasyon penceresindeki planlı ek dersler, şube kuralı telafi listesiyle aynı. Kayıt olduysa myStatus 'makeup'.
+export async function listExtraSessions(user, { db = pool } = {}) {
+  const { rows } = await db.query(
+    `
+    ${SESSIONS_WITH_MY_STATUS}
+      AND g.kind = 'extra'
+      AND s.status = 'scheduled'
+      AND s.date <= (now() AT TIME ZONE st.timezone)::date + ss.booking_window_days
+      AND (ss.makeup_other_branches OR me.my_branch_id IS NULL OR g.branch_id = me.my_branch_id)
+    ORDER BY s.starts_at
     `,
     [user.id, user.studio_id],
   );
