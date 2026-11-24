@@ -2,6 +2,7 @@
 import 'dotenv/config';
 import { createApp } from './app.js';
 import pool from './db/pool.js';
+import { startServer } from './listen.js';
 import { DEFAULT_HOST } from './network.js';
 import { generateSessions } from './services/sessionGenerator.js';
 import { checkStartup } from './startupChecks.js';
@@ -22,9 +23,19 @@ const app = createApp();
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || DEFAULT_HOST;
 
-app.listen(PORT, HOST, () => {
+// Port alınamazsa (ör. başka bir sunucu zaten 3000'de) açıkça söyleyip kapanır; sessizce açık kalmaz (bkz. listen.js).
+try {
+  await startServer(app, PORT, HOST);
   console.log(`Server running at http://${HOST}:${PORT} (${process.env.NODE_ENV})`);
-});
+} catch (err) {
+  console.error(
+    err.code === 'EADDRINUSE'
+      ? `Sunucu başlatılmadı: ${HOST}:${PORT} zaten kullanımda. Başka bir sunucu açık olabilir; onu kapatıp yeniden dene.`
+      : `Sunucu başlatılmadı: ${err.message}`,
+  );
+  await pool.end();
+  process.exit(1);
+}
 
 // Ders üretimini açılışta ve sonra günde bir kez çalıştırıyoruz; pencere her gün bir gün ileri kayar.
 // İşlem idempotent olduğu için fazladan çalışması zararsız, sunucu yeniden başlarsa da eksik kalmaz.
