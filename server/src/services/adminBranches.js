@@ -1,5 +1,6 @@
 import pool from '../db/pool.js';
 import { AppError } from '../errors.js';
+import { branchClause } from './scope.js';
 
 // Şubeler. Her stüdyo bir şubeyle açılır; yönetici sonra panelden yeni şube ekler, düzenler, kapatır.
 // Şube silinmez, kapatılır: geçmiş derslerin şubesi kaybolmasın.
@@ -42,16 +43,18 @@ export async function findOpenBranch(studioId, branchId, db) {
 
 // --- Liste ---------------------------------------------------------------------------------------
 
+// Eğitmen yalnızca kendi (açık) şubelerini görür.
 export async function listBranches(admin, { db = pool } = {}) {
+  const params = [admin.studio_id];
   const { rows } = await db.query(
     `
     SELECT b.id, b.name, b.address, b.maps_url, b.is_active,
            (SELECT count(*)::int FROM groups g WHERE g.branch_id = b.id AND g.is_active) AS active_group_count
     FROM branches b
-    WHERE b.studio_id = $1
+    WHERE b.studio_id = $1 AND ${branchClause(admin, 'b.id', params)}
     ORDER BY b.id
     `,
-    [admin.studio_id],
+    params,
   );
   return rows.map(toDto);
 }

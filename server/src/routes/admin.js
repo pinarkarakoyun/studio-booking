@@ -4,8 +4,9 @@ import { getAppearance, previewAppearance, updateAppearance } from '../services/
 import { closeBranch, createBranch, listBranches, reopenBranch, updateBranch } from '../services/adminBranches.js';
 import { closePackage, createPackage, listPackages, reopenPackage, updatePackage } from '../services/adminPackages.js';
 import { addPayment, deletePayment, getPaymentOverview } from '../services/adminMemberships.js';
+import { setSessionInstructor } from '../services/adminSchedule.js';
 import { getSettings, updateSettings } from '../services/adminSettings.js';
-import { branchId, membershipId, packageId, paymentId } from './params.js';
+import { branchId, membershipId, packageId, parseId, paymentId, sessionId } from './params.js';
 
 const router = Router();
 
@@ -22,6 +23,14 @@ const packageInput = (body) => ({
   sessionCount: body?.sessionCount,
   priceKurus: body?.priceKurus,
   validityDays: body?.validityDays,
+});
+
+// --- Dersin o günkü eğitmeni (diğer ders uçları staff.js'te) -----------------------------------
+
+router.put('/api/admin/sessions/:id/instructor', async (req, res) => {
+  const raw = req.body?.instructorId;
+  const instructorId = raw === null ? null : parseId(raw, 'INVALID_INSTRUCTOR', 'Eğitmen geçersiz.');
+  res.json(await setSessionInstructor(req.user, sessionId(req), instructorId));
 });
 
 // --- Şubeler (liste staff.js'te) ----------------------------------------------------------------

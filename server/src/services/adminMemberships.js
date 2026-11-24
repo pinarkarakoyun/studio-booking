@@ -2,6 +2,7 @@ import pool from '../db/pool.js';
 import { AppError } from '../errors.js';
 import { membershipModelOf } from './adminPackages.js';
 import { MEMBERSHIP_SELECT } from './membershipPeriods.js';
+import { assertCustomerInScope, isInstructor, redactPrices } from './scope.js';
 import { packageUsage } from './packageUsage.js';
 
 // Üyelik dönemleri ve ödeme kayıtları (BR-31…BR-37). Her fonksiyon yöneticinin kendi stüdyosuyla sınırlı.
@@ -78,6 +79,8 @@ function toDto(row, payments, today, usage) {
 
 // Müşteri yöneticinin stüdyosunda mı? lock: aynı müşteriye aynı anda iki dönem açılmasın diye satırı kilitler.
 async function findCustomerId(admin, customerId, db, { lock = false } = {}) {
+  // Eğitmen: yalnızca kendi şubelerinin üyeleri (başka şubenin üyesi "bulunamadı").
+  if (isInstructor(admin)) await assertCustomerInScope(admin, customerId, db);
   const { rows: [row] } = await db.query(
     `SELECT id, status FROM users WHERE id = $2 AND studio_id = $1 AND role = 'customer' ${lock ? 'FOR UPDATE' : ''}`,
     [admin.studio_id, customerId],
@@ -115,7 +118,8 @@ export async function getMemberships(admin, customerId, { db = pool } = {}) {
   if ((await membershipModelOf(admin.studio_id, db)) === 'package') {
     result.unpackaged = (await packageUsage(customerId, db)).unpackaged;
   }
-  return result;
+  // Eğitmen fiyat görmez: ücret, ödenen, kalan ve ödeme listesi cevaptan çıkar.
+  return isInstructor(admin) ? redactPrices(result) : result;
 }
 
 // Yeni dönem. Grup modelinde gövde { startsOn, endsOn, feeKurus, note }; paket modelinde { packageId, startsOn,
@@ -123,6 +127,14 @@ export async function getMemberships(admin, customerId, { db = pool } = {}) {
 // feeKurus verilirse katalog fiyatının yerine geçer (indirim). Katalog sonradan değişse de satılmış paket değişmez.
 export async function createMembership(admin, customerId, input, { db = pool } = {}) {
   const model = await membershipModelOf(admin.studio_id, db);
+  if (isInstructor(admin)) {
+    await assertCustomerInScope(admin, customerId, db);
+    // Grup modelinde ücret elle yazılır; fiyat görmeyen eğitmen dönem açamaz (Pınar'ın kararı).
+    if (model !== 'package') throw new AppError('FORBIDDEN', 'Üyelik dönemini yönetici açar.', 403);
+    // Paket modelinde ücret paketin fiyatıdır; indirim yalnızca yöneticide.
+    if (input.feeKurus != null) throw new AppError('FEE_NOT_ALLOWED', 'Ücreti yalnızca yönetici değiştirebilir.', 400);
+    return redactPrices(await sellPackage(admin, customerId, input, db));
+  }
   if (model === 'package') return sellPackage(admin, customerId, input, db);
   if (input.packageId != null) {
     throw new AppError('NOT_AVAILABLE_FOR_MODEL', 'Bu stüdyoda paket satılmıyor; dönem tarihlerini yaz.', 400);

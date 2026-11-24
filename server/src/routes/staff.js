@@ -31,6 +31,7 @@ import {
   getToday,
   removeMakeupFromSession,
   setAbsent,
+  takeOverSession,
 } from '../services/adminSchedule.js';
 import { customerId, groupId, groupInput, parseId, sessionId } from './params.js';
 
@@ -75,6 +76,11 @@ router.put('/api/admin/sessions/:id/attendance/:userId', can('attendance'), asyn
 router.delete('/api/admin/sessions/:id/attendance/:userId', can('attendance'), async (req, res) => {
   const userId = parseId(req.params.userId, 'CUSTOMER_NOT_FOUND', 'Müşteri bulunamadı.');
   res.json(await setAbsent(req.user, sessionId(req), userId, false));
+});
+
+// Başka eğitmenin bugünkü dersine giren eğitmen: "Bu dersi ben veriyorum".
+router.post('/api/admin/sessions/:id/take-over', can('attendance'), async (req, res) => {
+  res.json(await takeOverSession(req.user, sessionId(req)));
 });
 
 // Önce "kaç kişi etkilenir?" (aynı kod, sonunda geri alınır), sonra kesin iptal.

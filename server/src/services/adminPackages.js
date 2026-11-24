@@ -1,5 +1,6 @@
 import pool from '../db/pool.js';
 import { AppError } from '../errors.js';
+import { isInstructor, redactPrices } from './scope.js';
 
 // Paket kataloğu: stüdyonun sattığı seans paketleri ("8 seans, 45 gün geçerli, 2.400 TL").
 // Yalnızca seans paketi modelindeki stüdyoda vardır. Paket silinmez, kapatılır: kapalı paket yeni satışta
@@ -46,7 +47,8 @@ export async function listPackages(admin, { db = pool } = {}) {
     `SELECT ${COLUMNS} FROM packages WHERE studio_id = $1 ORDER BY id`,
     [admin.studio_id],
   );
-  return rows.map(toDto);
+  // Eğitmen paketleri adı ve seans sayısıyla görür, fiyatsız.
+  return isInstructor(admin) ? redactPrices(rows.map(toDto)) : rows.map(toDto);
 }
 
 // --- Ekle / düzenle ------------------------------------------------------------------------------

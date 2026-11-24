@@ -17,6 +17,7 @@ const ALL_ON = Object.fromEntries(PERMISSION_KEYS.map((k) => [k, true]));
 const PERMISSIONED = [
   ['PUT', '/api/admin/sessions/1/attendance/1'],
   ['DELETE', '/api/admin/sessions/1/attendance/1'],
+  ['POST', '/api/admin/sessions/1/take-over'],
   ['POST', '/api/admin/sessions/1/cancel/preview'],
   ['POST', '/api/admin/sessions/1/cancel'],
   ['POST', '/api/admin/sessions/1/attendees'],
@@ -44,6 +45,7 @@ const PERMISSIONED = [
 
 // Bütün yetkiler açık olsa bile eğitmene kapalı kalanlar.
 const ADMIN_ONLY = [
+  ['PUT', '/api/admin/sessions/1/instructor'],
   ['GET', '/api/admin/payments'],
   ['POST', '/api/admin/memberships/1/payments'],
   ['DELETE', '/api/admin/payments/1'],

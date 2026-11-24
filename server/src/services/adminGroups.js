@@ -1,10 +1,13 @@
 import pool from '../db/pool.js';
 import { AppError } from '../errors.js';
 import { countActiveBranches, findOpenBranch } from './adminBranches.js';
+import { assertBranchInstructor } from './adminInstructors.js';
+import { assertBranchInScope, assertCustomerInScope, branchClause, isInstructor } from './scope.js';
 import { generateSessions } from './sessionGenerator.js';
 
 // Yönetici panelinin "Gruplar" bölümü ve müşterinin grubunu değiştirme.
-// Her fonksiyon yöneticinin kendi stüdyosuyla sınırlı; başka stüdyonun grubu "bulunamadı".
+// Her fonksiyon işlemi yapanın (actor) stüdyosuyla sınırlı; başka stüdyonun grubu "bulunamadı".
+// Eğitmen (manage_groups yetkisiyle) yalnızca kendi şubelerinin gruplarını görür ve grubu başka şubeye koyamaz.
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -62,14 +65,15 @@ function validateGroupInput({ name, weekdays, startTime, durationMinutes, capaci
 //   - Çok şubeli stüdyoda şube seçmek zorunlu.
 //   - Şube bu stüdyonun açık bir şubesi olmalı (findOpenBranch). Veritabanındaki birleşik yabancı anahtar da
 //     başka stüdyonun şubesini reddeder; bu kontrol kullanıcıya anlaşılır bir hata vermek için.
-async function resolveBranch(admin, branchId, db, { current = null } = {}) {
+async function resolveBranch(actor, branchId, db, { current = null } = {}) {
   if (branchId === undefined && current) return current;
   if (branchId === undefined || branchId === null) {
-    if ((await countActiveBranches(admin.studio_id, db)) === 1) {
+    if ((await countActiveBranches(actor.studio_id, db)) === 1) {
       const { rows: [only] } = await db.query(
         'SELECT id, name FROM branches WHERE studio_id = $1 AND is_active',
-        [admin.studio_id],
+        [actor.studio_id],
       );
+      assertBranchInScope(actor, only.id);
       return only;
     }
     throw new AppError('BRANCH_REQUIRED', 'Şube seç.', 400);
@@ -77,7 +81,19 @@ async function resolveBranch(admin, branchId, db, { current = null } = {}) {
   if (!Number.isSafeInteger(branchId) || branchId <= 0) {
     throw new AppError('BRANCH_NOT_FOUND', 'Şube bulunamadı.', 404);
   }
-  return findOpenBranch(admin.studio_id, branchId, db);
+  // Eğitmen yalnızca kendi şubelerine grup koyar (başka şube "bulunamadı").
+  assertBranchInScope(actor, branchId);
+  return findOpenBranch(actor.studio_id, branchId, db);
+}
+
+// Grubun eğitmeni: undefined = gönderilmedi (değişmez), null = atanmadı, sayı = o şubeye atanmış bir eğitmen.
+async function resolveInstructor(actor, instructorId, branchId, db) {
+  if (instructorId === undefined || instructorId === null) return instructorId;
+  if (!Number.isSafeInteger(instructorId) || instructorId <= 0) {
+    throw new AppError('INVALID_INSTRUCTOR', 'Bu şubede böyle bir eğitmen yok.', 400);
+  }
+  await assertBranchInstructor(actor.studio_id, instructorId, branchId, db);
+  return instructorId;
 }
 
 // --- Okuma --------------------------------------------------------------------------------------
@@ -86,6 +102,7 @@ async function resolveBranch(admin, branchId, db, { current = null } = {}) {
 const GROUP_SELECT = `
   SELECT g.id, g.name, to_char(g.start_time, 'HH24:MI') AS start_time, g.duration_minutes, g.capacity,
          g.is_active, g.schedule_starts_on, g.branch_id, b.name AS branch_name,
+         iu.id AS instructor_id, iu.full_name AS instructor_name,
          ARRAY(SELECT gd.weekday FROM group_days gd WHERE gd.group_id = g.id ORDER BY gd.weekday) AS weekdays,
          (SELECT count(*)::int FROM group_members gm
           WHERE gm.group_id = g.id
@@ -96,6 +113,7 @@ const GROUP_SELECT = `
   FROM groups g
   JOIN studios st ON st.id = g.studio_id
   JOIN branches b ON b.id = g.branch_id
+  LEFT JOIN users iu ON iu.id = g.instructor_id
   CROSS JOIN LATERAL (SELECT (now() AT TIME ZONE st.timezone)::date AS date) AS today
   WHERE g.studio_id = $1
 `;
@@ -112,16 +130,25 @@ function toGroupDto(row) {
     scheduleStartsOn: row.schedule_starts_on,
     memberCount: row.member_count,
     branch: { id: row.branch_id, name: row.branch_name },
+    instructor: row.instructor_id === null ? null : { id: row.instructor_id, name: row.instructor_name },
   };
 }
 
-export async function listAllGroups(admin, { db = pool } = {}) {
-  const { rows } = await db.query(`${GROUP_SELECT} ORDER BY g.start_time, g.name`, [admin.studio_id]);
+export async function listAllGroups(actor, { db = pool } = {}) {
+  const params = [actor.studio_id];
+  const { rows } = await db.query(
+    `${GROUP_SELECT} AND ${branchClause(actor, 'g.branch_id', params)} ORDER BY g.start_time, g.name`,
+    params,
+  );
   return rows.map(toGroupDto);
 }
 
-async function findGroup(admin, groupId, db, { lock = false } = {}) {
-  const { rows: [row] } = await db.query(`${GROUP_SELECT} AND g.id = $2`, [admin.studio_id, groupId]);
+async function findGroup(actor, groupId, db, { lock = false } = {}) {
+  const params = [actor.studio_id, groupId];
+  const { rows: [row] } = await db.query(
+    `${GROUP_SELECT} AND g.id = $2 AND ${branchClause(actor, 'g.branch_id', params)}`,
+    params,
+  );
   if (!row) throw new AppError('GROUP_NOT_FOUND', 'Grup bulunamadı.', 404);
   // Aynı grubu aynı anda iki kişi düzenlerse ikinci beklesin.
   if (lock) await db.query('SELECT 1 FROM groups WHERE id = $1 FOR UPDATE', [groupId]);
@@ -190,10 +217,11 @@ export async function createGroup(admin, input, { db = pool } = {}) {
   const group = validateGroupInput(input);
   return withTransaction(db, async (client) => {
     const branch = await resolveBranch(admin, input.branchId, client);
+    const instructorId = await resolveInstructor(admin, input.instructorId, branch.id, client);
     const { rows: [row] } = await client.query(
-      `INSERT INTO groups (studio_id, branch_id, name, start_time, duration_minutes, capacity)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-      [admin.studio_id, branch.id, group.name, group.startTime, group.durationMinutes, group.capacity],
+      `INSERT INTO groups (studio_id, branch_id, name, start_time, duration_minutes, capacity, instructor_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+      [admin.studio_id, branch.id, group.name, group.startTime, group.durationMinutes, group.capacity, instructorId ?? null],
     );
     for (const day of group.weekdays) {
       await client.query('INSERT INTO group_days (group_id, weekday) VALUES ($1, $2)', [row.id, day]);
@@ -276,12 +304,15 @@ export async function updateGroup(admin, groupId, input, { preview = false, db =
         }
       }
 
+      // Eğitmen gönderilmediyse aynı kalır; şube değiştiyse mevcut eğitmen yeni şubeye de atanmış olmalı.
+      const requested = input.instructorId === undefined ? current.instructor_id : input.instructorId;
+      const instructorId = await resolveInstructor(admin, requested, branch.id, client);
       await client.query(
         `UPDATE groups
          SET name = $2, start_time = $3, duration_minutes = $4, capacity = $5,
-             schedule_starts_on = COALESCE($6::date, schedule_starts_on), branch_id = $7
+             schedule_starts_on = COALESCE($6::date, schedule_starts_on), branch_id = $7, instructor_id = $8
          WHERE id = $1`,
-        [groupId, next.name, next.startTime, next.durationMinutes, next.capacity, effectiveFrom, branch.id],
+        [groupId, next.name, next.startTime, next.durationMinutes, next.capacity, effectiveFrom, branch.id, instructorId],
       );
 
       // Kapasite bugünden sonraki bütün derslere (azaltılırsa kayıtlılar çıkarılmaz; yeni telafi alınmaz).
@@ -339,6 +370,8 @@ export async function closeGroup(admin, groupId, { db = pool } = {}) {
 //   - Yeni grubun o tarihten sonraki derslerine yaptığı telafiler iade edilir
 //     (artık zaten düzenli üye olarak geliyor; iki kez sayılmasın).
 export async function changeCustomerGroup(admin, customerId, { groupId, effectiveFrom, confirmFull = false }, { db = pool } = {}) {
+  // Eğitmen: üye kendi şubelerinden olmalı; hedef grup da (findGroup aşağıda süzer).
+  if (isInstructor(admin)) await assertCustomerInScope(admin, customerId, db);
   if (typeof effectiveFrom !== 'string' || !DATE_RE.test(effectiveFrom)) {
     throw new AppError('INVALID_DATE', 'Geçişin başlayacağı tarihi seç.', 400);
   }

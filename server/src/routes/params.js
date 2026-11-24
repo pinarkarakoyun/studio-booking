@@ -26,4 +26,6 @@ export const groupInput = (body) => ({
   effectiveFrom: body?.effectiveFrom,
   // undefined = gönderilmedi (düzenlemede şube değişmez); null = seçilmedi.
   branchId: body?.branchId,
+  // undefined = gönderilmedi (düzenlemede eğitmen değişmez); null = atanmadı.
+  instructorId: body?.instructorId,
 });

@@ -1,7 +1,10 @@
 import pool from '../db/pool.js';
 import { AppError } from '../errors.js';
+import { assertBranchInstructor } from './adminInstructors.js';
+import { assertCustomerInScope, assertSessionInScope, branchClause, isInstructor } from './scope.js';
 
-// Yönetici panelinin "Bugün" ekranı için sorgular. Hepsi yöneticinin kendi stüdyosuyla sınırlı.
+// Yönetici panelinin "Bugün" ekranı için sorgular. Hepsi işlemi yapanın (actor) stüdyosuyla, eğitmen için ayrıca
+// atandığı şubelerle sınırlı (scope.js). Dersin eğitmeni = o günkü eğitmen, yoksa grubun eğitmeni.
 
 const sortByName = (a, b) => a.fullName.localeCompare(b.fullName, 'tr');
 
@@ -22,22 +25,26 @@ async function studioDates(studioId, db) {
 }
 
 // Bir günün dersleri: doluluk, o derse gelen telafi ve iptal sayıları.
-async function sessionsOn(studioId, date, db) {
+async function sessionsOn(actor, date, db) {
+  const params = [actor.studio_id, date];
+  const branchFilter = branchClause(actor, 'g.branch_id', params);
   const { rows } = await db.query(
     `
     SELECT s.id, s.date, s.starts_at, s.status,
            g.name AS group_name, g.duration_minutes, g.branch_id, b.name AS branch_name,
            o.capacity, o.booked_count, o.makeup_count,
            (SELECT count(*)::int FROM credits c WHERE c.source_session_id = s.id) AS cancelled_count,
-           s.starts_at + make_interval(mins => g.duration_minutes) <= now() AS has_ended
+           s.starts_at + make_interval(mins => g.duration_minutes) <= now() AS has_ended,
+           g.kind, iu.id AS instructor_id, iu.full_name AS instructor_name
     FROM sessions s
     JOIN groups g            ON g.id = s.group_id
     JOIN branches b          ON b.id = g.branch_id
     JOIN session_occupancy o ON o.session_id = s.id
-    WHERE g.studio_id = $1 AND s.date = $2
+    LEFT JOIN users iu       ON iu.id = COALESCE(s.instructor_id, g.instructor_id)
+    WHERE g.studio_id = $1 AND s.date = $2 AND ${branchFilter}
     ORDER BY s.starts_at
     `,
-    [studioId, date],
+    params,
   );
   return rows.map((row) => ({
     id: row.id,
@@ -53,11 +60,23 @@ async function sessionsOn(studioId, date, db) {
     hasEnded: row.has_ended,
     // Dersin şubesi grubundan gelir. Ekran yalnızca çok şubeli stüdyoda gösterir ve şubeye göre süzer.
     branch: { id: row.branch_id, name: row.branch_name },
+    kind: row.kind,
+    ...instructorFields(actor, row),
   }));
 }
 
+// Dersin eğitmeni ve "benim dersim mi?" (yönetici için her zaman false; ekranın filtresi eğitmen içindir).
+function instructorFields(actor, row) {
+  const instructor = row.instructor_id === null ? null : { id: row.instructor_id, name: row.instructor_name };
+  return { instructor, isMine: isInstructor(actor) && instructor?.id === actor.id };
+}
+
 // "Dikkat edilecekler" notu (Pınar'ın seçimi): bu haftanın dolu dersleri ve son 24 saatin iptalleri.
-async function alerts(studioId, today, db) {
+async function alerts(actor, today, db) {
+  const fullParams = [actor.studio_id, today];
+  const fullBranch = branchClause(actor, 'g.branch_id', fullParams);
+  const cancelParams = [actor.studio_id];
+  const cancelBranch = branchClause(actor, 'g.branch_id', cancelParams);
   const { rows: fullSessions } = await db.query(
     `
     SELECT s.id, s.date, s.starts_at, g.name AS group_name
@@ -69,9 +88,10 @@ async function alerts(studioId, today, db) {
       AND s.starts_at > now()
       AND s.date <= $2::date + 6
       AND o.free_spots <= 0
+      AND ${fullBranch}
     ORDER BY s.starts_at
     `,
-    [studioId, today],
+    fullParams,
   );
   const { rows: recentCancellations } = await db.query(
     `
@@ -83,10 +103,11 @@ async function alerts(studioId, today, db) {
     WHERE g.studio_id = $1 AND c.created_at > now() - interval '24 hours'
       -- Stüdyonun iptal ettiği dersten doğan haklar müşterinin iptali değildir; uyarıda görünmez.
       AND s.status = 'scheduled'
+      AND ${cancelBranch}
     ORDER BY c.created_at DESC
     LIMIT 5
     `,
-    [studioId],
+    cancelParams,
   );
   return {
     fullSessions: fullSessions.map((row) => ({
@@ -99,12 +120,12 @@ async function alerts(studioId, today, db) {
 }
 
 // "Bugün" ekranının tamamı tek istekte: günün dersleri, yarının ders sayısı, uyarılar.
-export async function getToday(admin, { db = pool } = {}) {
-  const { today, tomorrow } = await studioDates(admin.studio_id, db);
+export async function getToday(actor, { db = pool } = {}) {
+  const { today, tomorrow } = await studioDates(actor.studio_id, db);
   const [sessions, tomorrowSessions, notices] = await Promise.all([
-    sessionsOn(admin.studio_id, today, db),
-    sessionsOn(admin.studio_id, tomorrow, db),
-    alerts(admin.studio_id, today, db),
+    sessionsOn(actor, today, db),
+    sessionsOn(actor, tomorrow, db),
+    alerts(actor, today, db),
   ]);
   return {
     date: today,
@@ -116,30 +137,37 @@ export async function getToday(admin, { db = pool } = {}) {
 
 // Başka bir günün dersleri (ileri tarihli bir dersi açmak, örneğin bayramda iptal etmek için; geçmiş de olur).
 // Uyarılar sadece "Bugün" ekranında; burada sadece o günün dersleri.
-export async function getDay(admin, date, { db = pool } = {}) {
+export async function getDay(actor, date, { db = pool } = {}) {
   if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(date))) {
     throw new AppError('INVALID_DATE', 'Tarih geçersiz.', 400);
   }
-  return { date, sessions: await sessionsOn(admin.studio_id, date, db) };
+  return { date, sessions: await sessionsOn(actor, date, db) };
 }
 
 // Bir dersin katılımcı listesi: kim geliyor, kim gelmiyor ve neden.
 //   attending: düzenli üye (geliyor) ya da telafi
 //   notAttending: iptal etti (hakkının durumuyla) ya da o tarihte dondurulmuş
-export async function getSessionRoster(admin, sessionId, { db = pool } = {}) {
+export async function getSessionRoster(actor, sessionId, { db = pool } = {}) {
+  const params = [sessionId, actor.studio_id];
+  const branchFilter = branchClause(actor, 'g.branch_id', params);
   const [session] = (await db.query(
     `
     SELECT s.id, s.date, s.starts_at, s.status, s.cancel_reason, g.name AS group_name, g.duration_minutes,
-           o.capacity, o.booked_count, GREATEST(o.free_spots, 0) AS free_spots
+           o.capacity, o.booked_count, GREATEST(o.free_spots, 0) AS free_spots,
+           g.kind, iu.id AS instructor_id, iu.full_name AS instructor_name,
+           s.date = (now() AT TIME ZONE st.timezone)::date AS is_today
     FROM sessions s
     JOIN groups g            ON g.id = s.group_id
+    JOIN studios st          ON st.id = g.studio_id
     JOIN session_occupancy o ON o.session_id = s.id
-    WHERE s.id = $1 AND g.studio_id = $2
+    LEFT JOIN users iu       ON iu.id = COALESCE(s.instructor_id, g.instructor_id)
+    WHERE s.id = $1 AND g.studio_id = $2 AND ${branchFilter}
     `,
-    [sessionId, admin.studio_id],
+    params,
   )).rows;
-  // Başka stüdyonun dersi de "bulunamadı" (müşteri tarafındaki IDOR kuralıyla aynı).
+  // Başka stüdyonun (eğitmen için başka şubenin) dersi de "bulunamadı" (müşteri tarafındaki IDOR kuralıyla aynı).
   if (!session) throw new AppError('SESSION_NOT_FOUND', 'Ders bulunamadı.', 404);
+  const { instructor, isMine } = instructorFields(actor, session);
 
   const { rows: people } = await db.query(
     `
@@ -193,7 +221,13 @@ export async function getSessionRoster(admin, sessionId, { db = pool } = {}) {
       capacity: session.capacity,
       bookedCount: session.booked_count,
       freeSpots: session.free_spots,
+      kind: session.kind,
+      instructor,
     },
+    isMine,
+    // "Bu dersi ben veriyorum" düğmesi: yoklama yetkili eğitmen, bugünün planlı dersi, eğitmeni kendisi değil.
+    canTakeOver: isInstructor(actor) && actor.permissions?.attendance === true && session.status === 'scheduled'
+      && session.is_today && !isMine,
     attending: all.filter((p) => p.state === 'regular' || p.state === 'makeup').sort(sortByName),
     notAttending: all.filter((p) => p.state === 'cancelled' || p.state === 'frozen').sort(sortByName),
   };
@@ -203,17 +237,19 @@ export async function getSessionRoster(admin, sessionId, { db = pool } = {}) {
 // Ders başladıktan sonra yönetici derse gelmeyen üyeyi "gelmedi" diye işaretler ya da işareti kaldırır.
 // Yalnızca kayıt: seans paketi hesabı yoklamaya bakmaz (gelmeyen de düşer). İki modelde de çalışır.
 // Kontrol sırası: önce ders ve müşteri bu stüdyonun mu (başka stüdyonun kaydı "bulunamadı"), sonra dersin durumu.
-export async function setAbsent(admin, sessionId, userId, absent, { db = pool } = {}) {
+export async function setAbsent(actor, sessionId, userId, absent, { db = pool } = {}) {
+  const scoped = await assertSessionInScope(actor, sessionId, db);
+  // Eğitmen yoklamayı yalnızca kendi dersinde (devraldığı dahil) alır; başkasınınkini önce devralır.
+  if (isInstructor(actor) && scoped.instructorId !== actor.id) {
+    throw new AppError('NOT_YOUR_SESSION', 'Bu dersi sen vermiyorsun; önce "Bu dersi ben veriyorum"a bas.', 403);
+  }
   const { rows: [session] } = await db.query(
-    `SELECT s.status, s.starts_at <= now() AS started
-     FROM sessions s JOIN groups g ON g.id = s.group_id
-     WHERE s.id = $1 AND g.studio_id = $2`,
-    [sessionId, admin.studio_id],
+    'SELECT status, starts_at <= now() AS started FROM sessions WHERE id = $1',
+    [sessionId],
   );
-  if (!session) throw new AppError('SESSION_NOT_FOUND', 'Ders bulunamadı.', 404);
   const { rowCount: isCustomer } = await db.query(
     `SELECT 1 FROM users WHERE id = $1 AND studio_id = $2 AND role = 'customer'`,
-    [userId, admin.studio_id],
+    [userId, actor.studio_id],
   );
   if (!isCustomer) throw new AppError('CUSTOMER_NOT_FOUND', 'Müşteri bulunamadı.', 404);
   if (session.status === 'cancelled') throw new AppError('SESSION_CANCELLED', 'Bu ders iptal edilmiş.', 409);
@@ -221,18 +257,43 @@ export async function setAbsent(admin, sessionId, userId, absent, { db = pool } 
 
   if (absent) {
     // Yalnızca derse gelmesi beklenenler (düzenli üye ya da telafi/eklenen) işaretlenebilir.
-    const roster = await getSessionRoster(admin, sessionId, { db });
+    const roster = await getSessionRoster(actor, sessionId, { db });
     if (!roster.attending.some((p) => p.id === userId)) {
       throw new AppError('NOT_IN_SESSION', 'Bu kişi bu derse gelecekler listesinde değil.', 409);
     }
     await db.query(
       `INSERT INTO attendance (session_id, user_id, marked_by) VALUES ($1, $2, $3)
        ON CONFLICT (session_id, user_id) DO NOTHING`,
-      [sessionId, userId, admin.id],
+      [sessionId, userId, actor.id],
     );
   } else {
     await db.query('DELETE FROM attendance WHERE session_id = $1 AND user_id = $2', [sessionId, userId]);
   }
+  return getSessionRoster(actor, sessionId, { db });
+}
+
+// --- Dersin o günkü eğitmeni --------------------------------------------------------------------
+// Eğitmen başka bir eğitmenin bugünkü dersine girdiğinde "Bu dersi ben veriyorum" der. Yalnızca o günün dersi
+// değişir, grubun eğitmeni aynı kalır. Yoklama bundan sonra onun adına alınır.
+export async function takeOverSession(actor, sessionId, { db = pool } = {}) {
+  // Önce kapsam: başka stüdyonun (şubenin) dersi her zaman "bulunamadı".
+  const roster = await getSessionRoster(actor, sessionId, { db });
+  if (!isInstructor(actor)) {
+    throw new AppError('TAKE_OVER_NOT_ALLOWED', 'Dersi eğitmenler devralır; yönetici eğitmeni ders detayından seçer.', 409);
+  }
+  if (!roster.canTakeOver) {
+    throw new AppError('TAKE_OVER_NOT_ALLOWED', 'Bu ders devralınamaz (bugünün planlı bir dersi değil ya da zaten senin).', 409);
+  }
+  await db.query('UPDATE sessions SET instructor_id = $2 WHERE id = $1', [sessionId, actor.id]);
+  return getSessionRoster(actor, sessionId, { db });
+}
+
+// Yönetici bir dersin o günkü eğitmenini seçer ya da kaldırır (null: grubun eğitmenine döner).
+// Seçilen kişi bu stüdyoda, açık hesaplı ve dersin şubesine atanmış bir eğitmen olmalı.
+export async function setSessionInstructor(admin, sessionId, instructorId, { db = pool } = {}) {
+  const session = await assertSessionInScope(admin, sessionId, db);
+  if (instructorId !== null) await assertBranchInstructor(admin.studio_id, instructorId, session.branchId, db);
+  await db.query('UPDATE sessions SET instructor_id = $2 WHERE id = $1', [sessionId, instructorId]);
   return getSessionRoster(admin, sessionId, { db });
 }
 
@@ -243,7 +304,14 @@ export async function setAbsent(admin, sessionId, userId, absent, { db = pool } 
 //   - Ayar açıksa (credit_on_studio_cancel) derse gelecek düzenli üyelere, normal iptaldeki gibi
 //     dersin başlangıcından sayılan bir hak verilir. Dersi zaten iptal etmiş (hakkı var) ya da o tarihte
 //     dondurulmuş üyeye ikinci hak verilmez.
-export async function cancelSessionByStudio(admin, sessionId, { reason } = {}, { db = pool, preview = false } = {}) {
+export async function cancelSessionByStudio(actor, sessionId, { reason } = {}, { db = pool, preview = false } = {}) {
+  // Eğitmen yalnızca kendi dersini (devraldığı dahil) iptal eder; başkasınınkini yönetici iptal eder.
+  if (isInstructor(actor)) {
+    const scoped = await assertSessionInScope(actor, sessionId, db);
+    if (scoped.instructorId !== actor.id) {
+      throw new AppError('NOT_YOUR_SESSION', 'Yalnızca kendi dersini iptal edebilirsin.', 403);
+    }
+  }
   if (reason != null && typeof reason !== 'string') throw new AppError('INVALID_REASON', 'Sebep geçersiz.', 400);
   const cleanReason = reason?.trim() || null;
   if (cleanReason && cleanReason.length > 120) {
@@ -265,7 +333,7 @@ export async function cancelSessionByStudio(admin, sessionId, { reason } = {}, {
       WHERE s.id = $1 AND g.studio_id = $2
       FOR UPDATE OF s
       `,
-      [sessionId, admin.studio_id],
+      [sessionId, actor.studio_id],
     );
     if (!session) throw new AppError('SESSION_NOT_FOUND', 'Ders bulunamadı.', 404);
     if (session.status === 'cancelled') throw new AppError('SESSION_ALREADY_CANCELLED', 'Bu ders zaten iptal edilmiş.', 409);
@@ -310,7 +378,12 @@ export async function cancelSessionByStudio(admin, sessionId, { reason } = {}, {
 // kapanış dakikası, aylık sınır) yöneticiyi bağlamaz: bilerek ekliyor. Hakkı varsa süresi ilk dolacak
 // geçerli hakkı kullanılır; yoksa "Yönetici ekledi" notlu, hemen kullanılmış bir hak kaydı oluşur
 // (doluluk ve kayıtlar tutarlı kalsın). Ders doluysa uyarılır, confirmFull ile eklenir.
-export async function addToSession(admin, sessionId, { userId, confirmFull = false }, { db = pool } = {}) {
+export async function addToSession(actor, sessionId, { userId, confirmFull = false }, { db = pool } = {}) {
+  // Eğitmen: ders de üye de kendi şubelerinde olmalı (değilse "bulunamadı").
+  if (isInstructor(actor)) {
+    await assertSessionInScope(actor, sessionId, db);
+    await assertCustomerInScope(actor, userId, db);
+  }
   const client = await db.connect();
   try {
     await client.query('BEGIN');
@@ -323,7 +396,7 @@ export async function addToSession(admin, sessionId, { userId, confirmFull = fal
       WHERE s.id = $1 AND g.studio_id = $2
       FOR UPDATE OF s
       `,
-      [sessionId, admin.studio_id],
+      [sessionId, actor.studio_id],
     );
     if (!session) throw new AppError('SESSION_NOT_FOUND', 'Ders bulunamadı.', 404);
     if (session.status === 'cancelled') throw new AppError('SESSION_CANCELLED', 'Bu ders iptal edilmiş.', 409);
@@ -331,7 +404,7 @@ export async function addToSession(admin, sessionId, { userId, confirmFull = fal
 
     const { rows: [customer] } = await client.query(
       `SELECT id, full_name, status FROM users WHERE id = $1 AND studio_id = $2 AND role = 'customer'`,
-      [userId, admin.studio_id],
+      [userId, actor.studio_id],
     );
     if (!customer) throw new AppError('CUSTOMER_NOT_FOUND', 'Müşteri bulunamadı.', 404);
     if (customer.status === 'left') throw new AppError('CUSTOMER_LEFT', 'Bu müşteri stüdyodan ayrılmış.', 409);
@@ -389,7 +462,8 @@ export async function addToSession(admin, sessionId, { userId, confirmFull = fal
 }
 
 // Telafi misafirini dersten çıkarır: hakkı geri döner; hak kullanmadan eklendiyse o kayıt silinir.
-export async function removeMakeupFromSession(admin, sessionId, userId, { db = pool } = {}) {
+export async function removeMakeupFromSession(actor, sessionId, userId, { db = pool } = {}) {
+  if (isInstructor(actor)) await assertSessionInScope(actor, sessionId, db);
   const client = await db.connect();
   try {
     await client.query('BEGIN');
@@ -400,7 +474,7 @@ export async function removeMakeupFromSession(admin, sessionId, userId, { db = p
       WHERE s.id = $1 AND g.studio_id = $2
       FOR UPDATE OF s
       `,
-      [sessionId, admin.studio_id],
+      [sessionId, actor.studio_id],
     );
     if (!session) throw new AppError('SESSION_NOT_FOUND', 'Ders bulunamadı.', 404);
     if (session.has_ended) throw new AppError('SESSION_ENDED', 'Bitmiş bir dersten kişi çıkarılamaz.', 409);
