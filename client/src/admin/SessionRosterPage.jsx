@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { api } from '../api.js';
 import Button from '../components/Button.jsx';
 import Sheet from '../components/Sheet.jsx';
@@ -6,6 +6,7 @@ import TextField from '../components/TextField.jsx';
 import { formatDay, formatTime } from '../format.js';
 import { NO_HEALTH_DATA_HINT } from '../privacy.js';
 import styles from './Admin.module.css';
+import { can, isInstructor } from './permissions.js';
 
 // Gelmeyen birinin yanında yazan sebep. Stüdyonun iptal ettiği derste "iptal etti" demeyiz.
 // Paket modelinde telafi yok: hak metinleri yerine yalnızca ne olduğu.
@@ -34,13 +35,15 @@ function attendeeLine(person, packageModel) {
 
 // Bir dersin katılımcı listesi; başlamamış bir ders buradan iptal edilebilir.
 // showToast: başarı mesajı AdminApp'teki ortak toast'ta görünür; form hataları pencerenin içinde kalır.
-export default function SessionRosterPage({ studio, sessionId, backLabel = 'Bugün', onBack, showToast }) {
+export default function SessionRosterPage({ user, studio, sessionId, backLabel = 'Bugün', onBack, showToast }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   // Açık panel: 'cancel' | 'add' | { remove: kişi } | null
   const [panel, setPanel] = useState(null);
   const [absentError, setAbsentError] = useState(null);
   const [absentBusy, setAbsentBusy] = useState(null); // işaretlenmekte olan kişinin id'si
+  const [takeOverBusy, setTakeOverBusy] = useState(false);
+  const instructor = isInstructor(user);
 
   // "Ders başladı mı?" için şimdiki zaman, veri geldiği anda bir kez alınır (render sırasında değil).
   function load() {
@@ -77,6 +80,21 @@ export default function SessionRosterPage({ studio, sessionId, backLabel = 'Bug�
     }
   }
 
+  // Başka eğitmenin bugünkü dersine giren eğitmen: ders o gün için ona geçer, sonra yoklamayı alır.
+  async function takeOver() {
+    setTakeOverBusy(true);
+    setAbsentError(null);
+    try {
+      const result = await api(`/api/admin/sessions/${sessionId}/take-over`, { method: 'POST' });
+      setData({ ...result, loadedAt: Date.now() });
+      showToast('success', 'Bu dersi bugün sen veriyorsun. Yoklamayı alabilirsin.');
+    } catch (err) {
+      setAbsentError(err.message);
+    } finally {
+      setTakeOverBusy(false);
+    }
+  }
+
   const back = (
     <button type="button" className={styles.back} onClick={onBack}>
       ‹ {backLabel}
@@ -99,8 +117,13 @@ export default function SessionRosterPage({ studio, sessionId, backLabel = 'Bug�
   const canCancel = !isCancelled && startsAt > data.loadedAt;
   // Kişi ders bitene kadar eklenebilir (kapıdan gelen de kaydedilsin).
   const canEdit = !isCancelled && startsAt + session.durationMinutes * 60000 > data.loadedAt;
-  // Ders başladıysa yoklama alınabilir (iki modelde de).
-  const canMarkAbsent = !isCancelled && startsAt <= data.loadedAt;
+  // Ders başladıysa yoklama alınabilir (iki modelde de). Eğitmen yalnızca kendi dersinde (devraldığı dahil).
+  const started = !isCancelled && startsAt <= data.loadedAt;
+  const canMarkAbsent = started && (!instructor || (data.isMine && can(user, 'attendance')));
+  // Üye eklemek için listeden seçmek gerekir: üyeleri görme yetkisi de olmalı.
+  const canAddPerson = can(user, 'manage_attendees') && can(user, 'view_customers');
+  const canRemovePerson = can(user, 'manage_attendees');
+  const mayCancel = canCancel && (!instructor || (data.isMine && can(user, 'cancel_own_sessions')));
   const fill = Math.min(100, Math.round((session.bookedCount / session.capacity) * 100));
 
   return (
@@ -114,6 +137,19 @@ export default function SessionRosterPage({ studio, sessionId, backLabel = 'Bug�
         {isCancelled && ' (ders iptal edildi)'}
       </p>
       {isCancelled && session.cancelReason && <p className={styles.muted}>Sebep: {session.cancelReason}</p>}
+      {/* Eğitmen dersin kimde olduğunu görür; yönetici aynı satırda o günkü eğitmeni değiştirebilir. */}
+      {instructor && session.instructor && (
+        <p className={styles.muted}>{data.isMine ? 'Bu dersi sen veriyorsun.' : `Eğitmen: ${session.instructor.name}`}</p>
+      )}
+      {!instructor && (
+        <SessionInstructorPicker
+          session={session}
+          onChanged={(result) => {
+            setData({ ...result, loadedAt: Date.now() });
+            showToast('success', 'Dersin eğitmeni güncellendi.');
+          }}
+        />
+      )}
 
       <div className={styles.rosterFill}>
         <span className={styles.bar} aria-hidden="true">
@@ -125,9 +161,17 @@ export default function SessionRosterPage({ studio, sessionId, backLabel = 'Bug�
         <span className={styles.muted}>{session.freeSpots > 0 ? `${session.freeSpots} boş` : 'dolu'}</span>
       </div>
 
-      <h2 className={styles.listLabel}>{canMarkAbsent ? 'Gelenler' : 'Gelecekler'}</h2>
+      <h2 className={styles.listLabel}>{started ? 'Gelenler' : 'Gelecekler'}</h2>
       {canMarkAbsent && attending.length > 0 && (
         <p className={styles.muted}>Gelmeyeni “Gelmedi” ile işaretle. Yalnızca kayıt için.</p>
+      )}
+      {data.canTakeOver && (
+        <div className={styles.warning} role="status">
+          <p>Bu ders {session.instructor ? `${session.instructor.name} hocanın` : 'başka bir eğitmenin'}. Yerine sen giriyorsan dersi devral, yoklamayı sen al.</p>
+          <Button type="button" busy={takeOverBusy} busyLabel="Kaydediliyor…" onClick={takeOver}>
+            Bu dersi ben veriyorum
+          </Button>
+        </div>
       )}
       {absentError && <p className={styles.formError}>{absentError}</p>}
       {attending.length === 0 ? (
@@ -156,7 +200,7 @@ export default function SessionRosterPage({ studio, sessionId, backLabel = 'Bug�
                     Gelmedi
                   </button>
                 )}
-                {person.state === 'makeup' && canEdit && (
+                {person.state === 'makeup' && canEdit && canRemovePerson && (
                   <button
                     type="button"
                     className={styles.paymentDelete}
@@ -191,17 +235,19 @@ export default function SessionRosterPage({ studio, sessionId, backLabel = 'Bug�
         </>
       )}
 
-      {canEdit && (
+      {canEdit && (canAddPerson || mayCancel) && (
         <>
           <h2 className={styles.listLabel}>İşlemler</h2>
           <ul className={styles.people}>
-            <li>
-              <button type="button" className={styles.actionRow} onClick={() => setPanel('add')}>
-                <span>Derse kişi ekle</span>
-                <span aria-hidden="true">›</span>
-              </button>
-            </li>
-            {canCancel && (
+            {canAddPerson && (
+              <li>
+                <button type="button" className={styles.actionRow} onClick={() => setPanel('add')}>
+                  <span>Derse kişi ekle</span>
+                  <span aria-hidden="true">›</span>
+                </button>
+              </li>
+            )}
+            {mayCancel && (
               <li>
                 <button type="button" className={`${styles.actionRow} ${styles.danger}`} onClick={() => setPanel('cancel')}>
                   <span>Dersi iptal et</span>
@@ -232,6 +278,56 @@ export default function SessionRosterPage({ studio, sessionId, backLabel = 'Bug�
         {panel?.remove && <RemovePerson sessionId={session.id} person={panel.remove} onDone={done} />}
       </Sheet>
     </main>
+  );
+}
+
+// Yönetici: dersin o günkü eğitmeni. Liste bu şubeye atanmış, hesabı açık eğitmenler; "Grubun eğitmeni"
+// seçilirse o günkü atama kalkar. Eğitmen yoksa hiçbir şey çizilmez.
+function SessionInstructorPicker({ session, onChanged }) {
+  const [instructors, setInstructors] = useState(null);
+  const [error, setError] = useState(null);
+  const fieldId = useId();
+
+  useEffect(() => {
+    api('/api/admin/instructors').then(
+      ({ instructors: list }) =>
+        setInstructors(list.filter((i) => i.status === 'active' && i.branches.some((b) => b.id === session.branch.id))),
+      () => setInstructors([]),
+    );
+  }, [session.branch.id]);
+
+  if (!instructors || (instructors.length === 0 && !session.instructor)) return null;
+
+  async function change(event) {
+    setError(null);
+    const value = event.target.value;
+    try {
+      const result = await api(`/api/admin/sessions/${session.id}/instructor`, {
+        method: 'PUT',
+        body: { instructorId: value ? Number(value) : null },
+      });
+      onChanged(result);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  return (
+    <p className={styles.muted}>
+      <label htmlFor={fieldId}>Eğitmen: </label>
+      <select id={fieldId} value={session.instructor?.id ?? ''} onChange={change}>
+        <option value="">Grubun eğitmeni</option>
+        {session.instructor && !instructors.some((i) => i.id === session.instructor.id) && (
+          <option value={session.instructor.id}>{session.instructor.name}</option>
+        )}
+        {instructors.map((i) => (
+          <option key={i.id} value={i.id}>
+            {i.fullName}
+          </option>
+        ))}
+      </select>
+      {error && <span className={styles.formError}> {error}</span>}
+    </p>
   );
 }
 

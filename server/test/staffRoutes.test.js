@@ -111,6 +111,16 @@ describe('staff routes', () => {
     assert.equal((await c.request('GET', '/api/admin/groups')).status, 403);
   });
 
+  test('group list opens with customer permissions too (forms need it), group detail does not', async () => {
+    for (const permissions of [{ view_customers: true, edit_customers: true }, { view_customers: true, customer_status: true }]) {
+      const { c } = await instructorClient(permissions);
+      assert.equal((await c.request('GET', '/api/admin/groups')).status, 200, JSON.stringify(permissions));
+      assert.equal((await c.request('GET', '/api/admin/groups/1')).status, 403);
+    }
+    const { c } = await instructorClient({ view_customers: true });
+    assert.equal((await c.request('GET', '/api/admin/groups')).status, 403);
+  });
+
   test('customer gets 403 on staff routes', async () => {
     const studio = await createStudio();
     const c = await clientFor(await createCustomer(studio));

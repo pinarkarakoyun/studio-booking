@@ -8,11 +8,12 @@ import { NO_HEALTH_DATA_HINT } from '../privacy.js';
 import { addDays, formatDateDayMonth, formatDay, formatDayMonth, formatPhone, formatTime, todayIn } from '../format.js';
 import MembershipCard from './MembershipCard.jsx';
 import styles from './Admin.module.css';
+import { can, isInstructor } from './permissions.js';
 
 const whatsappLink = (phone) => `https://wa.me/${phone.replace('+', '')}`;
 
 // showToast: başarı mesajları AdminApp'teki ortak toast'ta; form hataları pencerenin içinde kalır.
-export default function CustomerDetailPage({ studio, customerId, onBack, onCredentials, showToast }) {
+export default function CustomerDetailPage({ user, studio, customerId, onBack, onCredentials, showToast }) {
   const [customer, setCustomer] = useState(null);
   const [error, setError] = useState(null);
   // Açık olan işlem paneli: 'group' | 'freeze' | 'endFreeze' | 'reset' | 'leave' | null
@@ -54,6 +55,14 @@ export default function CustomerDetailPage({ studio, customerId, onBack, onCrede
 
   const left = customer.status === 'left';
   const firstName = customer.fullName.split(' ')[0];
+  const packageModel = studio.membershipModel === 'package';
+  // Eğitmen yetkilerine göre: hangi işlemler görünür? (Sunucu da aynı kuralları uygular.)
+  const canStatus = can(user, 'customer_status');
+  const canMemberships = can(user, 'memberships');
+  const canEdit = can(user, 'edit_customers');
+  // Telafi hakkı vermek grup modelinde; paket modelinde telafi yok.
+  const canGrant = canMemberships && !packageModel;
+  const hasActions = canStatus || canGrant || canEdit;
 
   return (
     <main className={styles.page}>
@@ -110,30 +119,34 @@ export default function CustomerDetailPage({ studio, customerId, onBack, onCrede
         )}
       </dl>
 
-      <MembershipCard
-        customerId={customerId}
-        today={todayIn(timeZone)}
-        canStartPeriod={!left}
-        packageModel={studio.membershipModel === 'package'}
-        showToast={showToast}
-      />
+      {/* Eğitmen: yalnızca "memberships" yetkisiyle ve fiyatsız. Grup modelinde dönemi (ücret elle yazıldığı için)
+          yalnızca yönetici açar. */}
+      {canMemberships && (
+        <MembershipCard
+          customerId={customerId}
+          today={todayIn(timeZone)}
+          canStartPeriod={!left && (!isInstructor(user) || packageModel)}
+          packageModel={packageModel}
+          hidePrices={isInstructor(user)}
+          showToast={showToast}
+        />
+      )}
 
-      {!left && (
+      {!left && hasActions && (
         <>
           <h2 className={styles.listLabel}>İşlemler</h2>
           <ul className={styles.people}>
-            <ActionRow label="Grubunu değiştir" onClick={() => setAction('group')} />
+            {canStatus && <ActionRow label="Grubunu değiştir" onClick={() => setAction('group')} />}
             {/* Paket modelinde telafi yok: kaçırılan ders paketten düşmez, telafi hakkı da verilmez. */}
-            {studio.membershipModel !== 'package' && (
-              <ActionRow label="Telafi hakkı ver" onClick={() => setAction('credits')} />
-            )}
-            {customer.freeze ? (
-              <ActionRow label="Dondurmayı bitir" onClick={() => setAction('endFreeze')} />
-            ) : (
-              <ActionRow label="Üyeliği dondur" onClick={() => setAction('freeze')} />
-            )}
-            <ActionRow label="Şifresini sıfırla" onClick={() => setAction('reset')} />
-            <ActionRow label="Stüdyodan ayrıldı" danger onClick={() => setAction('leave')} />
+            {canGrant && <ActionRow label="Telafi hakkı ver" onClick={() => setAction('credits')} />}
+            {canStatus &&
+              (customer.freeze ? (
+                <ActionRow label="Dondurmayı bitir" onClick={() => setAction('endFreeze')} />
+              ) : (
+                <ActionRow label="Üyeliği dondur" onClick={() => setAction('freeze')} />
+              ))}
+            {canEdit && <ActionRow label="Şifresini sıfırla" onClick={() => setAction('reset')} />}
+            {canStatus && <ActionRow label="Stüdyodan ayrıldı" danger onClick={() => setAction('leave')} />}
           </ul>
         </>
       )}

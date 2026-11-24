@@ -5,8 +5,8 @@ import sessionsRouter from '../src/routes/sessions.js';
 import staffRouter from '../src/routes/staff.js';
 import { createUser, resetLoginAttempts } from '../src/services/auth.js';
 import {
-  createAdmin, createBranch, createCustomer, createGroup, createSession, createSessionToday, createStudio,
-  grantCredit, insertMakeup, pool, resetDb,
+  createAdmin, createBranch, createCustomer, createGroup, createInstructor, createSession, createSessionToday,
+  createStudio, defaultBranchId, grantCredit, insertMakeup, pool, resetDb,
 } from './helpers.js';
 import { client, clientFor, useServer } from './http.js';
 
@@ -44,7 +44,11 @@ async function buildStudio(slug, label) {
   const admin = await createAdmin(studio);
   const customer = await createCustomer(studio, group);
   const guest = await createCustomer(studio);
-  await pool.query(`UPDATE users SET full_name = $2 || '-' || role || '-' || id WHERE id = ANY($1)`, [[admin, customer, guest], label]);
+  const instructor = await createInstructor(studio, { branchIds: [await defaultBranchId(studio)] });
+  await pool.query(
+    `UPDATE users SET full_name = $2 || '-' || role || '-' || id WHERE id = ANY($1)`,
+    [[admin, customer, guest, instructor], label],
+  );
 
   const todaySession = await createSessionToday(group, '23:00');
   const session = await createSession(group, 48);
@@ -66,7 +70,7 @@ async function buildStudio(slug, label) {
     [membership.id, await day(-5), `${label}-ödeme`],
   );
   return {
-    studio, group, admin, customer, guest, todaySession, session, laterSession, pastSession,
+    studio, group, admin, customer, guest, instructor, todaySession, session, laterSession, pastSession,
     membership: membership.id, payment: payment.id,
     // İkinci şube (grubu yok): kapatma isteği "açık grup var" yüzünden değil, başka stüdyonun olduğu için reddedilmeli.
     branch: await createBranch(studio, { name: `${label}-Şube`, address: `${label}-adres` }),
@@ -100,6 +104,7 @@ async function twoPackageStudios() {
 const TABLES = [
   'studios', 'studio_settings', 'users', 'groups', 'group_days', 'group_members',
   'sessions', 'credits', 'freezes', 'memberships', 'payments', 'user_sessions', 'packages', 'attendance',
+  'instructor_branches', 'instructor_permissions',
 ];
 async function snapshot() {
   const parts = {};
@@ -114,7 +119,7 @@ async function snapshot() {
 const MISSING = {
   session: 999001, laterSession: 999002, todaySession: 999003, customer: 999004,
   guest: 999005, group: 999006, membership: 999007, payment: 999008, branch: 999009,
-  package: 999010, pastSession: 999011,
+  package: 999010, pastSession: 999011, instructor: 999012,
 };
 
 // Başka stüdyonun kaydına yapılan isteğin dört koşulu: istemci hatası (4xx, 500 değil), yanıt olmayan kayıtla
@@ -165,6 +170,10 @@ const ADMIN_MATRIX = [
   ['PUT', '/api/admin/branches/:id', async (B) => [`/api/admin/branches/${B.branch}`, { name: 'Yeni ad', address: 'x' }]],
   ['POST', '/api/admin/branches/:id/close', async (B) => [`/api/admin/branches/${B.branch}/close`, {}]],
   ['POST', '/api/admin/branches/:id/reopen', async (B) => [`/api/admin/branches/${B.branch}/reopen`, {}]],
+  ['GET', '/api/admin/instructors/:id', async (B) => [`/api/admin/instructors/${B.instructor}`]],
+  ['PUT', '/api/admin/instructors/:id', async (B, A) => [`/api/admin/instructors/${B.instructor}`, { permissions: { manage_groups: true } }]],
+  ['POST', '/api/admin/instructors/:id/reset-password', async (B) => [`/api/admin/instructors/${B.instructor}/reset-password`, {}]],
+  ['POST', '/api/admin/instructors/:id/leave', async (B) => [`/api/admin/instructors/${B.instructor}/leave`, {}]],
 ];
 
 // Paket modeline özel uçlar: twoPackageStudios ile kurulur.

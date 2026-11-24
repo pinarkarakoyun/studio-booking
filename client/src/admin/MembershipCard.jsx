@@ -18,9 +18,10 @@ const methodLabel = (value) => METHODS.find((m) => m.value === value).label.toLo
 
 // Müşteri detayındaki üyelik kartı: dönem, ödenen/kalan, ödemeler; "Ödeme ekle" ve "Yeni dönem başlat".
 // Seans paketi modelinde dönem bir pakettir: "Paket ekle" katalogdan seçer, kartta kalan seans görünür.
-// Tutarlar sadece yöneticide görünür (BR-37).
+// Tutarlar sadece yöneticide görünür (BR-37). hidePrices: eğitmen; sunucu tutarları zaten göndermez, ekran da
+// ödeme ve ücret satırlarını hiç çizmez.
 // showToast: başarı mesajları (Paket eklendi, Ödeme kaydedildi …) AdminApp'teki ortak toast'ta.
-export default function MembershipCard({ customerId, today, canStartPeriod, packageModel, showToast }) {
+export default function MembershipCard({ customerId, today, canStartPeriod, packageModel, hidePrices = false, showToast }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   // Açık panel: 'payment' | 'period' | { deletePayment } | null
@@ -64,8 +65,8 @@ export default function MembershipCard({ customerId, today, canStartPeriod, pack
 
       {current ? (
         <div className={styles.membershipCard}>
-          <PeriodSummary membership={current} today={today} nextPackage={nextPackage} />
-          {current.payments.length > 0 && (
+          <PeriodSummary membership={current} today={today} nextPackage={nextPackage} hidePrices={hidePrices} />
+          {!hidePrices && current.payments.length > 0 && (
             <ul className={styles.paymentList}>
               {current.payments.map((payment) => (
                 <li key={payment.id}>
@@ -88,7 +89,7 @@ export default function MembershipCard({ customerId, today, canStartPeriod, pack
               ))}
             </ul>
           )}
-          {current.remainingKurus > 0 && (
+          {!hidePrices && current.remainingKurus > 0 && (
             <div className={styles.formSubmit}>
               <Button type="button" onClick={() => setPanel('payment')}>
                 Ödeme ekle
@@ -122,7 +123,7 @@ export default function MembershipCard({ customerId, today, canStartPeriod, pack
                     {formatDateDayMonth(m.startsOn)} – {formatDateDayMonth(m.endsOn)}
                     {m.sessionCount !== null && <small> · {sessionsText(m)}</small>}
                   </span>
-                  <span>{m.remainingKurus > 0 ? `${formatMoney(m.remainingKurus)} kaldı` : 'ödendi'}</span>
+                  {!hidePrices && <span>{m.remainingKurus > 0 ? `${formatMoney(m.remainingKurus)} kaldı` : 'ödendi'}</span>}
                 </li>
               ))}
             </ul>
@@ -138,7 +139,12 @@ export default function MembershipCard({ customerId, today, canStartPeriod, pack
 
       <Sheet open={panel === 'period'} onClose={() => setPanel(null)} title={packageModel ? 'Paket ekle' : 'Yeni dönem başlat'}>
         {panel === 'period' && packageModel && (
-          <PackageForm customerId={customerId} suggestedStartsOn={data.suggestedStartsOn} onDone={() => done('Paket eklendi.')} />
+          <PackageForm
+            customerId={customerId}
+            suggestedStartsOn={data.suggestedStartsOn}
+            hidePrices={hidePrices}
+            onDone={() => done('Paket eklendi.')}
+          />
         )}
         {panel === 'period' && !packageModel && (
           <PeriodForm
@@ -165,7 +171,7 @@ function sessionsText(m) {
   return `${m.remaining} / ${m.sessionCount} seans kaldı`;
 }
 
-function PeriodSummary({ membership: m, today, nextPackage }) {
+function PeriodSummary({ membership: m, today, nextPackage, hidePrices }) {
   const isPackage = m.sessionCount !== null;
   const paidShare = m.feeKurus === 0 ? 1 : Math.min(1, m.paidKurus / m.feeKurus);
   let state = null;
@@ -186,12 +192,28 @@ function PeriodSummary({ membership: m, today, nextPackage }) {
         {isPackage && ' (son gün)'}
       </p>
       {isPackage && <p className={styles.periodMeta}>{sessionsText(m)}</p>}
-      <p className={styles.periodMeta}>
-        {formatMoney(m.feeKurus)}
-        {m.freezeDays > 0 && `, dondurma ile ${m.freezeDays} gün uzadı`}
-        {m.note && `, ${m.note}`}
-      </p>
+      {hidePrices ? (
+        (m.freezeDays > 0 || m.note) && (
+          <p className={styles.periodMeta}>
+            {[m.freezeDays > 0 && `Dondurma ile ${m.freezeDays} gün uzadı`, m.note].filter(Boolean).join(', ')}
+          </p>
+        )
+      ) : (
+        <p className={styles.periodMeta}>
+          {formatMoney(m.feeKurus)}
+          {m.freezeDays > 0 && `, dondurma ile ${m.freezeDays} gün uzadı`}
+          {m.note && `, ${m.note}`}
+        </p>
+      )}
       {state && <p className={alert ? styles.periodAlert : styles.periodMeta}>{state}</p>}
+      {!hidePrices && <PaidBar membership={m} paidShare={paidShare} />}
+    </>
+  );
+}
+
+function PaidBar({ membership: m, paidShare }) {
+  return (
+    <>
       <div
         className={styles.paidBar}
         role="img"
@@ -384,7 +406,8 @@ function PeriodForm({ customerId, suggestedStartsOn, lastFeeKurus, onDone }) {
 }
 
 // Paket satışı: katalogdan paket, başlangıç, isteğe bağlı farklı fiyat. Son gün ve seans sayısı paketten gelir.
-function PackageForm({ customerId, suggestedStartsOn, onDone }) {
+// hidePrices (eğitmen): ücret alanı yok, gönderilmez; sunucu katalog fiyatını yazar.
+function PackageForm({ customerId, suggestedStartsOn, hidePrices, onDone }) {
   const [packages, setPackages] = useState(null);
   const [packageId, setPackageId] = useState(null);
   const [startsOn, setStartsOn] = useState(suggestedStartsOn);
@@ -409,7 +432,7 @@ function PackageForm({ customerId, suggestedStartsOn, onDone }) {
 
   function choose(pkg) {
     setPackageId(pkg.id);
-    setFee(String(pkg.priceKurus / 100).replace('.', ','));
+    if (!hidePrices) setFee(String(pkg.priceKurus / 100).replace('.', ','));
     setErrors({});
   }
 
@@ -419,8 +442,8 @@ function PackageForm({ customerId, suggestedStartsOn, onDone }) {
       setErrors({ package: 'Bir paket seç.' });
       return;
     }
-    const feeKurus = parseMoney(fee);
-    if (feeKurus === null) {
+    const feeKurus = hidePrices ? null : parseMoney(fee);
+    if (!hidePrices && feeKurus === null) {
       setErrors({ fee: 'Ücreti yaz, ör. 2.400' });
       return;
     }
@@ -428,7 +451,7 @@ function PackageForm({ customerId, suggestedStartsOn, onDone }) {
     try {
       // Fiyat katalogdakiyle aynıysa gönderilmez: sunucu katalog fiyatını yazar.
       const body = { packageId, startsOn, note };
-      if (feeKurus !== chosen.priceKurus) body.feeKurus = feeKurus;
+      if (!hidePrices && feeKurus !== chosen.priceKurus) body.feeKurus = feeKurus;
       await api(`/api/admin/customers/${customerId}/memberships`, { method: 'POST', body });
       onDone();
     } catch (err) {
@@ -462,7 +485,7 @@ function PackageForm({ customerId, suggestedStartsOn, onDone }) {
         {errors.package && <p className={styles.formError}>{errors.package}</p>}
       </fieldset>
       <TextField label="Başlangıç" type="date" value={startsOn} onChange={(e) => setStartsOn(e.target.value)} />
-      {chosen && (
+      {chosen && !hidePrices && (
         <TextField
           label="Ücret (₺)"
           inputMode="decimal"

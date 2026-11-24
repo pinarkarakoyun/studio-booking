@@ -3,13 +3,15 @@ import { api } from '../api.js';
 import Monogram from '../components/Monogram.jsx';
 import { addDays, formatDateDayMonth, formatDay, formatTime, formatWeekday, todayIn } from '../format.js';
 import styles from './Admin.module.css';
+import { isInstructor } from './permissions.js';
 
 const shiftDay = (date, days) => addDays(`${date}T12:00:00Z`, days).slice(0, 10);
 
 // Bugünün dersleri ve uyarıları; ‹ › ile başka günlere de bakılır (ör. bayramda ileri tarihli dersi iptal etmek).
 // date null ise bugün. Uyarılar ve "Yarın" satırı sadece bugünün ekranında.
 export default function TodayPage({
-  user, studio, date, onChangeDate, branchFilter, onBranchFilterChange, onOpenSession, onOpenAccount,
+  user, studio, date, onChangeDate, branchFilter, onBranchFilterChange, mineOnly, onMineOnlyChange, onOpenSession,
+  onOpenAccount,
 }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -19,7 +21,11 @@ export default function TodayPage({
   const isToday = shown === today;
   const pickerRef = useRef(null);
   // Şube süzgeci: yalnızca çok şubeli stüdyoda. '' = tüm şubeler. Seçim AdminApp'te tutulur (gün değişince korunur).
-  const multiBranch = studio.branchCount > 1;
+  // Eğitmen yalnızca kendi şubelerini görür; tek şubesi varsa süzgeç gereksiz.
+  const instructor = isInstructor(user);
+  const multiBranch = instructor ? user.branches.length > 1 : studio.branchCount > 1;
+  // Şube adı derslerde, stüdyonun birden çok şubesi varsa yazılır (eğitmenin tek şubesi olsa bile hangisi olduğu belli olsun).
+  const showBranchName = studio.branchCount > 1;
   const [branches, setBranches] = useState([]);
 
   useEffect(() => {
@@ -83,9 +89,10 @@ export default function TodayPage({
   }
 
   // Süzme istemcide: bir günün ders sayısı küçük, sunucuya ayrı istek gerekmez.
-  const sessions = multiBranch && branchFilter
-    ? data.sessions.filter((s) => String(s.branch.id) === branchFilter)
-    : data.sessions;
+  // Eğitmen: "Benim derslerim" (varsayılan) ya da şubelerinin bütün dersleri (yerine derse girmek için).
+  const sessions = data.sessions
+    .filter((s) => !(multiBranch && branchFilter) || String(s.branch.id) === branchFilter)
+    .filter((s) => !(instructor && mineOnly) || s.isMine);
   const scheduled = sessions.filter((s) => s.status === 'scheduled');
   const people = scheduled.reduce((sum, s) => sum + s.bookedCount, 0);
   const fullCount = scheduled.filter((s) => s.bookedCount >= s.capacity).length;
@@ -121,6 +128,27 @@ export default function TodayPage({
           <dd>{fullCount}</dd>
         </div>
       </dl>
+
+      {instructor && (
+        <div className={styles.chips} role="group" aria-label="Hangi dersler">
+          <button
+            type="button"
+            className={`${styles.chip} ${mineOnly ? styles.chipOn : ''}`}
+            aria-pressed={mineOnly}
+            onClick={() => onMineOnlyChange(true)}
+          >
+            Benim derslerim
+          </button>
+          <button
+            type="button"
+            className={`${styles.chip} ${!mineOnly ? styles.chipOn : ''}`}
+            aria-pressed={!mineOnly}
+            onClick={() => onMineOnlyChange(false)}
+          >
+            Bütün dersler
+          </button>
+        </div>
+      )}
 
       {multiBranch && (
         <label className={styles.muted}>
@@ -159,13 +187,17 @@ export default function TodayPage({
       )}
 
       <h2 className={styles.sectionLabel}>{isToday ? 'Bugünün dersleri' : 'Dersler'}</h2>
-      {sessions.length === 0 && <p className={styles.emptyCard}>Bu gün ders yok.</p>}
+      {sessions.length === 0 && (
+        <p className={styles.emptyCard}>
+          {instructor && mineOnly && data.sessions.length > 0 ? 'Bu gün senin dersin yok.' : 'Bu gün ders yok.'}
+        </p>
+      )}
       <ul className={styles.sessionList}>
         {sessions.map((session) => (
           <li key={session.id}>
             <SessionRow
               session={session}
-              multiBranch={multiBranch}
+              multiBranch={showBranchName}
               packageModel={studio.membershipModel === 'package'}
               timeZone={timeZone}
               onOpen={() => onOpenSession(session.id)}
@@ -205,6 +237,7 @@ function SessionRow({ session, multiBranch, packageModel, timeZone, onOpen }) {
           {session.groupName}
           {multiBranch && ` · ${session.branch.name}`}
         </span>
+        {session.instructor && <span className={styles.sessionInstructor}>{session.instructor.name}</span>}
         <span className={styles.sessionMeta}>
           {cancelledByStudio ? 'Ders iptal edildi' : full ? 'Dolu' : `${freeSpots} yer boş`}
           {session.makeupCount > 0 && <span className={styles.tagMakeup}>+{session.makeupCount} {packageModel ? 'eklendi' : 'telafi'}</span>}

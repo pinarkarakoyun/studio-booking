@@ -42,15 +42,21 @@ const FIELD_FOR_CODE = {
   BRANCH_REQUIRED: 'branchId',
   BRANCH_NOT_FOUND: 'branchId',
   BRANCH_CLOSED: 'branchId',
+  INVALID_INSTRUCTOR: 'instructorId',
 };
 
 // group verilmezse "Yeni grup", verilirse "Grubu düzenle".
-export default function GroupFormPage({ studio, group, onStudioChange, onCancel, onSaved }) {
+// user: eğitmen seçimi yalnızca yöneticide (eğitmen listesini yalnızca yönetici okuyabilir; manage_groups yetkili
+// eğitmenin düzenlemesinde alan gönderilmez, grubun eğitmeni aynı kalır).
+export default function GroupFormPage({ user, studio, group, onStudioChange, onCancel, onSaved }) {
   const today = todayIn(studio.timezone);
   // Şube seçimi yalnızca çok şubeli stüdyoda; tek şubede sunucu grubu o şubeye bağlar.
   const multiBranch = studio.branchCount > 1;
   const branchFieldId = useId();
+  const instructorFieldId = useId();
+  const pickInstructor = user.role === 'admin';
   const [branches, setBranches] = useState(null);
+  const [instructors, setInstructors] = useState([]);
   const [form, setForm] = useState({
     name: group?.name ?? '',
     branchId: group?.branch ? String(group.branch.id) : '',
@@ -59,6 +65,7 @@ export default function GroupFormPage({ studio, group, onStudioChange, onCancel,
     durationMinutes: String(group?.durationMinutes ?? 50),
     capacity: String(group?.capacity ?? 8),
     effectiveFrom: nextMonday(today),
+    instructorId: group?.instructor ? String(group.instructor.id) : '',
   });
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
@@ -83,6 +90,7 @@ export default function GroupFormPage({ studio, group, onStudioChange, onCancel,
     durationMinutes: Number(form.durationMinutes),
     capacity: Number(form.capacity),
     effectiveFrom: scheduleChanged ? form.effectiveFrom : undefined,
+    instructorId: pickInstructor ? (form.instructorId ? Number(form.instructorId) : null) : undefined,
   };
   // Önizleme hangi değerler için alındı? Değerler değişince eski önizleme gösterilmez.
   const previewKey = JSON.stringify(body);
@@ -110,6 +118,19 @@ export default function GroupFormPage({ studio, group, onStudioChange, onCancel,
       (err) => setErrors((current) => ({ ...current, branchId: err.message })),
     );
   }, [multiBranch]);
+
+  // Yönetici: hesabı açık eğitmenler. Seçim kutusunda seçili şubeye atanmış olanlar görünür.
+  useEffect(() => {
+    if (!pickInstructor) return;
+    api('/api/admin/instructors').then(
+      ({ instructors: list }) => setInstructors(list.filter((i) => i.status === 'active')),
+      () => setInstructors([]),
+    );
+  }, [pickInstructor]);
+  const branchForInstructors = multiBranch ? Number(form.branchId) : branches?.[0]?.id ?? group?.branch?.id;
+  const instructorOptions = instructors.filter(
+    (i) => !multiBranch || i.branches.some((b) => b.id === branchForInstructors),
+  );
 
   function update(field) {
     return (event) => {
@@ -187,6 +208,33 @@ export default function GroupFormPage({ studio, group, onStudioChange, onCancel,
               </select>
             </div>
             {errors.branchId && <p className={fieldStyles.error}>{errors.branchId}</p>}
+          </div>
+        )}
+        {pickInstructor && (instructors.length > 0 || form.instructorId) && (
+          <div className={fieldStyles.field}>
+            <label htmlFor={instructorFieldId} className={fieldStyles.label}>
+              Eğitmen
+            </label>
+            <div className={`${fieldStyles.control} ${errors.instructorId ? fieldStyles.invalid : ''}`}>
+              <select
+                id={instructorFieldId}
+                className={fieldStyles.input}
+                value={form.instructorId}
+                onChange={update('instructorId')}
+              >
+                <option value="">Atanmadı</option>
+                {/* Şube değişince eski eğitmen yeni şubeye atanmamış olabilir: yine de seçili görünsün, sunucu uyarır. */}
+                {group?.instructor && !instructorOptions.some((i) => i.id === group.instructor.id) && (
+                  <option value={group.instructor.id}>{group.instructor.name}</option>
+                )}
+                {instructorOptions.map((i) => (
+                  <option key={i.id} value={i.id}>
+                    {i.fullName}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {errors.instructorId && <p className={fieldStyles.error}>{errors.instructorId}</p>}
           </div>
         )}
         {branchChanged && (

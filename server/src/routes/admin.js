@@ -4,9 +4,17 @@ import { getAppearance, previewAppearance, updateAppearance } from '../services/
 import { closeBranch, createBranch, listBranches, reopenBranch, updateBranch } from '../services/adminBranches.js';
 import { closePackage, createPackage, listPackages, reopenPackage, updatePackage } from '../services/adminPackages.js';
 import { addPayment, deletePayment, getPaymentOverview } from '../services/adminMemberships.js';
+import {
+  createInstructor,
+  getInstructor,
+  listInstructors,
+  markInstructorLeft,
+  resetInstructorPassword,
+  updateInstructor,
+} from '../services/adminInstructors.js';
 import { setSessionInstructor } from '../services/adminSchedule.js';
 import { getSettings, updateSettings } from '../services/adminSettings.js';
-import { branchId, membershipId, packageId, parseId, paymentId, sessionId } from './params.js';
+import { branchId, instructorId, membershipId, packageId, parseId, paymentId, sessionId } from './params.js';
 
 const router = Router();
 
@@ -31,6 +39,35 @@ router.put('/api/admin/sessions/:id/instructor', async (req, res) => {
   const raw = req.body?.instructorId;
   const instructorId = raw === null ? null : parseId(raw, 'INVALID_INSTRUCTOR', 'Eğitmen geçersiz.');
   res.json(await setSessionInstructor(req.user, sessionId(req), instructorId));
+});
+
+// --- Eğitmenler ---------------------------------------------------------------------------------
+
+router.get('/api/admin/instructors', async (req, res) => {
+  res.json({ instructors: await listInstructors(req.user) });
+});
+
+router.post('/api/admin/instructors', async (req, res) => {
+  const { fullName, phone, branchIds } = req.body ?? {};
+  res.status(201).json(await createInstructor(req.user, { fullName, phone, branchIds }));
+});
+
+router.get('/api/admin/instructors/:id', async (req, res) => {
+  res.json({ instructor: await getInstructor(req.user, instructorId(req)) });
+});
+
+// Gövde: { branchIds?, permissions? }; gönderilmeyen alan değişmez.
+router.put('/api/admin/instructors/:id', async (req, res) => {
+  const { branchIds, permissions } = req.body ?? {};
+  res.json({ instructor: await updateInstructor(req.user, instructorId(req), { branchIds, permissions }) });
+});
+
+router.post('/api/admin/instructors/:id/reset-password', async (req, res) => {
+  res.json(await resetInstructorPassword(req.user, instructorId(req)));
+});
+
+router.post('/api/admin/instructors/:id/leave', async (req, res) => {
+  res.json({ instructor: await markInstructorLeft(req.user, instructorId(req)) });
 });
 
 // --- Şubeler (liste staff.js'te) ----------------------------------------------------------------

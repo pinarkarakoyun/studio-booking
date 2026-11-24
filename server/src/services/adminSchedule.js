@@ -153,12 +153,14 @@ export async function getSessionRoster(actor, sessionId, { db = pool } = {}) {
   const [session] = (await db.query(
     `
     SELECT s.id, s.date, s.starts_at, s.status, s.cancel_reason, g.name AS group_name, g.duration_minutes,
+           g.branch_id, b.name AS branch_name,
            o.capacity, o.booked_count, GREATEST(o.free_spots, 0) AS free_spots,
            g.kind, iu.id AS instructor_id, iu.full_name AS instructor_name,
            s.date = (now() AT TIME ZONE st.timezone)::date AS is_today
     FROM sessions s
     JOIN groups g            ON g.id = s.group_id
     JOIN studios st          ON st.id = g.studio_id
+    JOIN branches b          ON b.id = g.branch_id
     JOIN session_occupancy o ON o.session_id = s.id
     LEFT JOIN users iu       ON iu.id = COALESCE(s.instructor_id, g.instructor_id)
     WHERE s.id = $1 AND g.studio_id = $2 AND ${branchFilter}
@@ -222,6 +224,8 @@ export async function getSessionRoster(actor, sessionId, { db = pool } = {}) {
       bookedCount: session.booked_count,
       freeSpots: session.free_spots,
       kind: session.kind,
+      // Yönetici dersin eğitmenini seçerken listeyi bu şubenin eğitmenleriyle sınırlar.
+      branch: { id: session.branch_id, name: session.branch_name },
       instructor,
     },
     isMine,

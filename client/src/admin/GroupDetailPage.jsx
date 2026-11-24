@@ -61,7 +61,13 @@ export default function GroupDetailPage({ studio, groupId, onBack, onEdit, onOpe
     <main className={styles.page}>
       {back}
       <h1 className={styles.rosterTitle}>{group.name}</h1>
-      {studio.branchCount > 1 && <p className={styles.muted}>{group.branch.name}</p>}
+      {(studio.branchCount > 1 || group.instructor) && (
+        <p className={styles.muted}>
+          {[studio.branchCount > 1 && group.branch.name, group.instructor && `Eğitmen: ${group.instructor.name}`]
+            .filter(Boolean)
+            .join(' · ')}
+        </p>
+      )}
 
       <div className={styles.days} aria-label="Günler">
         {WEEKDAYS.map((day) => (
@@ -95,7 +101,13 @@ export default function GroupDetailPage({ studio, groupId, onBack, onEdit, onOpe
         <ul className={styles.people}>
           {group.members.map((member) => (
             <li key={member.id}>
-              <button type="button" className={styles.memberRow} onClick={() => onOpenCustomer(member.id)}>
+              {/* onOpenCustomer yoksa (üyeleri görme yetkisi olmayan eğitmen) satır yalnızca bilgi. */}
+              <button
+                type="button"
+                className={styles.memberRow}
+                disabled={!onOpenCustomer}
+                onClick={() => onOpenCustomer?.(member.id)}
+              >
                 <span>{member.fullName}</span>
                 {member.joinsOn ? (
                   <span className={styles.tagMakeup}>{formatDateDayMonth(member.joinsOn)} tarihinde katılıyor</span>

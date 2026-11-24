@@ -177,8 +177,9 @@ router.get('/api/admin/packages', can('memberships'), async (req, res) => {
 
 // --- Gruplar ------------------------------------------------------------------------------------
 
-// Açık ve kapalı bütün gruplar (yeni müşteri formu da bunu kullanır, kapalıları ayıklar).
-router.get('/api/admin/groups', can('manage_groups'), async (req, res) => {
+// Açık ve kapalı bütün gruplar (yeni müşteri formu ve grup değiştirme de bunu kullanır, kapalıları ayıklar).
+// Bu yüzden üye ekleyen ya da grubunu değiştiren eğitmene de açık; grup detayı ve düzenleme manage_groups ister.
+router.get('/api/admin/groups', can(['manage_groups', 'edit_customers', 'customer_status']), async (req, res) => {
   res.json({ groups: await listAllGroups(req.user) });
 });
 

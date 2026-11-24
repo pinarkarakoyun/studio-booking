@@ -206,6 +206,13 @@
   overflow-wrap: anywhere;
 }
 
+/* Dersin eğitmeni (o gün yerine giren varsa o). */
+.sessionInstructor {
+  font-size: 13px;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
 .sessionMeta {
   display: flex;
   flex-wrap: wrap;

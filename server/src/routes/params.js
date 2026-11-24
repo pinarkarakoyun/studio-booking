@@ -15,6 +15,7 @@ export const paymentId = (req) => parseId(req.params.id, 'PAYMENT_NOT_FOUND', '�
 export const groupId = (req) => parseId(req.params.id, 'GROUP_NOT_FOUND', 'Grup bulunamadı.');
 export const branchId = (req) => parseId(req.params.id, 'BRANCH_NOT_FOUND', 'Şube bulunamadı.');
 export const packageId = (req) => parseId(req.params.id, 'PACKAGE_NOT_FOUND', 'Paket bulunamadı.');
+export const instructorId = (req) => parseId(req.params.id, 'INSTRUCTOR_NOT_FOUND', 'Eğitmen bulunamadı.');
 
 // Grup formundan gelen alanlar (düzenleme ve önizleme aynı gövdeyi kullanır).
 export const groupInput = (body) => ({

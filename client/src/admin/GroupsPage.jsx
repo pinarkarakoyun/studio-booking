@@ -79,6 +79,7 @@ function GroupRow({ group, multiBranch, onOpen }) {
       <span className={styles.customerMeta}>
         {multiBranch && `${group.branch.name} · `}
         {daysText(group.weekdays)}, {group.startTime}, {group.durationMinutes} dk
+        {group.instructor && ` · ${group.instructor.name}`}
       </span>
       {group.isActive && (
         <span className={`${styles.bar} ${styles.groupBar}`} aria-hidden="true">

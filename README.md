@@ -36,6 +36,15 @@ Small neighborhood studios often manage group attendance through messaging apps 
 - **Settings:** booking rules (cancellation deadline, credit validity, make-up cutoff, early make-up, undo) and the studio's contact details
 - **Branches:** a studio can have several branches with their own address and map link; every group belongs to one branch. The admin adds, edits and closes branches, filters Today by branch, and decides whether members may book make-ups at other branches. A single-branch studio sees no branch controls at all
 
+### Instructors
+
+The studio owner and the person who teaches are not always the same, so an admin can add **instructors** (name, phone, one-time temporary password, like a member).
+
+- **Branch scope:** each instructor works in one or more branches and sees only those branches' classes, members and groups. Anything outside them answers "not found".
+- **Permissions:** the admin switches each permission on or off per instructor: attendance, cancelling their own class, opening extra classes, adding people to a class, seeing members, adding members and resetting their passwords, freezing / marking as left / changing group, selling packages and granting make-up credits, managing groups. Member permissions need "see members" first. Payments, prices, settings, appearance, branches and other instructors are never available to an instructor; prices are removed from every response sent to them.
+- **Classes:** a group can have an instructor. On Today an instructor switches between "my classes" and "all classes" of their branches. When someone teaches another instructor's class, they tap "Bu dersi ben veriyorum": the class is recorded under them for that day and they take attendance. The admin can change a single class's instructor.
+- **Enforcement** is on the server: routes an instructor may use live in `routes/staff.js`, each with one `can(...)` guard; every other `/api/admin` route is admin-only by default. A test walks every staff route and checks the guard.
+
 ### Two membership models
 
 Each studio picks one model when it is set up (`create-admin --model grup|paket`); the admin cannot switch it later, because the two models count attendance differently.

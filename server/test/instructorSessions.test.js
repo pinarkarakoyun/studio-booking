@@ -104,6 +104,7 @@ describe('instructor sessions', () => {
     const c = await clientFor(s.ayse);
     const before = await roster(c, s.todayZeynep);
     assert.equal(before.body.canTakeOver, true);
+    assert.equal(before.body.session.branch.id, s.a);
     const res = await takeOver(c, s.todayZeynep);
     assert.equal(res.status, 200);
     assert.deepEqual(res.body.session.instructor, { id: s.ayse, name: 'Ayşe' });
