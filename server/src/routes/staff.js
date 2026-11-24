@@ -21,6 +21,7 @@ import {
   listAllGroups,
   updateGroup,
 } from '../services/adminGroups.js';
+import { createExtraSession } from '../services/adminExtraSessions.js';
 import { createMembership, getMemberships } from '../services/adminMemberships.js';
 import { listPackages } from '../services/adminPackages.js';
 import {
@@ -76,6 +77,14 @@ router.put('/api/admin/sessions/:id/attendance/:userId', can('attendance'), asyn
 router.delete('/api/admin/sessions/:id/attendance/:userId', can('attendance'), async (req, res) => {
   const userId = parseId(req.params.userId, 'CUSTOMER_NOT_FOUND', 'Müşteri bulunamadı.');
   res.json(await setAbsent(req.user, sessionId(req), userId, false));
+});
+
+// Ek ders: haftalık programın dışında tek seferlik ders. Cevap: dersin detayı (katılımcı listesiyle aynı biçim).
+router.post('/api/admin/extra-sessions', can('create_extra_sessions'), async (req, res) => {
+  const { date, startTime, durationMinutes, capacity, branchId, instructorId, title } = req.body ?? {};
+  res.status(201).json(
+    await createExtraSession(req.user, { date, startTime, durationMinutes, capacity, branchId, instructorId, title }),
+  );
 });
 
 // Başka eğitmenin bugünkü dersine giren eğitmen: "Bu dersi ben veriyorum".

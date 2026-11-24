@@ -49,7 +49,8 @@ export async function listBranches(admin, { db = pool } = {}) {
   const { rows } = await db.query(
     `
     SELECT b.id, b.name, b.address, b.maps_url, b.is_active,
-           (SELECT count(*)::int FROM groups g WHERE g.branch_id = b.id AND g.is_active) AS active_group_count
+           (SELECT count(*)::int FROM groups g
+            WHERE g.branch_id = b.id AND g.is_active AND g.kind = 'regular') AS active_group_count
     FROM branches b
     WHERE b.studio_id = $1 AND ${branchClause(admin, 'b.id', params)}
     ORDER BY b.id
@@ -142,7 +143,8 @@ export async function closeBranch(admin, branchId, { db = pool } = {}) {
 
     if (branch.is_active) {
       const { rows: groups } = await client.query(
-        'SELECT name FROM groups WHERE branch_id = $1 AND is_active ORDER BY name',
+        // Ek dersler şube kapatmayı engellemez (grup ekranında görünmedikleri için kapatılamazlar).
+        "SELECT name FROM groups WHERE branch_id = $1 AND is_active AND kind = 'regular' ORDER BY name",
         [branchId],
       );
       if (groups.length > 0) {

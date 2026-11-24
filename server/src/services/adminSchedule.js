@@ -330,7 +330,8 @@ export async function cancelSessionByStudio(actor, sessionId, { reason } = {}, {
       `
       SELECT s.id, s.status, s.starts_at <= now() AS started, ss.credit_validity_days,
              -- Paket modelinde telafi yok: stüdyo iptali hak doğurmaz (ders zaten kimsenin paketinden düşmez).
-             ss.credit_on_studio_cancel AND ss.membership_model = 'group' AS credit_on_studio_cancel
+             ss.credit_on_studio_cancel AND ss.membership_model = 'group' AS credit_on_studio_cancel,
+             ss.membership_model
       FROM sessions s
       JOIN groups g ON g.id = s.group_id
       JOIN studio_settings ss ON ss.studio_id = g.studio_id
@@ -343,8 +344,13 @@ export async function cancelSessionByStudio(actor, sessionId, { reason } = {}, {
     if (session.status === 'cancelled') throw new AppError('SESSION_ALREADY_CANCELLED', 'Bu ders zaten iptal edilmiş.', 409);
     if (session.started) throw new AppError('SESSION_STARTED', 'Başlamış ya da geçmiş bir ders iptal edilemez.', 409);
 
+    // Grup modelinde bu derse telafiyle gelenlerin hakkı geri döner. Paket modelinde telafi hakkı yoktur: bu derse
+    // eklenme ya da ek derse kayıt kaynağı boş, kullanılmış bir satırdır; ders olmayınca satır silinir (sahipsiz,
+    // kullanılmamış bir "hak" olarak kalmasın).
     const { rowCount: refundedMakeups } = await client.query(
-      'UPDATE credits SET used_session_id = NULL, used_at = NULL WHERE used_session_id = $1',
+      session.membership_model === 'package'
+        ? 'DELETE FROM credits WHERE used_session_id = $1 AND source_session_id IS NULL'
+        : 'UPDATE credits SET used_session_id = NULL, used_at = NULL WHERE used_session_id = $1',
       [sessionId],
     );
 
