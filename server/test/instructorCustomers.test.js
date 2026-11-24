@@ -165,4 +165,32 @@ describe('instructor customers', () => {
     assert.equal(adminRes.body.packages[0].priceKurus, 240000);
     assert.ok(pkg.id);
   });
+
+  test('member who starts later is visible to the instructor who added them', async () => {
+    const s = await setup();
+    const res = await s.c.request('POST', '/api/admin/customers', {
+      fullName: 'İleride Başlayan', phone: '0555 999 88 77', groupId: s.groupA, startsOn: '2030-01-07',
+    });
+    assert.equal(res.status, 201);
+    const list = await s.c.request('GET', '/api/admin/customers');
+    assert.ok(list.body.customers.some((c) => c.id === res.body.customerId));
+    assert.equal((await s.c.request('GET', `/api/admin/customers/${res.body.customerId}`)).status, 200);
+    // Başka şubenin eğitmeni görmez.
+    const other = await clientFor(await createInstructor(s.studio, { branchIds: [s.b], permissions: ALL_ON }));
+    assert.equal((await other.request('GET', `/api/admin/customers/${res.body.customerId}`)).status, 404);
+  });
+
+  test('membership notes are hidden from instructors', async () => {
+    const s = await setup();
+    await pool.query(
+      `INSERT INTO memberships (user_id, starts_on, ends_on, fee_kurus, note)
+       VALUES ($1, current_date, current_date + 29, 300000, '200 TL indirim')`,
+      [s.memberA],
+    );
+    const res = await s.c.request('GET', `/api/admin/customers/${s.memberA}/memberships`);
+    assert.equal(res.status, 200);
+    assert.doesNotMatch(JSON.stringify(res.body), /indirim/);
+    const adminRes = await (await clientFor(await createAdmin(s.studio))).request('GET', `/api/admin/customers/${s.memberA}/memberships`);
+    assert.equal(adminRes.body.memberships[0].note, '200 TL indirim');
+  });
 });

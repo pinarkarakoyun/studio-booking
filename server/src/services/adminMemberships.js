@@ -109,6 +109,15 @@ function suggestStart(memberships, today) {
   return latest ? addDays(latest.endsOn, 1) : today;
 }
 
+// Eğitmene giden üyelik cevabı: tutarlar ve dönem notu çıkar. Not serbest metin; yönetici oraya
+// "200 TL indirim" gibi fiyat bilgisi yazabilir. Tek bir dönem ya da { memberships: [...] } alır.
+function forInstructor(value) {
+  const withoutNote = ({ note: _note, ...rest }) => rest;
+  const clean = redactPrices(value);
+  if (Array.isArray(clean.memberships)) return { ...clean, memberships: clean.memberships.map(withoutNote) };
+  return withoutNote(clean);
+}
+
 export async function getMemberships(admin, customerId, { db = pool } = {}) {
   await findCustomerId(admin, customerId, db);
   const today = await studioToday(admin.studio_id, db);
@@ -119,7 +128,7 @@ export async function getMemberships(admin, customerId, { db = pool } = {}) {
     result.unpackaged = (await packageUsage(customerId, db)).unpackaged;
   }
   // Eğitmen fiyat görmez: ücret, ödenen, kalan ve ödeme listesi cevaptan çıkar.
-  return isInstructor(admin) ? redactPrices(result) : result;
+  return isInstructor(admin) ? forInstructor(result) : result;
 }
 
 // Yeni dönem. Grup modelinde gövde { startsOn, endsOn, feeKurus, note }; paket modelinde { packageId, startsOn,
@@ -133,7 +142,7 @@ export async function createMembership(admin, customerId, input, { db = pool } =
     if (model !== 'package') throw new AppError('FORBIDDEN', 'Üyelik dönemini yönetici açar.', 403);
     // Paket modelinde ücret paketin fiyatıdır; indirim yalnızca yöneticide.
     if (input.feeKurus != null) throw new AppError('FEE_NOT_ALLOWED', 'Ücreti yalnızca yönetici değiştirebilir.', 400);
-    return redactPrices(await sellPackage(admin, customerId, input, db));
+    return forInstructor(await sellPackage(admin, customerId, input, db));
   }
   if (model === 'package') return sellPackage(admin, customerId, input, db);
   if (input.packageId != null) {

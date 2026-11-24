@@ -88,17 +88,20 @@ function toCustomerDto(row) {
   };
 }
 
+// Eğitmenin şube süzmesinde üyenin şubesi: bugünkü grubu, yoksa ileride başlayacağı grup (scope.js ile aynı kural).
+const CUSTOMER_BRANCH = 'COALESCE(g.branch_id, ng.branch_id)';
+
 // Tüm müşteriler. Küçük bir stüdyo için hepsini tek seferde göndermek yeterli; arama ve filtre ekranda.
 export async function listCustomers(actor, { db = pool } = {}) {
   const params = [actor.studio_id];
-  const { rows } = await db.query(`${CUSTOMER_SELECT} AND ${branchClause(actor, 'g.branch_id', params)}`, params);
+  const { rows } = await db.query(`${CUSTOMER_SELECT} AND ${branchClause(actor, CUSTOMER_BRANCH, params)}`, params);
   return rows.map(toCustomerDto).sort((a, b) => a.fullName.localeCompare(b.fullName, 'tr'));
 }
 
 async function findCustomer(actor, customerId, db) {
   const params = [actor.studio_id, customerId];
   const { rows: [row] } = await db.query(
-    `${CUSTOMER_SELECT} AND u.id = $2 AND ${branchClause(actor, 'g.branch_id', params)}`,
+    `${CUSTOMER_SELECT} AND u.id = $2 AND ${branchClause(actor, CUSTOMER_BRANCH, params)}`,
     params,
   );
   if (!row) throw new AppError('CUSTOMER_NOT_FOUND', 'Müşteri bulunamadı.', 404);

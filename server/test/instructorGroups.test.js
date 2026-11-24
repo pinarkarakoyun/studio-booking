@@ -101,4 +101,32 @@ describe('instructor groups', () => {
     const res = await s.admin.request('POST', '/api/admin/groups', groupBody({ branchId: s.a, instructorId: adminId }));
     assert.equal(res.status, 400);
   });
+
+  test('group stays editable after its instructor left', async () => {
+    const s = await setup();
+    const url = `/api/admin/groups/${s.groupA}`;
+    const editBody = groupBody({ effectiveFrom: '2026-12-01' });
+    assert.equal((await s.admin.request('PUT', url, { ...editBody, instructorId: s.teacherA })).status, 200);
+    assert.equal((await s.admin.request('POST', `/api/admin/instructors/${s.teacherA}/leave`, {})).status, 200);
+    // Yönetici: eğitmen gönderilmeden de, aynı (ayrılmış) eğitmenle de kaydedebilir.
+    assert.equal((await s.admin.request('PUT', url, editBody)).status, 200);
+    assert.equal((await s.admin.request('PUT', url, { ...editBody, instructorId: s.teacherA })).status, 200);
+    // Grubu düzenleyebilen başka bir eğitmen de (eğitmen alanını hiç göndermez).
+    const editor = await clientFor(await createInstructor(s.studio, { branchIds: [s.a], permissions: { manage_groups: true } }));
+    assert.equal((await editor.request('PUT', url, editBody)).status, 200);
+    assert.equal((await editor.request('POST', `${url}/preview`, editBody)).status, 200);
+    // Ayrılmış eğitmen yeni bir gruba atanamaz.
+    const res = await s.admin.request('POST', '/api/admin/groups', groupBody({ branchId: s.a, instructorId: s.teacherA }));
+    assert.equal(res.status, 400);
+  });
+
+  test('instructor cannot set a group instructor', async () => {
+    const s = await setup();
+    const create = await s.c.request('POST', '/api/admin/groups', groupBody({ branchId: s.a, instructorId: s.teacherA }));
+    assert.equal(create.status, 403);
+    const update = await s.c.request('PUT', `/api/admin/groups/${s.groupA}`, groupBody({ effectiveFrom: '2026-12-01', instructorId: s.teacherA }));
+    assert.equal(update.status, 403);
+    const { rows: [g] } = await pool.query('SELECT instructor_id FROM groups WHERE id = $1', [s.groupA]);
+    assert.equal(g.instructor_id, null);
+  });
 });

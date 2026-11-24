@@ -42,19 +42,22 @@ export async function assertSessionInScope(actor, sessionId, db) {
 }
 
 // Üye kapsamda mı? Yalnızca müşteri hesapları (yönetici ve eğitmen hesapları "üye" değildir).
-// Eğitmen için üyenin şubesi, stüdyonun bugününde üyesi olduğu grubun şubesidir; grubu olmayan üye kapsam dışı.
+// Eğitmen için üyenin şubesi, stüdyonun bugününde üyesi olduğu grubun şubesidir; bugün grubu yoksa ileride
+// başlayacağı ilk grubun şubesi (yeni eklenen, ilk dersi ileri tarihli üye eklendiği şubede görünsün).
+// Hiç grubu olmayan üye kapsam dışı. Müşteri listesindeki süzme de aynı kuralı kullanır (adminCustomers.js).
 export async function assertCustomerInScope(actor, customerId, db) {
   const { rows: [row] } = await db.query(
     `
     SELECT u.id, current_group.branch_id
     FROM users u
     JOIN studios st ON st.id = u.studio_id
+    CROSS JOIN LATERAL (SELECT (now() AT TIME ZONE st.timezone)::date AS date) AS today
     LEFT JOIN LATERAL (
       SELECT g.branch_id
       FROM group_members gm JOIN groups g ON g.id = gm.group_id
-      WHERE gm.user_id = u.id
-        AND gm.joined_on <= (now() AT TIME ZONE st.timezone)::date
-        AND (gm.left_on IS NULL OR (now() AT TIME ZONE st.timezone)::date < gm.left_on)
+      WHERE gm.user_id = u.id AND (gm.left_on IS NULL OR today.date < gm.left_on)
+      -- Önce bugünkü grup, yoksa en erken başlayacak olan.
+      ORDER BY gm.joined_on <= today.date DESC, gm.joined_on
       LIMIT 1
     ) current_group ON true
     WHERE u.id = $1 AND u.studio_id = $2 AND u.role = 'customer'

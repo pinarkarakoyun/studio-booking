@@ -87,7 +87,12 @@ async function resolveBranch(actor, branchId, db, { current = null } = {}) {
 }
 
 // Grubun eğitmeni: undefined = gönderilmedi (değişmez), null = atanmadı, sayı = o şubeye atanmış bir eğitmen.
+// Grubun eğitmenini yalnızca yönetici seçer: manage_groups yetkili eğitmen kendini (ya da başkasını) atayarak
+// başka eğitmenlerin derslerinde yoklama ve iptal yetkisi kazanmasın.
 async function resolveInstructor(actor, instructorId, branchId, db) {
+  if (instructorId !== undefined && isInstructor(actor)) {
+    throw new AppError('FORBIDDEN', 'Grubun eğitmenini yönetici seçer.', 403);
+  }
   if (instructorId === undefined || instructorId === null) return instructorId;
   if (!Number.isSafeInteger(instructorId) || instructorId <= 0) {
     throw new AppError('INVALID_INSTRUCTOR', 'Bu şubede böyle bir eğitmen yok.', 400);
@@ -304,9 +309,17 @@ export async function updateGroup(admin, groupId, input, { preview = false, db =
         }
       }
 
-      // Eğitmen gönderilmediyse aynı kalır; şube değiştiyse mevcut eğitmen yeni şubeye de atanmış olmalı.
-      const requested = input.instructorId === undefined ? current.instructor_id : input.instructorId;
-      const instructorId = await resolveInstructor(admin, requested, branch.id, client);
+      // Eğitmen yalnızca değişiyorsa ya da grup başka şubeye taşınıyorsa denetlenir. Değişmeyen eğitmen (sonradan
+      // ayrılmış ya da şubeden çıkarılmış olsa bile) grubun düzenlenmesini engellemez; şube değişince ise mevcut
+      // eğitmen yeni şubeye de atanmış olmalı.
+      const instructorChanged = input.instructorId !== undefined && input.instructorId !== current.instructor_id;
+      const branchMoved = branch.id !== current.branch_id;
+      let instructorId = current.instructor_id;
+      if (instructorChanged) {
+        instructorId = await resolveInstructor(admin, input.instructorId, branch.id, client);
+      } else if (branchMoved && current.instructor_id !== null) {
+        await assertBranchInstructor(admin.studio_id, current.instructor_id, branch.id, client);
+      }
       await client.query(
         `UPDATE groups
          SET name = $2, start_time = $3, duration_minutes = $4, capacity = $5,
