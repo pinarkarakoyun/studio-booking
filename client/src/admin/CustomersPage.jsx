@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { formatDateDayMonth, formatPhone } from '../format.js';
 import styles from './Admin.module.css';
+import { can } from './permissions.js';
 
 // Filtreler: dondurma bugün başlamışsa "dondurulmuş"; ileri tarihli dondurma hâlâ "aktif" sayılır.
 const FILTERS = [
@@ -23,7 +24,7 @@ function matches(customer, query) {
   );
 }
 
-export default function CustomersPage({ studio, onOpen, onAdd }) {
+export default function CustomersPage({ user, studio, onOpen, onAdd }) {
   // Şube adı yalnızca çok şubeli stüdyoda.
   const multiBranch = studio.branchCount > 1;
   const [customers, setCustomers] = useState(null);
@@ -43,9 +44,11 @@ export default function CustomersPage({ studio, onOpen, onAdd }) {
     <main className={styles.page}>
       <div className={styles.titleRow}>
         <h1 className={styles.title}>Müşteriler</h1>
-        <button type="button" className={styles.addLink} onClick={onAdd}>
-          + Ekle
-        </button>
+        {can(user, 'edit_customers') && (
+          <button type="button" className={styles.addLink} onClick={onAdd}>
+            + Ekle
+          </button>
+        )}
       </div>
 
       <input

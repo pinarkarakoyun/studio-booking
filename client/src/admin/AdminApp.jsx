@@ -11,25 +11,24 @@ import GroupFormPage from './GroupFormPage.jsx';
 import PaymentsPage from './PaymentsPage.jsx';
 import SettingsPage from './SettingsPage.jsx';
 import GroupsPage from './GroupsPage.jsx';
+import InstructorDetailPage from './InstructorDetailPage.jsx';
+import InstructorsPage from './InstructorsPage.jsx';
 import NewCustomerPage from './NewCustomerPage.jsx';
+import NewInstructorPage from './NewInstructorPage.jsx';
+import { can, visibleTabs } from './permissions.js';
 import SessionRosterPage from './SessionRosterPage.jsx';
 import TodayPage from './TodayPage.jsx';
 import styles from './Admin.module.css';
 
-// Yönetici panelinin beş bölümü: masaüstünde yan menü, telefonda alt çubuk. Hazır olmayanlar "hazırlanıyor" gösterir.
-const TABS = [
-  { id: 'today', label: 'Bugün' },
-  { id: 'customers', label: 'Müşteriler' },
-  { id: 'groups', label: 'Gruplar' },
-  { id: 'payments', label: 'Ödemeler' },
-  { id: 'settings', label: 'Ayarlar' },
-];
+// Panelin bölümleri: masaüstünde yan menü, telefonda alt çubuk. Yönetici hepsini görür; eğitmen yetkisine göre
+// (permissions.js). Eğitmen de bu paneli kullanır; düğmeleri yetkilerine göre çizilir, asıl karar sunucuda.
 
 // Her sekmenin içinde hangi ekranın açık olduğu: { name, ...parametreler }.
 // Sekmeye dokununca o sekmenin ilk ekranına dönülür.
 const START = { name: 'start' };
 
 export default function AdminApp({ user, studio, onStudioChange, onLogout }) {
+  const TABS = visibleTabs(user);
   const [tab, setTab] = useState('today');
   const [view, setView] = useState(START);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -39,6 +38,8 @@ export default function AdminApp({ user, studio, onStudioChange, onLogout }) {
   const [day, setDay] = useState(null);
   // "Bugün"deki şube süzgeci burada tutulur: o ekran her gün değişiminde yeniden kurulur (key), seçim kaybolmasın.
   const [branchFilter, setBranchFilter] = useState('');
+  // Eğitmen için "Benim derslerim" (true, varsayılan) / "Bütün dersler"; aynı sebeple burada.
+  const [mineOnly, setMineOnly] = useState(true);
   const goTo = (next) => setView(next);
   // Grup detayındaki bir üyeye dokununca Müşteriler sekmesinde o müşterinin sayfası açılır.
   const openCustomer = (id) => {
@@ -51,6 +52,7 @@ export default function AdminApp({ user, studio, onStudioChange, onLogout }) {
     content =
       view.name === 'session' ? (
         <SessionRosterPage
+          user={user}
           studio={studio}
           sessionId={view.id}
           backLabel={day ? formatDay(day) : 'Bugün'}
@@ -66,6 +68,8 @@ export default function AdminApp({ user, studio, onStudioChange, onLogout }) {
           onChangeDate={setDay}
           branchFilter={branchFilter}
           onBranchFilterChange={setBranchFilter}
+          mineOnly={mineOnly}
+          onMineOnlyChange={setMineOnly}
           onOpenSession={(id) => goTo({ name: 'session', id })}
           onOpenAccount={() => setAccountOpen(true)}
         />
@@ -75,6 +79,7 @@ export default function AdminApp({ user, studio, onStudioChange, onLogout }) {
       content = (
         <CustomerDetailPage
           key={view.id}
+          user={user}
           studio={studio}
           customerId={view.id}
           onBack={() => goTo(START)}
@@ -93,7 +98,14 @@ export default function AdminApp({ user, studio, onStudioChange, onLogout }) {
     } else if (view.name === 'credentials') {
       content = <CredentialsPage studio={studio} credentials={view.credentials} onDone={() => goTo(view.backTo)} />;
     } else {
-      content = <CustomersPage studio={studio} onOpen={(id) => goTo({ name: 'detail', id })} onAdd={() => goTo({ name: 'new' })} />;
+      content = (
+        <CustomersPage
+          user={user}
+          studio={studio}
+          onOpen={(id) => goTo({ name: 'detail', id })}
+          onAdd={() => goTo({ name: 'new' })}
+        />
+      );
     }
   } else if (tab === 'groups') {
     if (view.name === 'detail') {
@@ -103,13 +115,14 @@ export default function AdminApp({ user, studio, onStudioChange, onLogout }) {
           groupId={view.id}
           onBack={() => goTo(START)}
           onEdit={(group) => goTo({ name: 'edit', group })}
-          onOpenCustomer={openCustomer}
+          onOpenCustomer={can(user, 'view_customers') ? openCustomer : null}
           showToast={showToast}
         />
       );
     } else if (view.name === 'edit' || view.name === 'new') {
       content = (
         <GroupFormPage
+          user={user}
           studio={studio}
           onStudioChange={onStudioChange}
           group={view.group}
@@ -122,6 +135,30 @@ export default function AdminApp({ user, studio, onStudioChange, onLogout }) {
       );
     } else {
       content = <GroupsPage studio={studio} onOpen={(id) => goTo({ name: 'detail', id })} onAdd={() => goTo({ name: 'new' })} />;
+    }
+  } else if (tab === 'instructors') {
+    if (view.name === 'detail') {
+      content = (
+        <InstructorDetailPage
+          key={view.id}
+          studio={studio}
+          instructorId={view.id}
+          onBack={() => goTo(START)}
+          showToast={showToast}
+          onCredentials={(credentials) => goTo({ name: 'credentials', credentials, backTo: { name: 'detail', id: view.id } })}
+        />
+      );
+    } else if (view.name === 'new') {
+      content = (
+        <NewInstructorPage
+          onCancel={() => goTo(START)}
+          onCreated={(credentials, id) => goTo({ name: 'credentials', credentials, backTo: { name: 'detail', id } })}
+        />
+      );
+    } else if (view.name === 'credentials') {
+      content = <CredentialsPage studio={studio} credentials={view.credentials} onDone={() => goTo(view.backTo)} />;
+    } else {
+      content = <InstructorsPage studio={studio} onOpen={(id) => goTo({ name: 'detail', id })} onAdd={() => goTo({ name: 'new' })} />;
     }
   } else if (tab === 'payments') {
     content = <PaymentsPage studio={studio} onOpenCustomer={openCustomer} />;
@@ -159,7 +196,7 @@ export default function AdminApp({ user, studio, onStudioChange, onLogout }) {
       <aside className={styles.sidebar}>
         <div className={styles.sidebarBrand}>
           <span className={styles.sidebarName}>{studio.name}</span>
-          <span className={styles.sidebarSub}>Yönetim</span>
+          <span className={styles.sidebarSub}>{user.role === 'instructor' ? 'Eğitmen' : 'Yönetim'}</span>
         </div>
         <nav className={styles.sideNav} aria-label="Yönetici paneli">
           {tabButtons(styles.sideTab, styles.sideTabActive)}

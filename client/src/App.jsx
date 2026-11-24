@@ -112,7 +112,8 @@ function App() {
     );
   }
 
-  if (user.role === 'admin') {
+  // Eğitmen de yönetici panelini kullanır; menü ve düğmeler yetkilerine göre (admin/permissions.js).
+  if (user.role === 'admin' || user.role === 'instructor') {
     return (
       <AdminApp
         user={user}

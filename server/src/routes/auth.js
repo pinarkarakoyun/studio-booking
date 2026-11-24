@@ -22,6 +22,8 @@ function publicUser(user) {
     fullName: user.full_name,
     role: user.role,
     mustChangePassword: user.must_change_password,
+    // Eğitmen ekranı menüsünü buna göre kurar. Yalnızca kolaylık: asıl karar sunucudaki koruyucularda.
+    ...(user.role === 'instructor' ? { permissions: user.permissions, branches: user.branches } : {}),
   };
 }
 

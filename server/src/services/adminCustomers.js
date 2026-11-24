@@ -2,10 +2,12 @@ import pool from '../db/pool.js';
 import { AppError } from '../errors.js';
 import { generateTemporaryPassword } from '../utils/tempPassword.js';
 import { createUser, resetPassword, revokeAllSessions } from './auth.js';
+import { branchClause } from './scope.js';
 import { listMySessions } from './schedule.js';
 
-// Yönetici panelinin "Müşteriler" bölümü. Her fonksiyon yöneticinin kendi stüdyosuyla sınırlı;
-// başka stüdyonun müşterisi "bulunamadı" (IDOR kuralı).
+// Yönetici panelinin "Müşteriler" bölümü. Her fonksiyon işlemi yapanın (actor) stüdyosuyla sınırlı;
+// başka stüdyonun müşterisi "bulunamadı" (IDOR kuralı). Eğitmen yalnızca bugünkü grubu kendi şubelerinde olan
+// üyeleri görür (grubu olmayan üye eğitmene görünmez); başka şubenin üyesi de "bulunamadı".
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -86,14 +88,22 @@ function toCustomerDto(row) {
   };
 }
 
+// Eğitmenin şube süzmesinde üyenin şubesi: bugünkü grubu, yoksa ileride başlayacağı grup (scope.js ile aynı kural).
+const CUSTOMER_BRANCH = 'COALESCE(g.branch_id, ng.branch_id)';
+
 // Tüm müşteriler. Küçük bir stüdyo için hepsini tek seferde göndermek yeterli; arama ve filtre ekranda.
-export async function listCustomers(admin, { db = pool } = {}) {
-  const { rows } = await db.query(CUSTOMER_SELECT, [admin.studio_id]);
+export async function listCustomers(actor, { db = pool } = {}) {
+  const params = [actor.studio_id];
+  const { rows } = await db.query(`${CUSTOMER_SELECT} AND ${branchClause(actor, CUSTOMER_BRANCH, params)}`, params);
   return rows.map(toCustomerDto).sort((a, b) => a.fullName.localeCompare(b.fullName, 'tr'));
 }
 
-async function findCustomer(admin, customerId, db) {
-  const { rows: [row] } = await db.query(`${CUSTOMER_SELECT} AND u.id = $2`, [admin.studio_id, customerId]);
+async function findCustomer(actor, customerId, db) {
+  const params = [actor.studio_id, customerId];
+  const { rows: [row] } = await db.query(
+    `${CUSTOMER_SELECT} AND u.id = $2 AND ${branchClause(actor, CUSTOMER_BRANCH, params)}`,
+    params,
+  );
   if (!row) throw new AppError('CUSTOMER_NOT_FOUND', 'Müşteri bulunamadı.', 404);
   return row;
 }
@@ -134,6 +144,7 @@ const GROUPS_WITH_MEMBERS = `
   FROM groups g
   WHERE g.studio_id = $1 AND g.is_active
 `;
+// Not: $1 stüdyo, $2 tarih; eğitmenin şube koşulu listGroups'ta $3 olarak eklenir.
 
 async function studioToday(studioId, db) {
   const { rows: [row] } = await db.query(
@@ -144,9 +155,13 @@ async function studioToday(studioId, db) {
 }
 
 // Gruplar ve verilen tarihteki (varsayılan: bugün) üye sayıları.
-export async function listGroups(admin, { date, db = pool } = {}) {
-  const onDate = date ?? (await studioToday(admin.studio_id, db));
-  const { rows } = await db.query(`${GROUPS_WITH_MEMBERS} ORDER BY g.start_time, g.name`, [admin.studio_id, onDate]);
+export async function listGroups(actor, { date, db = pool } = {}) {
+  const onDate = date ?? (await studioToday(actor.studio_id, db));
+  const params = [actor.studio_id, onDate];
+  const { rows } = await db.query(
+    `${GROUPS_WITH_MEMBERS} AND ${branchClause(actor, 'g.branch_id', params)} ORDER BY g.start_time, g.name`,
+    params,
+  );
   return rows.map((g) => ({ id: g.id, name: g.name, capacity: g.capacity, memberCount: g.member_count }));
 }
 

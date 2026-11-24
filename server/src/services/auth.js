@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import pool from '../db/pool.js';
 import { AppError } from '../errors.js';
 import { normalizePhone } from '../utils/phone.js';
+import { PERMISSION_KEYS } from './instructorPermissions.js';
 
 export const SESSION_DAYS = 30;
 export const MIN_PASSWORD_LENGTH = 8;
@@ -123,7 +124,31 @@ export async function findSessionUser(token, studioId, { db = pool } = {}) {
     `,
     [hashToken(token), studioId],
   );
-  return user ?? null;
+  if (!user) return null;
+  if (user.role === 'instructor') return { ...user, ...(await instructorAccess(user.id, db)) };
+  // Yönetici için null = "süzme yok, her şey" (kapsam yardımcıları buna bakar); müşteri için anlamsız.
+  return { ...user, branches: null, branchIds: null, permissions: null };
+}
+
+// Eğitmenin açık şubeleri ve yetkileri. Her istekte okunur (önbellek yok): yönetici bir yetkiyi kapatınca
+// bir sonraki istekte geçerli olur. Kapalı şube eğitmenin şubesi sayılmaz. Yetki satırı yoksa hepsi kapalı.
+async function instructorAccess(userId, db) {
+  const { rows: branches } = await db.query(
+    `
+    SELECT b.id, b.name
+    FROM instructor_branches ib JOIN branches b ON b.id = ib.branch_id
+    WHERE ib.user_id = $1 AND b.is_active
+    ORDER BY b.id
+    `,
+    [userId],
+  );
+  const { rows: [row] } = await db.query('SELECT * FROM instructor_permissions WHERE user_id = $1', [userId]);
+  const permissions = Object.fromEntries(PERMISSION_KEYS.map((key) => [key, row?.[key] === true]));
+  return {
+    branches: branches.map((b) => ({ id: Number(b.id), name: b.name })),
+    branchIds: branches.map((b) => Number(b.id)),
+    permissions,
+  };
 }
 
 export async function revokeSession(token, { db = pool } = {}) {
