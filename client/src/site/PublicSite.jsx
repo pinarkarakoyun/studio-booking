@@ -7,6 +7,7 @@ import Faq from './Faq.jsx';
 import HowItWorks from './HowItWorks.jsx';
 import Instructor from './Instructor.jsx';
 import PhotoSlot from './PhotoSlot.jsx';
+import Pricing from './Pricing.jsx';
 import Quiz from './Quiz.jsx';
 import Reasons from './Reasons.jsx';
 import SiteNav from './SiteNav.jsx';
@@ -57,6 +58,7 @@ export default function PublicSite() {
         {visible.has('program') && <Spotlight spotlight={site.spotlight} />}
         {visible.has('subeler') && <Branches site={site} />}
         {visible.has('egitmen') && <Instructor instructor={site.instructor} stats={site.stats} />}
+        {visible.has('fiyatlar') && <Pricing pricing={site.pricing} whatsappPhone={site.whatsappPhone} />}
         <HowItWorks packageModel={packageModel} />
         <Faq site={site} packageModel={packageModel} lateCancelBurnsSession={studio.lateCancelBurnsSession === true} />
       </main>

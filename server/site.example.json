@@ -66,6 +66,15 @@
       { "label": "2. hafta", "meta": "2 ders", "title": "Akış", "items": ["Reformer'a giriş", "Esneme"] }
     ]
   },
+  "pricing": {
+    "eyebrow": "Paketler",
+    "title": "Sana uyan paketi seç",
+    "note": "Fiyatlar tırnak içinde, metin olarak yazılır. Bölüm yoksa sitede fiyat görünmez.",
+    "plans": [
+      { "name": "8 Seans", "price": "3.200 ₺", "detail": "Haftada 2 ders · 45 gün geçerli" },
+      { "name": "12 Seans", "price": "4.200 ₺", "detail": "Haftada 3 ders", "badge": "EN POPÜLER", "highlight": true }
+    ]
+  },
   "stats": [
     { "value": "8", "label": "Yıllık deneyim" },
     { "value": "500+", "label": "Mutlu üye" },

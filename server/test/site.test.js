@@ -28,7 +28,7 @@ describe('public site content', () => {
     const keys = Object.keys(res.body.site).sort();
     assert.deepEqual(keys, [
       'address', 'branches', 'courses', 'equipment', 'groupSize', 'hero', 'instagramUrl', 'instructor', 'logoUrl', 'mapsUrl', 'phone',
-      'photos', 'privacyNotice', 'quiz', 'reasons', 'rules', 'spotlight', 'stats', 'studioName', 'subline', 'tagline', 'whatsappPhone',
+      'photos', 'pricing', 'privacyNotice', 'quiz', 'reasons', 'rules', 'spotlight', 'stats', 'studioName', 'subline', 'tagline', 'whatsappPhone',
       'workingHours',
     ]);
     // Yeni bölümler site.json yokken boş: ekran bu bölümleri hiç göstermez.
@@ -37,6 +37,7 @@ describe('public site content', () => {
     assert.deepEqual(res.body.site.stats, []);
     assert.equal(res.body.site.quiz, null);
     assert.equal(res.body.site.spotlight, null);
+    assert.equal(res.body.site.pricing, null);
     assert.deepEqual(res.body.site.branches.map(({ badge, description, schedule }) => ({ badge, description, schedule })), [
       { badge: null, description: null, schedule: [] },
     ]);
@@ -192,6 +193,32 @@ describe('public site content', () => {
       assert.equal(site.instagramUrl, 'https://instagram.example/studyo');
       assert.equal(site.mapsUrl, 'https://maps.example/x');
     });
+  });
+  test('site.json pricing: incomplete plans dropped, limits', async () => {
+    const plan = (n) => ({ name: `${n} Seans`, price: `${n}00 ₺` });
+    await withSite({ pricing: { eyebrow: ' Paketler ', title: 'Seç', note: 'KDV dahil', extra: 'x', plans: [
+      { ...plan(8), detail: 'Haftada 2', badge: 'EN POPÜLER', highlight: true, extra: 'x' },
+      { name: '12 Seans', price: 4200 }, // tırnaksız sayı: atılır
+      { price: '1 ₺' }, // adsız: atılır
+      { ...plan(12), badge: 'x'.repeat(21), highlight: 'true' },
+      plan(16), plan(20), plan(24),
+    ] } }, (site) => {
+      assert.deepEqual(site.pricing, {
+        eyebrow: 'Paketler', title: 'Seç', note: 'KDV dahil',
+        plans: [
+          { name: '8 Seans', price: '800 ₺', detail: 'Haftada 2', badge: 'EN POPÜLER', highlight: true },
+          { name: '12 Seans', price: '1200 ₺', detail: null, badge: null, highlight: false },
+          { name: '16 Seans', price: '1600 ₺', detail: null, badge: null, highlight: false },
+          { name: '20 Seans', price: '2000 ₺', detail: null, badge: null, highlight: false },
+        ],
+      });
+    });
+  });
+
+  test('pricing without valid plans is null', async () => {
+    for (const pricing of [undefined, {}, { plans: 'x' }, { title: 'Fiyatlar', plans: [{ name: 'Adsız fiyat' }] }]) {
+      await withSite({ pricing }, (site) => assert.equal(site.pricing, null));
+    }
   });
 });
 
