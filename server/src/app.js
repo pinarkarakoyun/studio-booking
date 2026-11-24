@@ -12,6 +12,7 @@ import adminRouter from './routes/admin.js';
 import authRouter from './routes/auth.js';
 import healthRouter from './routes/health.js';
 import sessionsRouter from './routes/sessions.js';
+import staffRouter from './routes/staff.js';
 import studioRouter from './routes/studio.js';
 import themeRouter from './routes/theme.js';
 
@@ -92,6 +93,9 @@ export function createApp({ rateLimits = DEFAULT_RATE_LIMITS } = {}) {
   app.use('/api', requireStudio);
   app.use(authRouter);
   app.use(sessionsRouter);
+  // Sıra önemli: personel uçları (yönetici + eğitmen) önce; eşleşmeyen /api/admin istekleri yalnızca
+  // yöneticiye açık adminRouter'a düşer.
+  app.use(staffRouter);
   app.use(adminRouter);
 
   // Bilinmeyen bir API adresi HTML sayfası değil JSON hata alsın (aşağıdaki React yönlendirmesine düşmesin).

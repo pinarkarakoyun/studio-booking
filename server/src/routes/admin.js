@@ -1,58 +1,17 @@
 import { Router } from 'express';
-import { AppError } from '../errors.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { getAppearance, previewAppearance, updateAppearance } from '../services/adminAppearance.js';
 import { closeBranch, createBranch, listBranches, reopenBranch, updateBranch } from '../services/adminBranches.js';
 import { closePackage, createPackage, listPackages, reopenPackage, updatePackage } from '../services/adminPackages.js';
-import {
-  createCustomer,
-  endFreeze,
-  freezeCustomer,
-  grantCredits,
-  getCustomer,
-  listCustomers,
-  markLeft,
-  previewLeave,
-  resetCustomerPassword,
-} from '../services/adminCustomers.js';
-import {
-  changeCustomerGroup,
-  closeGroup,
-  createGroup,
-  getGroup,
-  listAllGroups,
-  updateGroup,
-} from '../services/adminGroups.js';
-import { addPayment, createMembership, deletePayment, getMemberships, getPaymentOverview } from '../services/adminMemberships.js';
-import {
-  addToSession,
-  cancelSessionByStudio,
-  getDay,
-  getSessionRoster,
-  getToday,
-  removeMakeupFromSession,
-  setAbsent,
-} from '../services/adminSchedule.js';
+import { addPayment, deletePayment, getPaymentOverview } from '../services/adminMemberships.js';
 import { getSettings, updateSettings } from '../services/adminSettings.js';
+import { branchId, membershipId, packageId, paymentId } from './params.js';
 
 const router = Router();
 
-// Bu dosyadaki her uç giriş yapmış bir yönetici ister. Müşteri bu uçlara gelirse 403 alır.
+// Yalnızca yöneticiye açık uçlar. Eğitmene de açılabilen uçlar routes/staff.js'te; o yönlendirici bundan önce
+// bağlanır. Buraya eklenen yeni bir uç, staff.js'e taşınmadıkça eğitmene kapalıdır. Müşteri 403 alır.
 router.use('/api/admin', requireAuth(), requireRole('admin'));
-
-// URL'deki id'yi pozitif tamsayıya çevirir; geçersizse veritabanına gitmeden 404.
-function parseId(value, code, message) {
-  const id = Number(value);
-  if (!Number.isSafeInteger(id) || id <= 0) throw new AppError(code, message, 404);
-  return id;
-}
-const sessionId = (req) => parseId(req.params.id, 'SESSION_NOT_FOUND', 'Ders bulunamadı.');
-const customerId = (req) => parseId(req.params.id, 'CUSTOMER_NOT_FOUND', 'Müşteri bulunamadı.');
-const membershipId = (req) => parseId(req.params.id, 'MEMBERSHIP_NOT_FOUND', 'Üyelik dönemi bulunamadı.');
-const paymentId = (req) => parseId(req.params.id, 'PAYMENT_NOT_FOUND', 'Ödeme bulunamadı.');
-const groupId = (req) => parseId(req.params.id, 'GROUP_NOT_FOUND', 'Grup bulunamadı.');
-const branchId = (req) => parseId(req.params.id, 'BRANCH_NOT_FOUND', 'Şube bulunamadı.');
-const packageId = (req) => parseId(req.params.id, 'PACKAGE_NOT_FOUND', 'Paket bulunamadı.');
 
 // Şube formundan gelen alanlar (ekleme ve düzenleme aynı gövdeyi kullanır).
 const branchInput = (body) => ({ name: body?.name, address: body?.address, mapsUrl: body?.mapsUrl });
@@ -65,160 +24,7 @@ const packageInput = (body) => ({
   validityDays: body?.validityDays,
 });
 
-// Grup formundan gelen alanlar (düzenleme ve önizleme aynı gövdeyi kullanır).
-const groupInput = (body) => ({
-  name: body?.name,
-  weekdays: body?.weekdays,
-  startTime: body?.startTime,
-  durationMinutes: body?.durationMinutes,
-  capacity: body?.capacity,
-  effectiveFrom: body?.effectiveFrom,
-  // undefined = gönderilmedi (düzenlemede şube değişmez); null = seçilmedi.
-  branchId: body?.branchId,
-});
-
-// --- Bugün --------------------------------------------------------------------------------------
-
-router.get('/api/admin/today', async (req, res) => {
-  res.json(await getToday(req.user));
-});
-
-router.get('/api/admin/day', async (req, res) => {
-  res.json(await getDay(req.user, req.query.date));
-});
-
-router.get('/api/admin/sessions/:id', async (req, res) => {
-  res.json(await getSessionRoster(req.user, sessionId(req)));
-});
-
-// Önce "kaç kişi etkilenir?" (aynı kod, sonunda geri alınır), sonra kesin iptal.
-router.post('/api/admin/sessions/:id/attendees', async (req, res) => {
-  const userId = parseId(req.body?.userId, 'CUSTOMER_NOT_FOUND', 'Müşteri bulunamadı.');
-  res.status(201).json(await addToSession(req.user, sessionId(req), { userId, confirmFull: req.body?.confirmFull === true }));
-});
-
-router.delete('/api/admin/sessions/:id/attendees/:userId', async (req, res) => {
-  const userId = parseId(req.params.userId, 'CUSTOMER_NOT_FOUND', 'Müşteri bulunamadı.');
-  res.json(await removeMakeupFromSession(req.user, sessionId(req), userId));
-});
-
-// Yoklama: PUT "gelmedi" işaretler, DELETE işareti kaldırır. Yanıt: güncel katılımcı listesi.
-router.put('/api/admin/sessions/:id/attendance/:userId', async (req, res) => {
-  const userId = parseId(req.params.userId, 'CUSTOMER_NOT_FOUND', 'Müşteri bulunamadı.');
-  res.json(await setAbsent(req.user, sessionId(req), userId, true));
-});
-
-router.delete('/api/admin/sessions/:id/attendance/:userId', async (req, res) => {
-  const userId = parseId(req.params.userId, 'CUSTOMER_NOT_FOUND', 'Müşteri bulunamadı.');
-  res.json(await setAbsent(req.user, sessionId(req), userId, false));
-});
-
-router.post('/api/admin/sessions/:id/cancel/preview', async (req, res) => {
-  res.json(await cancelSessionByStudio(req.user, sessionId(req), { reason: req.body?.reason }, { preview: true }));
-});
-
-router.post('/api/admin/sessions/:id/cancel', async (req, res) => {
-  res.json(await cancelSessionByStudio(req.user, sessionId(req), { reason: req.body?.reason }));
-});
-
-// --- Müşteriler ---------------------------------------------------------------------------------
-
-router.get('/api/admin/customers', async (req, res) => {
-  res.json({ customers: await listCustomers(req.user) });
-});
-
-router.post('/api/admin/customers', async (req, res) => {
-  const result = await createCustomer(req.user, {
-    fullName: req.body?.fullName,
-    phone: req.body?.phone,
-    groupId: req.body?.groupId,
-    startsOn: req.body?.startsOn,
-    confirmFull: req.body?.confirmFull === true,
-  });
-  res.status(201).json(result);
-});
-
-router.get('/api/admin/customers/:id', async (req, res) => {
-  res.json({ customer: await getCustomer(req.user, customerId(req)) });
-});
-
-router.post('/api/admin/customers/:id/reset-password', async (req, res) => {
-  res.json(await resetCustomerPassword(req.user, customerId(req)));
-});
-
-router.post('/api/admin/customers/:id/freeze', async (req, res) => {
-  await freezeCustomer(req.user, customerId(req), {
-    startsOn: req.body?.startsOn,
-    endsOn: req.body?.endsOn ?? null,
-  });
-  res.status(204).end();
-});
-
-router.post('/api/admin/customers/:id/credits', async (req, res) => {
-  await grantCredits(req.user, customerId(req), {
-    count: req.body?.count,
-    expiresOn: req.body?.expiresOn,
-    note: req.body?.note,
-  });
-  res.status(204).end();
-});
-
-router.post('/api/admin/customers/:id/end-freeze', async (req, res) => {
-  res.json(await endFreeze(req.user, customerId(req)));
-});
-
-router.get('/api/admin/customers/:id/leave-preview', async (req, res) => {
-  res.json(await previewLeave(req.user, customerId(req)));
-});
-
-router.post('/api/admin/customers/:id/leave', async (req, res) => {
-  await markLeft(req.user, customerId(req));
-  res.status(204).end();
-});
-
-router.post('/api/admin/customers/:id/change-group', async (req, res) => {
-  res.json(
-    await changeCustomerGroup(req.user, customerId(req), {
-      groupId: req.body?.groupId,
-      effectiveFrom: req.body?.effectiveFrom,
-      confirmFull: req.body?.confirmFull === true,
-    }),
-  );
-});
-
-// --- Gruplar ------------------------------------------------------------------------------------
-
-// Açık ve kapalı bütün gruplar (yeni müşteri formu da bunu kullanır, kapalıları ayıklar).
-router.get('/api/admin/groups', async (req, res) => {
-  res.json({ groups: await listAllGroups(req.user) });
-});
-
-router.post('/api/admin/groups', async (req, res) => {
-  res.status(201).json(await createGroup(req.user, groupInput(req.body)));
-});
-
-router.get('/api/admin/groups/:id', async (req, res) => {
-  res.json({ group: await getGroup(req.user, groupId(req)) });
-});
-
-router.put('/api/admin/groups/:id', async (req, res) => {
-  res.json(await updateGroup(req.user, groupId(req), groupInput(req.body)));
-});
-
-// Kaydetmeden önce "neler olacak?": aynı kod çalışır, sonuç döner, hiçbir şey kalıcı olmaz.
-router.post('/api/admin/groups/:id/preview', async (req, res) => {
-  res.json(await updateGroup(req.user, groupId(req), groupInput(req.body), { preview: true }));
-});
-
-router.post('/api/admin/groups/:id/close', async (req, res) => {
-  res.json(await closeGroup(req.user, groupId(req)));
-});
-
-// --- Şubeler ------------------------------------------------------------------------------------
-
-router.get('/api/admin/branches', async (req, res) => {
-  res.json({ branches: await listBranches(req.user) });
-});
+// --- Şubeler (liste staff.js'te) ----------------------------------------------------------------
 
 router.post('/api/admin/branches', async (req, res) => {
   res.status(201).json(await createBranch(req.user, branchInput(req.body)));
@@ -238,11 +44,7 @@ router.post('/api/admin/branches/:id/reopen', async (req, res) => {
   res.json({ branches: await listBranches(req.user) });
 });
 
-// --- Paket kataloğu (yalnızca seans paketi modeli) -----------------------------------------------
-
-router.get('/api/admin/packages', async (req, res) => {
-  res.json({ packages: await listPackages(req.user) });
-});
+// --- Paket kataloğu (yalnızca seans paketi modeli; liste staff.js'te) ----------------------------
 
 router.post('/api/admin/packages', async (req, res) => {
   res.status(201).json(await createPackage(req.user, packageInput(req.body)));
@@ -262,19 +64,7 @@ router.post('/api/admin/packages/:id/reopen', async (req, res) => {
   res.json({ packages: await listPackages(req.user) });
 });
 
-// --- Üyelik ve ödemeler -------------------------------------------------------------------------
-
-router.get('/api/admin/customers/:id/memberships', async (req, res) => {
-  res.json(await getMemberships(req.user, customerId(req)));
-});
-
-router.post('/api/admin/customers/:id/memberships', async (req, res) => {
-  // Paket modelinde packageId (endsOn yok); grup modelinde startsOn-endsOn. Hangisinin geçerli olduğuna servis karar verir.
-  const { packageId, startsOn, endsOn, feeKurus, note } = req.body ?? {};
-  res.status(201).json({
-    membership: await createMembership(req.user, customerId(req), { packageId, startsOn, endsOn, feeKurus, note }),
-  });
-});
+// --- Ödemeler -----------------------------------------------------------------------------------
 
 router.get('/api/admin/payments', async (req, res) => {
   res.json(await getPaymentOverview(req.user));

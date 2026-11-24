@@ -13,7 +13,8 @@ export { pool };
 export async function resetDb() {
   await pool.query(`
     TRUNCATE studios, studio_settings, branches, users, groups, group_days, group_members,
-             sessions, credits, freezes, user_sessions, memberships, payments, packages, attendance
+             sessions, credits, freezes, user_sessions, memberships, payments, packages, attendance,
+             instructor_branches, instructor_permissions
     RESTART IDENTITY CASCADE
   `);
 }
@@ -170,6 +171,36 @@ export async function createCustomer(studioId, groupId = null) {
     );
   }
   return user.id;
+}
+
+// Eğitmen: kullanıcı + şubeler + yetki satırı. permissions'ta verilmeyen sütunlar veritabanı varsayılanında kalır.
+// Örnek: createInstructor(studio, { branchIds: [b], permissions: { view_customers: true } })
+export async function createInstructor(studioId, { branchIds = [], permissions = {}, fullName = 'Eğitmen' } = {}) {
+  phoneCounter += 1;
+  const { rows: [user] } = await pool.query(
+    `
+    INSERT INTO users (studio_id, role, full_name, phone, password_hash, must_change_password)
+    VALUES ($1, 'instructor', $2, $3, 'x', false) RETURNING id
+    `,
+    [studioId, fullName, `+90532${String(phoneCounter).padStart(7, '0')}`],
+  );
+  for (const branchId of branchIds) {
+    await pool.query(
+      'INSERT INTO instructor_branches (user_id, branch_id, studio_id) VALUES ($1, $2, $3)',
+      [user.id, branchId, studioId],
+    );
+  }
+  const columns = Object.keys(permissions);
+  await pool.query(
+    `INSERT INTO instructor_permissions (user_id${columns.map((c) => `, ${c}`).join('')})
+     VALUES ($1${columns.map((_, i) => `, $${i + 2}`).join('')})`,
+    [user.id, ...columns.map((c) => permissions[c])],
+  );
+  return user.id;
+}
+
+export async function setGroupInstructor(groupId, userId) {
+  await pool.query('UPDATE groups SET instructor_id = $2 WHERE id = $1', [groupId, userId]);
 }
 
 // Elle verilmiş (kaynağı olmayan) bir telafi hakkı.

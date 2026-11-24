@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { after, beforeEach, describe, test } from 'node:test';
 import adminRouter from '../src/routes/admin.js';
 import sessionsRouter from '../src/routes/sessions.js';
+import staffRouter from '../src/routes/staff.js';
 import { createUser, resetLoginAttempts } from '../src/services/auth.js';
 import {
   createAdmin, createBranch, createCustomer, createGroup, createSession, createSessionToday, createStudio,
@@ -358,6 +359,8 @@ function idRoutes(router) {
 
 test('every id route is in the matrix', () => {
   const inMatrix = (matrix) => matrix.map(([method, route]) => `${method} ${route}`).sort();
-  assert.deepEqual(idRoutes(adminRouter), inMatrix([...ADMIN_MATRIX, ...PACKAGE_MATRIX]));
+  // Yönetici uçları iki yönlendiricide: yalnızca yöneticiye açık olanlar ve eğitmene de açılabilenler.
+  const adminIdRoutes = [...idRoutes(adminRouter), ...idRoutes(staffRouter)].sort();
+  assert.deepEqual(adminIdRoutes, inMatrix([...ADMIN_MATRIX, ...PACKAGE_MATRIX]));
   assert.deepEqual(idRoutes(sessionsRouter), inMatrix(CUSTOMER_MATRIX));
 });

@@ -38,7 +38,7 @@
 
 ## PR 1 — `feat/instructor-role`
 
-### Görev 1: Veritabanı ve test yardımcıları — ~1 saat
+### Task 1 (Görev 1): Veritabanı ve test yardımcıları — ~1 saat
 
 **Files:**
 - Create: `server/db/migrations/019_instructors.sql`
@@ -54,7 +54,7 @@
 - [ ] **Step 3: Migration'ı yaz.** Aynı stüdyo kısıtı için 014'teki `groups_branch_same_studio` deseni (bileşik yabancı anahtar ya da tetikleyici — 014 ne kullandıysa aynısı). `resetDb`'ye `instructor_branches, instructor_permissions` ekle. `db/roles/app-role.sql` yeni tablolara uygulama rolünün yetkisini veriyor mu kontrol et; vermiyorsa ekle.
 - [ ] **Step 4: Testler PASS; bütün sunucu testleri PASS** (`npm test`).
 
-### Görev 2: Personel yönlendiricisi ve yetki koruyucusu — ~2,5 saat
+### Task 2 (Görev 2): Personel yönlendiricisi ve yetki koruyucusu — ~2,5 saat
 
 **Files:**
 - Create: `server/src/middleware/staff.js`, `server/src/routes/staff.js`
@@ -95,7 +95,7 @@ Geri kalan her şey (`payments`, paket yazma uçları, `settings`, `appearance`,
 - [ ] **Step 3: Uygula.** `findSessionUser` eğitmen için şubeleri (`array_agg`, yalnızca açık şubeler) ve yetki satırını aynı sorguda ya da ikinci bir sorguyla yükler; önbellek yok. Taşınan uçların gövdeleri değişmez (servisler Görev 3–5'te). `parseId` ve `*Input` yardımcıları iki dosyada da gerekiyorsa `server/src/routes/params.js`'e taşı.
 - [ ] **Step 4: Testler PASS; `npm test` PASS.**
 
-### Görev 3: Kapsam ve fiyat yardımcıları — ~1,5 saat
+### Task 3 (Görev 3): Kapsam ve fiyat yardımcıları — ~1,5 saat
 
 **Files:**
 - Create: `server/src/services/scope.js`
@@ -122,7 +122,7 @@ git add server/db/migrations/019_instructors.sql server/src server/test
 git commit -m "feat(instructors): role, branches, permissions and staff route guards"
 ```
 
-### Görev 4: Dersler, devralma ve iptal — ~3 saat
+### Task 4 (Görev 4): Dersler, devralma ve iptal — ~3 saat
 
 **Files:**
 - Modify: `server/src/services/adminSchedule.js`, `server/src/routes/staff.js`, `server/src/routes/admin.js`
@@ -141,7 +141,7 @@ git commit -m "feat(instructors): role, branches, permissions and staff route gu
 - [ ] **Step 1: Testler** — `instructor sees all sessions of own branches only`, `isMine follows group instructor and override`, `phone hidden without view_customers`, `cannot mark attendance on someone else's session`, `take-over then attendance works`, `take-over only on today's scheduled session in scope` (Review Focus 4: dünün dersi 409, iptal edilmiş 409, başka şube 404), `group instructor unchanged after take-over`, `cancel only own session` (önizleme de), `admin can set session instructor`, `admin today unchanged` (mevcut alanlar aynı).
 - [ ] **Step 2: FAIL. Step 3: Uygula. Step 4: PASS; `npm test` PASS.**
 
-### Görev 5: Üyeler, üyelikler ve gruplar kapsamı — ~4 saat
+### Task 5 (Görev 5): Üyeler, üyelikler ve gruplar kapsamı — ~4 saat
 
 **Files:**
 - Modify: `server/src/services/adminCustomers.js`, `adminMemberships.js`, `adminPackages.js`, `adminGroups.js`, `adminBranches.js`, `server/src/routes/staff.js`
@@ -171,7 +171,7 @@ git add server/src server/test
 git commit -m "feat(instructors): branch-scoped sessions, take-over, customers and groups; prices hidden"
 ```
 
-### Görev 6: Eğitmen yönetimi API'si — ~2 saat
+### Task 6 (Görev 6): Eğitmen yönetimi API'si — ~2 saat
 
 **Files:**
 - Create: `server/src/services/adminInstructors.js`
@@ -189,7 +189,7 @@ git commit -m "feat(instructors): branch-scoped sessions, take-over, customers a
 - [ ] **Step 1: Testler** — `create instructor with branches and default permissions`, `branch required`, `branch of other studio rejected`, `update permissions applies on next request`, `turning off view_customers turns off dependants`, `removing a branch hides it at once` (Review Focus 2), `leaving revokes sessions` (Review Focus 2: eğitmenin istemcisi sonraki istekte 401), `instructor cannot call instructor routes` (403).
 - [ ] **Step 2: FAIL. Step 3: Uygula. Step 4: PASS.**
 
-### Görev 7: İstemci — eğitmen paneli ve Eğitmenler ekranı — ~4,5 saat
+### Task 7 (Görev 7): İstemci — eğitmen paneli ve Eğitmenler ekranı — ~4,5 saat
 
 **Files:**
 - Create: `client/src/admin/InstructorsPage.jsx`, `client/src/admin/InstructorDetailPage.jsx`, `client/src/admin/permissions.js`
@@ -221,7 +221,7 @@ git commit -m "feat(instructors): instructor management API and panel"
 
 ## PR 2 — `feat/extra-sessions`
 
-### Görev 8: Gizli grupların dışlanması — ~1,5 saat
+### Task 8 (Görev 8): Gizli grupların dışlanması — ~1,5 saat
 
 **Files:**
 - Modify: `server/src/services/adminGroups.js`, `adminCustomers.js`, `adminBranches.js`, `sessionGenerator.js`, `server/src/routes/studio.js`, gerekirse `seedDev.js`
@@ -232,7 +232,7 @@ git commit -m "feat(instructors): instructor management API and panel"
 - [ ] **Step 1:** `server/src` içinde `FROM groups` / `JOIN groups` geçen her sorguyu tara (bugün 10 dosya); dersler üzerinden gelenler (Bugün, roster, telafi listesi, `chargeableSessions`) ek dersi **göstermeli**, grup listeleri **göstermemeli**. Her dışlanan yer için bir test yaz (fixture: doğrudan SQL ile `kind = 'extra'` grup + tek ders).
 - [ ] **Step 2: FAIL. Step 3: `AND g.kind = 'regular'` ekle. Step 4: PASS; `npm test` PASS.**
 
-### Görev 9: Ek ders açma API'si — ~2 saat
+### Task 9 (Görev 9): Ek ders açma API'si — ~2 saat
 
 **Files:**
 - Create: `server/src/services/adminExtraSessions.js`
@@ -257,7 +257,7 @@ git add server/src server/test
 git commit -m "feat(extra-sessions): one-off extra sessions as hidden groups"
 ```
 
-### Görev 10: Üyenin ek derse kaydı — ~3 saat
+### Task 10 (Görev 10): Üyenin ek derse kaydı — ~3 saat
 
 **Files:**
 - Modify: `server/src/services/booking.js`, `server/src/services/schedule.js`, `server/src/routes/sessions.js`
@@ -273,7 +273,7 @@ git commit -m "feat(extra-sessions): one-off extra sessions as hidden groups"
 - [ ] **Step 1: Testler** — `group model books extra with credit`, `group model without credit cannot book extra`, `package member books extra and it is charged after it ends` (`chargeableSessions` sonucu), `package member with one session left cannot book two extras`, `package member with expired package cannot book`, `package member cannot book extra in other branch` (Review Focus 5), `package member withdraws in time and is not charged`, `late withdrawal is rejected and session is charged`, `regular session still not bookable in package model`, `two members race for last spot` (mevcut eşzamanlılık testi deseni).
 - [ ] **Step 2: FAIL. Step 3: Uygula. Step 4: PASS; `npm test` PASS.**
 
-### Görev 11: İstemci — ek ders ekranları — ~3 saat
+### Task 11 (Görev 11): İstemci — ek ders ekranları — ~3 saat
 
 **Files:**
 - Create: `client/src/admin/ExtraSessionSheet.jsx`, `client/src/whatsapp.js`
