@@ -479,8 +479,11 @@ export async function removeMakeupFromSession(actor, sessionId, userId, { db = p
     await client.query('BEGIN');
     const { rows: [session] } = await client.query(
       `
-      SELECT s.id, s.starts_at + make_interval(mins => g.duration_minutes) <= now() AS has_ended
-      FROM sessions s JOIN groups g ON g.id = s.group_id
+      SELECT s.id, s.starts_at + make_interval(mins => g.duration_minutes) <= now() AS has_ended,
+             ss.membership_model
+      FROM sessions s
+      JOIN groups g ON g.id = s.group_id
+      JOIN studio_settings ss ON ss.studio_id = g.studio_id
       WHERE s.id = $1 AND g.studio_id = $2
       FOR UPDATE OF s
       `,
@@ -489,8 +492,12 @@ export async function removeMakeupFromSession(actor, sessionId, userId, { db = p
     if (!session) throw new AppError('SESSION_NOT_FOUND', 'Ders bulunamadı.', 404);
     if (session.has_ended) throw new AppError('SESSION_ENDED', 'Bitmiş bir dersten kişi çıkarılamaz.', 409);
 
+    // Yöneticinin eklediği satır silinir. Paket modelinde telafi hakkı yoktur: üyenin kendi ek ders kaydı da
+    // kaynağı boş bir satırdır ve silinir (geri verilecek hak yok; cancelSessionByStudio ile aynı kural).
     const { rowCount: removed } = await client.query(
-      'DELETE FROM credits WHERE user_id = $1 AND used_session_id = $2 AND note = $3',
+      session.membership_model === 'package'
+        ? 'DELETE FROM credits WHERE user_id = $1 AND used_session_id = $2 AND (note = $3 OR source_session_id IS NULL)'
+        : 'DELETE FROM credits WHERE user_id = $1 AND used_session_id = $2 AND note = $3',
       [userId, sessionId, ADDED_BY_ADMIN],
     );
     const { rowCount: refunded } = removed

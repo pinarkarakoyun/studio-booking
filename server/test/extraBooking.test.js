@@ -169,6 +169,33 @@ describe('booking an extra session', () => {
     assert.equal(results.find((r) => r.status === 409).body.error.code, 'SESSION_FULL');
   });
 
+  // İnceleme: aynı üyenin iki ayrı ek derse eşzamanlı kaydı paketi aşmasın (iki farklı ders satırı kilitlenir).
+  test('one session left: concurrent bookings of two extras do not overdraw', async () => {
+    const s = await setup();
+    const first = await s.extra();
+    const second = await s.extra();
+    const member = await createCustomer(s.studio, s.group);
+    await givePackage(member, { sessions: 1 });
+    const [c1, c2] = [await clientFor(member), await clientFor(member)];
+    const results = await Promise.all([book(c1, first), book(c2, second)]);
+    assert.deepEqual(results.map((r) => r.status).sort(), [200, 409]);
+    assert.equal(results.find((r) => r.status === 409).body.error.code, 'NO_SESSIONS_LEFT');
+  });
+
+  // İnceleme: paket üyesini ek dersten çıkarmak sahipsiz bir "telafi hakkı" bırakmasın.
+  test('removing a package member from an extra leaves no credit behind', async () => {
+    const s = await setup();
+    const id = await s.extra();
+    const member = await createCustomer(s.studio, s.group);
+    await givePackage(member);
+    await book(await clientFor(member), id);
+    const res = await s.admin.request('DELETE', `/api/admin/sessions/${id}/attendees/${member}`);
+    assert.equal(res.status, 200);
+    assert.equal(res.body.refundedCredit, false);
+    const { rows } = await pool.query('SELECT 1 FROM credits WHERE user_id = $1', [member]);
+    assert.equal(rows.length, 0);
+  });
+
   test('extra sessions list for package members', async () => {
     const s = await setup();
     const id = await s.extra();

@@ -66,13 +66,27 @@ describe('extra groups are hidden from group lists', () => {
     assert.equal(moved.status, 404);
   });
 
-  test('branch group count and branch closing ignore extra groups', async () => {
+  test('branch group count ignores extra groups; past extra sessions do not block closing', async () => {
     const studio = await createStudio();
     const other = await createBranch(studio, { name: 'Kuzey' });
-    await createExtra(studio, other);
+    const past = await createExtra(studio, other);
+    await pool.query("UPDATE sessions SET starts_at = now() - interval '2 days' WHERE id = $1", [past.sessionId]);
     const admin = await clientFor(await createAdmin(studio));
     const list = await admin.request('GET', '/api/admin/branches');
     assert.equal(list.body.branches.find((b) => b.id === other).activeGroupCount, 0);
+    assert.equal((await admin.request('POST', `/api/admin/branches/${other}/close`, {})).status, 200);
+  });
+
+  // İnceleme: kapanan şubede ileri tarihli ek ders açık ve kayıt alır hâlde kalmasın.
+  test('an upcoming extra session blocks closing its branch', async () => {
+    const studio = await createStudio();
+    const other = await createBranch(studio, { name: 'Kuzey' });
+    const upcoming = await createExtra(studio, other);
+    const admin = await clientFor(await createAdmin(studio));
+    const res = await admin.request('POST', `/api/admin/branches/${other}/close`, {});
+    assert.equal(res.status, 409);
+    assert.equal(res.body.error.code, 'BRANCH_HAS_EXTRA_SESSIONS');
+    await pool.query("UPDATE sessions SET status = 'cancelled' WHERE id = $1", [upcoming.sessionId]);
     assert.equal((await admin.request('POST', `/api/admin/branches/${other}/close`, {})).status, 200);
   });
 

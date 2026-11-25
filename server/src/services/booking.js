@@ -308,6 +308,9 @@ async function bookMakeupInTransaction(client, userId, targetSessionId) {
 // kalan seansları, üyenin henüz bitmemiş ek ders kayıtları düşüldükten sonra sıfırdan büyük olmalı (bir seansı
 // kalan üye iki ek derse yazılamasın). Normal grup dersleri bu hesaba katılmaz.
 async function bookExtraWithPackage(client, userId, target) {
+  // Üye başına kilit: ders satırı kilidi yalnızca aynı derse yarışanları sıralar. Aynı üyenin iki ayrı ek derse
+  // eşzamanlı kaydı (çift dokunma, iki sekme) ikisi de "1 seans kaldı" görüp paketi aşmasın.
+  await client.query("SELECT pg_advisory_xact_lock(hashtext('package-booking'), $1)", [userId]);
   await assertBookable(client, userId, target);
   const { rows: existing } = await client.query(
     'SELECT 1 FROM credits WHERE user_id = $1 AND used_session_id = $2',
