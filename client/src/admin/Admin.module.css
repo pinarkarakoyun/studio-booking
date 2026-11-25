@@ -250,7 +250,8 @@
 }
 
 .tagMakeup,
-.tagCancel {
+.tagCancel,
+.tagExtra {
   padding: 2px 8px;
   border-radius: var(--radius-pill);
   font-size: 0.75rem;
@@ -265,6 +266,12 @@
 .tagCancel {
   background: var(--surface-sunken);
   color: var(--danger);
+}
+
+/* Ek ders: haftalık programın dışında tek seferlik ders. */
+.tagExtra {
+  border: 1px solid var(--accent);
+  color: var(--accent-text);
 }
 
 .inactive {

@@ -38,13 +38,15 @@ async function studioToday(studioId, db) {
 
 // --- Doğrulama ----------------------------------------------------------------------------------
 
-function validateGroupInput({ name, weekdays, startTime, durationMinutes, capacity }) {
+// Grup adı: boşluklar sadeleşir, 2–60 karakter. Ek ders de aynı kuralı kullanır (adminExtraSessions.js).
+export function cleanGroupName(name) {
   const cleanName = typeof name === 'string' ? name.trim().replace(/\s+/g, ' ') : '';
   if (cleanName.length < 2 || cleanName.length > 60) throw new AppError('INVALID_NAME', 'Grup adı yaz.', 400);
-  const days = Array.isArray(weekdays) ? [...new Set(weekdays.map(Number))].sort() : [];
-  if (days.length === 0 || days.some((d) => !Number.isInteger(d) || d < 1 || d > 7)) {
-    throw new AppError('INVALID_DAYS', 'En az bir gün seç.', 400);
-  }
+  return cleanName;
+}
+
+// Saat, süre, kapasite: grup formu ve ek ders formu için aynı sınırlar ve hata kodları.
+export function validateTiming({ startTime, durationMinutes, capacity }) {
   if (typeof startTime !== 'string' || !TIME_RE.test(startTime)) {
     throw new AppError('INVALID_TIME', 'Saat geçersiz.', 400);
   }
@@ -56,7 +58,16 @@ function validateGroupInput({ name, weekdays, startTime, durationMinutes, capaci
   if (!Number.isInteger(cap) || cap < 1 || cap > 100) {
     throw new AppError('INVALID_CAPACITY', 'Kapasite 1 ile 100 arasında olmalı.', 400);
   }
-  return { name: cleanName, weekdays: days, startTime, durationMinutes: duration, capacity: cap };
+  return { startTime, durationMinutes: duration, capacity: cap };
+}
+
+function validateGroupInput({ name, weekdays, startTime, durationMinutes, capacity }) {
+  const cleanName = cleanGroupName(name);
+  const days = Array.isArray(weekdays) ? [...new Set(weekdays.map(Number))].sort() : [];
+  if (days.length === 0 || days.some((d) => !Number.isInteger(d) || d < 1 || d > 7)) {
+    throw new AppError('INVALID_DAYS', 'En az bir gün seç.', 400);
+  }
+  return { name: cleanName, weekdays: days, ...validateTiming({ startTime, durationMinutes, capacity }) };
 }
 
 // Grubun şubesi. branchId: undefined = istekte hiç yok, null = boş bırakılmış.
@@ -65,7 +76,7 @@ function validateGroupInput({ name, weekdays, startTime, durationMinutes, capaci
 //   - Çok şubeli stüdyoda şube seçmek zorunlu.
 //   - Şube bu stüdyonun açık bir şubesi olmalı (findOpenBranch). Veritabanındaki birleşik yabancı anahtar da
 //     başka stüdyonun şubesini reddeder; bu kontrol kullanıcıya anlaşılır bir hata vermek için.
-async function resolveBranch(actor, branchId, db, { current = null } = {}) {
+export async function resolveBranch(actor, branchId, db, { current = null } = {}) {
   if (branchId === undefined && current) return current;
   if (branchId === undefined || branchId === null) {
     if ((await countActiveBranches(actor.studio_id, db)) === 1) {
@@ -120,7 +131,8 @@ const GROUP_SELECT = `
   JOIN branches b ON b.id = g.branch_id
   LEFT JOIN users iu ON iu.id = g.instructor_id
   CROSS JOIN LATERAL (SELECT (now() AT TIME ZONE st.timezone)::date AS date) AS today
-  WHERE g.studio_id = $1
+  -- Ek dersler (tek seferlik gizli gruplar) grup listesinde ve grup uçlarında yok; derslerde görünürler.
+  WHERE g.studio_id = $1 AND g.kind = 'regular'
 `;
 
 function toGroupDto(row) {

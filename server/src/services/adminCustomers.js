@@ -142,7 +142,8 @@ const GROUPS_WITH_MEMBERS = `
                             WHERE f.user_id = gm.user_id
                               AND daterange(f.starts_on, f.ends_on, '[]') @> $2::date)) AS member_count
   FROM groups g
-  WHERE g.studio_id = $1 AND g.is_active
+  -- Ek derse (gizli tek seferlik grup) üye konmaz.
+  WHERE g.studio_id = $1 AND g.is_active AND g.kind = 'regular'
 `;
 // Not: $1 stüdyo, $2 tarih; eğitmenin şube koşulu listGroups'ta $3 olarak eklenir.
 

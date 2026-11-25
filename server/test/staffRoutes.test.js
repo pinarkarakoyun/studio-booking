@@ -18,6 +18,7 @@ const PERMISSIONED = [
   ['PUT', '/api/admin/sessions/1/attendance/1'],
   ['DELETE', '/api/admin/sessions/1/attendance/1'],
   ['POST', '/api/admin/sessions/1/take-over'],
+  ['POST', '/api/admin/extra-sessions'],
   ['POST', '/api/admin/sessions/1/cancel/preview'],
   ['POST', '/api/admin/sessions/1/cancel'],
   ['POST', '/api/admin/sessions/1/attendees'],

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api.js';
+import { showExtraTag } from '../extraSession.js';
 import { formatDay, formatDayShort, formatTime } from '../format.js';
 import styles from './MakeupPickerPage.module.css';
 
@@ -105,7 +106,9 @@ export default function MakeupPickerPage({ studio, from, busy, onBack, onPick })
 }
 
 // Prototipteki ders satırı: solda serif saat, ortada grup adı ve doluluk, sağda eylem ya da durum rozeti.
-function SessionOption({ session, multiBranch, timeZone, now, busy, pending, onSelect, onCancel, onConfirm }) {
+// Paket modelinde Derslerim'deki "Ek dersler" bölümü de bunu kullanır.
+// showDate: gün sekmeleri olmayan listede (Derslerim'deki "Ek dersler") dersin günü de yazılır.
+export function SessionOption({ session, multiBranch, showDate = false, timeZone, now, busy, pending, onSelect, onCancel, onConfirm }) {
   const full = session.freeSpots <= 0;
   const closed = new Date(session.makeupDeadlineAt).getTime() <= now;
   const available = !full && !closed;
@@ -120,9 +123,11 @@ function SessionOption({ session, multiBranch, timeZone, now, busy, pending, onS
           {session.groupName}
           {/* Çok şubeli stüdyoda telafi başka şubede olabilir: şube adı grup adının yanında. */}
           {multiBranch && session.branchName && ` · ${session.branchName}`}
+          {showExtraTag(session) && <span className={styles.extraTag}>Ek ders</span>}
         </span>
         <span className={styles.spots}>
           {/* Doluyken "Dolu" sağdaki rozette yazar; burada iki kez yazmasın. */}
+          {showDate && `${formatDay(session.date)} · `}
           {full ? `${occupancy} kişi` : `${session.freeSpots} yer boş · ${occupancy}`}
         </span>
       </div>

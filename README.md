@@ -45,6 +45,15 @@ The studio owner and the person who teaches are not always the same, so an admin
 - **Classes:** a group can have an instructor. On Today an instructor switches between "my classes" and "all classes" of their branches. When someone teaches another instructor's class, they tap "Bu dersi ben veriyorum": the class is recorded under them for that day and they take attendance. The admin can change a single class's instructor.
 - **Enforcement** is on the server: routes an instructor may use live in `routes/staff.js`, each with one `can(...)` guard; every other `/api/admin` route is admin-only by default. A test walks every staff route and checks the guard.
 
+### Extra sessions
+
+An instructor (with the permission) or the admin can open a one-off **extra session** outside the weekly schedule, for example Saturday 10:00, with a date, time, length, capacity, branch and optional title.
+
+- The session gets a "WhatsApp'ta paylaş" button with a ready-made announcement. The app never sends messages; the instructor taps send.
+- **Group + make-up** studios: members book it like any make-up class (with a credit or by swapping a class).
+- **Session packages** studios: members see an "Ek dersler" section and book; the finished class uses one session from their package. Booking needs a package valid on that day with a session left after their other upcoming extra bookings. Withdrawing is allowed until the cancellation deadline; after it, the session counts even if they do not come.
+- Stored as a hidden one-off group (`groups.kind = 'extra'`, no weekdays, no members), so occupancy and make-up rules work unchanged; extra groups never appear in group lists or forms.
+
 ### Two membership models
 
 Each studio picks one model when it is set up (`create-admin --model grup|paket`); the admin cannot switch it later, because the two models count attendance differently.
@@ -234,7 +243,7 @@ Next: turning the app into a product several studios can use. Order and decision
 - [x] Session packages (e.g. 8 or 12 sessions) as a second membership model, chosen per studio at setup
 - [x] New look for the customer and admin panels and the public page
 - [x] Appearance settings: brand and accent colours (other shades derived automatically) and prices on the public page (logo upload later)
-- [ ] Instructor role and panel
+- [x] Instructor role and panel, with branch-scoped permissions and one-off extra sessions
 - [ ] Deployment and production setup (data stays in Turkey)
 - [ ] Pilot with a real studio
 

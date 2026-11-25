@@ -2,7 +2,7 @@ import { useState } from 'react';
 import Sheet from '../components/Sheet.jsx';
 import Toast from '../components/Toast.jsx';
 import { useToast } from '../components/useToast.js';
-import { formatDay } from '../format.js';
+import { formatDay, todayIn } from '../format.js';
 import CredentialsPage from './CredentialsPage.jsx';
 import CustomerDetailPage from './CustomerDetailPage.jsx';
 import CustomersPage from './CustomersPage.jsx';
@@ -72,6 +72,12 @@ export default function AdminApp({ user, studio, onStudioChange, onLogout }) {
           onMineOnlyChange={setMineOnly}
           onOpenSession={(id) => goTo({ name: 'session', id })}
           onOpenAccount={() => setAccountOpen(true)}
+          onExtraCreated={(session) => {
+            // Yeni ek dersin detayı açılır (WhatsApp düğmesi orada); geri dönünce dersin günü görünür.
+            setDay(session.date === todayIn(studio.timezone) ? null : session.date);
+            showToast('success', 'Ek ders açıldı. Duyurmak için WhatsApp düğmesini kullanabilirsin.');
+            goTo({ name: 'session', id: session.id });
+          }}
         />
       );
   } else if (tab === 'customers') {

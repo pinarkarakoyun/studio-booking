@@ -150,6 +150,19 @@
   overflow-wrap: anywhere;
 }
 
+/* Ek ders: haftalık programın dışında tek seferlik ders. */
+.extraTag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 8px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent-text);
+  vertical-align: 1px;
+}
+
 .spots {
   font-size: 13px;
   color: var(--ink-soft);

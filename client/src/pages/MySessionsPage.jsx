@@ -6,15 +6,22 @@ import Toast from '../components/Toast.jsx';
 import { useToast } from '../components/useToast.js';
 import Button from '../components/Button.jsx';
 import { addDays, formatDay, formatDayMonth, formatTime, formatWeekdayTime, todayIn, weekLabel } from '../format.js';
-import MakeupPickerPage from './MakeupPickerPage.jsx';
+import MakeupPickerPage, { SessionOption } from './MakeupPickerPage.jsx';
 import MembershipSummary from './MembershipSummary.jsx';
 import styles from './MySessionsPage.module.css';
 
-function fetchMyData() {
-  return Promise.all([api('/api/me/sessions'), api('/api/me/credits'), api('/api/me/membership')]).then(([s, c, m]) => ({
+// Paket modelinde ek dersler ayrıca çekilir ("Ek dersler" bölümü); grup modelinde telafi listesinde zaten var.
+function fetchMyData(packageModel) {
+  return Promise.all([
+    api('/api/me/sessions'),
+    api('/api/me/credits'),
+    api('/api/me/membership'),
+    packageModel ? api('/api/me/extra-sessions') : Promise.resolve({ sessions: [] }),
+  ]).then(([s, c, m, e]) => ({
     sessions: s.sessions,
     credits: c.credits,
     membership: m.membership,
+    extraSessions: e.sessions,
     // Son tarih karşılaştırmaları için "şimdi", veri geldiği anda bir kez alınır (render sırasında değil).
     loadedAt: Date.now(),
   }));
@@ -57,13 +64,15 @@ export default function MySessionsPage({ user, studio, onLogout }) {
   // Telafi seçme ekranı: { from: ders } "yerine şuna gel" için, { from: null } hakkını kullanmak için.
   const [picker, setPicker] = useState(null);
   const [busy, setBusy] = useState(false);
+  // "Ek dersler" bölümünde onay bekleyen ders (Bu derse gel → Onayla).
+  const [pendingExtra, setPendingExtra] = useState(null);
   const { toast, showToast } = useToast();
   const timeZone = studio.timezone;
   // Seans paketi modelinde telafi yok: iptal paketten düşmeyi belirler, telafi seçme ve hak metinleri gizli.
   const packageModel = studio.membershipModel === 'package';
 
   function reload() {
-    return fetchMyData().then(setData, (err) => setLoadError(err.message));
+    return fetchMyData(packageModel).then(setData, (err) => setLoadError(err.message));
   }
 
   useEffect(() => {
@@ -80,6 +89,7 @@ export default function MySessionsPage({ user, studio, onLogout }) {
       showToast('success', typeof successText === 'function' ? successText(result) : successText);
       setSheetSession(null);
       setPicker(null);
+      setPendingExtra(null);
     } catch (err) {
       showToast('error', err.message);
     } finally {
@@ -108,7 +118,17 @@ export default function MySessionsPage({ user, studio, onLogout }) {
   const dropMakeup = (session) =>
     perform(
       () => api(`/api/sessions/${session.id}/makeup`, { method: 'DELETE' }),
-      (result) => (result.refunded ? 'Telafi kaydın silindi, hakkın geri geldi.' : 'Telafi kaydın silindi.'),
+      (result) => {
+        const what = session.kind === 'extra' ? 'Ek ders kaydın' : 'Telafi kaydın';
+        return result.refunded ? `${what} silindi, telafi hakkın geri geldi.` : `${what} silindi.`;
+      },
+    );
+
+  // Paket modelinde ek derse kayıt: ders bittiğinde paketinden bir seans düşer.
+  const bookExtra = (session) =>
+    perform(
+      () => api(`/api/sessions/${session.id}/makeup`, { method: 'PUT' }),
+      `Ek derse kaydın alındı: ${formatDay(session.date)} ${formatTime(session.startsAt, timeZone)}. Ders bittiğinde paketinden bir seans düşer.`,
     );
 
   function pickMakeup(target) {
@@ -156,6 +176,8 @@ export default function MySessionsPage({ user, studio, onLogout }) {
   const visibleWeeks = showLater ? weeks : weeks.filter((group) => group.label !== LATER);
   const hasHiddenWeeks = visibleWeeks.length < weeks.length;
   const credits = data.credits;
+  // Henüz kayıt olunmamış ek dersler (kayıt olunanlar aşağıdaki listede zaten görünür).
+  const openExtras = data.extraSessions.filter((s) => s.myStatus === null);
 
   return (
     <main className={styles.page}>
@@ -180,7 +202,9 @@ export default function MySessionsPage({ user, studio, onLogout }) {
 
       {next ? (
         <section className={styles.next} aria-label="Sıradaki dersin">
-          <p className={styles.nextLabel}>{next.myStatus === 'makeup' ? 'Sıradaki dersin (telafi)' : 'Sıradaki dersin'}</p>
+          <p className={styles.nextLabel}>
+            {next.myStatus !== 'makeup' ? 'Sıradaki dersin' : next.kind === 'extra' ? 'Sıradaki dersin (ek ders)' : 'Sıradaki dersin (telafi)'}
+          </p>
           <p className={styles.nextDay}>
             {formatDay(next.date)}
             {studio.branchCount > 1 && next.branchName && ` · ${next.branchName}`}
@@ -196,6 +220,30 @@ export default function MySessionsPage({ user, studio, onLogout }) {
         <p className={styles.empty}>
           Önümüzdeki günlerde dersin görünmüyor. Bir yanlışlık olduğunu düşünüyorsan stüdyoya yaz.
         </p>
+      )}
+
+      {openExtras.length > 0 && (
+        <section aria-label="Ek dersler">
+          <h2 className={styles.weekLabel}>Ek dersler</h2>
+          <p className={styles.muted}>Programın dışında açılan dersler. Kayıt olursan ders bittiğinde paketinden bir seans düşer.</p>
+          <ul className={styles.list}>
+            {openExtras.map((session) => (
+              <SessionOption
+                key={session.id}
+                multiBranch={studio.branchCount > 1}
+                showDate
+                session={session}
+                timeZone={timeZone}
+                now={data.loadedAt}
+                busy={busy}
+                pending={pendingExtra === session.id}
+                onSelect={() => setPendingExtra(session.id)}
+                onCancel={() => setPendingExtra(null)}
+                onConfirm={() => bookExtra(session)}
+              />
+            ))}
+          </ul>
+        </section>
       )}
 
       {visibleWeeks.map((group) => (
@@ -310,7 +358,7 @@ function SessionRow({ session, multiBranch, packageModel, timeZone, now, busy, o
       <button type="button" className={`${styles.row} ${styles.rowButton}`} onClick={onOpen}>
         <div>
           {day}
-          {session.myStatus === 'makeup' && <span className={styles.tag}>Telafi</span>}
+          {session.myStatus === 'makeup' && <span className={styles.tag}>{session.kind === 'extra' ? 'Ek ders' : 'Telafi'}</span>}
         </div>
         {time}
       </button>
@@ -403,8 +451,11 @@ function CantComeOptions({ session, studio, now, busy, onSwap, onCancelOnly, onD
       <>
         <p className={styles.sheetNote}>Bırakman için son saat: {deadline}</p>
         <button type="button" className={styles.option} onClick={onDropMakeup} disabled={busy}>
-          <span className={styles.optionTitle}>Telafiden vazgeç</span>
-          <span className={styles.optionText}>Yerin başka birine açılır.</span>
+          <span className={styles.optionTitle}>{session.kind === 'extra' ? 'Ek dersten vazgeç' : 'Telafiden vazgeç'}</span>
+          <span className={styles.optionText}>
+            Yerin başka birine açılır.
+            {studio.membershipModel === 'package' && ' Paketinden düşmez.'}
+          </span>
         </button>
         <button type="button" className={styles.closeLink} onClick={onClose}>
           Vazgeç, geliyorum

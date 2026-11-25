@@ -49,7 +49,8 @@ export async function listBranches(admin, { db = pool } = {}) {
   const { rows } = await db.query(
     `
     SELECT b.id, b.name, b.address, b.maps_url, b.is_active,
-           (SELECT count(*)::int FROM groups g WHERE g.branch_id = b.id AND g.is_active) AS active_group_count
+           (SELECT count(*)::int FROM groups g
+            WHERE g.branch_id = b.id AND g.is_active AND g.kind = 'regular') AS active_group_count
     FROM branches b
     WHERE b.studio_id = $1 AND ${branchClause(admin, 'b.id', params)}
     ORDER BY b.id
@@ -142,13 +143,31 @@ export async function closeBranch(admin, branchId, { db = pool } = {}) {
 
     if (branch.is_active) {
       const { rows: groups } = await client.query(
-        'SELECT name FROM groups WHERE branch_id = $1 AND is_active ORDER BY name',
+        // Ek ders grupları burada sayılmaz (grup ekranında görünmedikleri için kapatılamazlar); onların
+        // ileri tarihli dersleri aşağıda ayrıca denetlenir.
+        "SELECT name FROM groups WHERE branch_id = $1 AND is_active AND kind = 'regular' ORDER BY name",
         [branchId],
       );
       if (groups.length > 0) {
         throw new AppError(
           'BRANCH_HAS_GROUPS',
           `Bu şubede açık gruplar var: ${groups.map((g) => g.name).join(', ')}. Önce onları başka şubeye taşı ya da kapat.`,
+          409,
+        );
+      }
+      // Kapanan şubede ileri tarihli ek ders açık kalırsa üyeler kayıt olmaya devam eder, şubeden çıkan eğitmen
+      // de dersi göremez. Önce gün ekranından iptal edilsin.
+      const { rows: extras } = await client.query(
+        `SELECT to_char(s.date, 'DD.MM.YYYY') AS day, to_char(g.start_time, 'HH24:MI') AS time
+         FROM sessions s JOIN groups g ON g.id = s.group_id
+         WHERE g.branch_id = $1 AND g.kind = 'extra' AND s.status = 'scheduled' AND s.starts_at > now()
+         ORDER BY s.starts_at`,
+        [branchId],
+      );
+      if (extras.length > 0) {
+        throw new AppError(
+          'BRANCH_HAS_EXTRA_SESSIONS',
+          `Bu şubede ileri tarihli ek dersler var: ${extras.map((e) => `${e.day} ${e.time}`).join(', ')}. Önce onları iptal et.`,
           409,
         );
       }

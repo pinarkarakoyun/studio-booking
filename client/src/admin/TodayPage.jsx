@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
 import Monogram from '../components/Monogram.jsx';
+import Sheet from '../components/Sheet.jsx';
 import { addDays, formatDateDayMonth, formatDay, formatTime, formatWeekday, todayIn } from '../format.js';
 import styles from './Admin.module.css';
-import { isInstructor } from './permissions.js';
+import { showExtraTag } from '../extraSession.js';
+import ExtraSessionForm from './ExtraSessionForm.jsx';
+import { can, isInstructor } from './permissions.js';
 
 const shiftDay = (date, days) => addDays(`${date}T12:00:00Z`, days).slice(0, 10);
 
@@ -11,8 +14,9 @@ const shiftDay = (date, days) => addDays(`${date}T12:00:00Z`, days).slice(0, 10)
 // date null ise bugün. Uyarılar ve "Yarın" satırı sadece bugünün ekranında.
 export default function TodayPage({
   user, studio, date, onChangeDate, branchFilter, onBranchFilterChange, mineOnly, onMineOnlyChange, onOpenSession,
-  onOpenAccount,
+  onOpenAccount, onExtraCreated,
 }) {
+  const [extraOpen, setExtraOpen] = useState(false);
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const timeZone = studio.timezone;
@@ -104,7 +108,14 @@ export default function TodayPage({
       {header}
       {/* Prototipteki gibi tarih başlığın üstünde; ‹ › ile gün değişir. */}
       {dayNav}
-      <h1 className={styles.title}>{title}</h1>
+      <div className={styles.titleRow}>
+        <h1 className={styles.title}>{title}</h1>
+        {can(user, 'create_extra_sessions') && (
+          <button type="button" className={styles.addLink} onClick={() => setExtraOpen(true)}>
+            + Ek ders
+          </button>
+        )}
+      </div>
       {!isToday && (
         <p className={styles.subtitle}>
           <button type="button" className={styles.inlineButton} onClick={() => onChangeDate(null)}>
@@ -206,6 +217,19 @@ export default function TodayPage({
         ))}
       </ul>
 
+      <Sheet open={extraOpen} onClose={() => setExtraOpen(false)} title="Ek ders aç">
+        {extraOpen && (
+          <ExtraSessionForm
+            user={user}
+            studio={studio}
+            onCreated={(result) => {
+              setExtraOpen(false);
+              onExtraCreated(result.session);
+            }}
+          />
+        )}
+      </Sheet>
+
       {data.tomorrow && (
         <p className={styles.tomorrow}>
           Yarın: {formatWeekday(data.tomorrow.date)},{' '}
@@ -240,6 +264,7 @@ function SessionRow({ session, multiBranch, packageModel, timeZone, onOpen }) {
         {session.instructor && <span className={styles.sessionInstructor}>{session.instructor.name}</span>}
         <span className={styles.sessionMeta}>
           {cancelledByStudio ? 'Ders iptal edildi' : full ? 'Dolu' : `${freeSpots} yer boş`}
+          {showExtraTag(session) && <span className={styles.tagExtra}>Ek ders</span>}
           {session.makeupCount > 0 && <span className={styles.tagMakeup}>+{session.makeupCount} {packageModel ? 'eklendi' : 'telafi'}</span>}
           {!cancelledByStudio && session.cancelledCount > 0 && (
             <span className={styles.tagCancel}>{session.cancelledCount} iptal</span>
