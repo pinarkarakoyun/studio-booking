@@ -163,5 +163,7 @@ describe('package info in responses', () => {
     assert.equal(body.studio.membershipModel, 'package');
     // Üye ekranı geç iptalde "Bu seans düşecek" uyarısını buna göre gösterir.
     assert.equal(body.studio.lateCancelBurnsSession, true);
+    // Üye ana ekranı "üyeliğin N gün sonra bitiyor" şeridini bu eşikle gösterir (varsayılan 7).
+    assert.equal(body.studio.paymentReminderDays, 7);
   });
 });

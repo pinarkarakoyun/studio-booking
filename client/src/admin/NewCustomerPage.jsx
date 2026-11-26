@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from 'react';
 import { api } from '../api.js';
 import Button from '../components/Button.jsx';
+import PhoneField from '../components/PhoneField.jsx';
 import TextField from '../components/TextField.jsx';
 import fieldStyles from '../components/TextField.module.css';
 import { todayIn } from '../format.js';
@@ -70,16 +71,7 @@ export default function NewCustomerPage({ studio, onCancel, onCreated }) {
         }}
       >
         <TextField label="Ad soyad" autoComplete="off" value={form.fullName} onChange={update('fullName')} error={errors.fullName} />
-        <TextField
-          label="Telefon"
-          type="tel"
-          inputMode="tel"
-          autoComplete="off"
-          placeholder="0532 123 45 67"
-          value={form.phone}
-          onChange={update('phone')}
-          error={errors.phone}
-        />
+        <PhoneField label="Telefon" autoComplete="off" value={form.phone} onChange={update('phone')} error={errors.phone} />
 
         <div className={fieldStyles.field}>
           <label htmlFor={groupFieldId} className={fieldStyles.label}>

@@ -22,7 +22,7 @@ router.get('/api/studio', async (req, res) => {
   const { rows: [studio] } = await pool.query(
     `
     SELECT st.name, st.whatsapp_phone, st.brand_color, st.logo_url, st.timezone, ss.credit_validity_days,
-           ss.membership_model, ss.late_cancel_burns_session,
+           ss.membership_model, ss.late_cancel_burns_session, ss.payment_reminder_days,
            (SELECT count(*)::int FROM branches b WHERE b.studio_id = st.id AND b.is_active) AS branch_count
     FROM studios st
     LEFT JOIN studio_settings ss ON ss.studio_id = st.id
@@ -45,6 +45,8 @@ router.get('/api/studio', async (req, res) => {
         membershipModel: studio.membership_model,
         // Paket modelinde geç iptal seansı düşürür mü (üyeye iptal öncesi uyarı için).
         lateCancelBurnsSession: studio.late_cancel_burns_session,
+        // Üye ana ekranı bitişe bu kadar gün kala uyarı şeridi gösterir (yöneticinin Ödemeler eşiğiyle aynı).
+        paymentReminderDays: studio.payment_reminder_days,
       }
       : null,
   });

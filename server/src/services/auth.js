@@ -105,7 +105,21 @@ export async function createSession(userId, db = pool) {
   return token;
 }
 
-// Cookie'deki token'a ait geçerli oturumun kullanıcısını döndürür (yoksa null).
+// Kayan süre: kullanılan oturum bugünden itibaren SESSION_DAYS gün daha geçerli olur. Kalan süre bir günden
+// fazla kısalmadıysa yazılmaz; böylece her istek veritabanına yazmaz (günde en çok bir kez).
+// Dönüş: uzatıldıysa true. Çağıran, tarayıcıdaki çerezin süresini de yenilemeli (middleware/auth.js loadUser).
+async function renewSession(sessionId, db) {
+  const { rowCount } = await db.query(
+    `
+    UPDATE user_sessions SET expires_at = now() + make_interval(days => $2)
+    WHERE id = $1 AND expires_at < now() + make_interval(days => $2 - 1)
+    `,
+    [sessionId, SESSION_DAYS],
+  );
+  return rowCount === 1;
+}
+
+// Cookie'deki token'a ait geçerli oturumun kullanıcısını döndürür (yoksa null). Oturumu da uzatır (renewed).
 // Kullanıcının durumu HER istekte kontrol ediliyor: müşteri "ayrıldı" yapıldığı anda,
 // açık oturumu olsa bile bir sonraki isteği reddedilir (BR-22).
 // studioId zorunlu: oturum yalnızca kullanıcının kendi stüdyosunun adresinde geçerli. Parametre olarak
@@ -125,9 +139,10 @@ export async function findSessionUser(token, studioId, { db = pool } = {}) {
     [hashToken(token), studioId],
   );
   if (!user) return null;
-  if (user.role === 'instructor') return { ...user, ...(await instructorAccess(user.id, db)) };
+  const renewed = await renewSession(user.session_id, db);
+  if (user.role === 'instructor') return { ...user, renewed, ...(await instructorAccess(user.id, db)) };
   // Yönetici için null = "süzme yok, her şey" (kapsam yardımcıları buna bakar); müşteri için anlamsız.
-  return { ...user, branches: null, branchIds: null, permissions: null };
+  return { ...user, renewed, branches: null, branchIds: null, permissions: null };
 }
 
 // Eğitmenin açık şubeleri ve yetkileri. Her istekte okunur (önbellek yok): yönetici bir yetkiyi kapatınca

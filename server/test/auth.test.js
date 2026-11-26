@@ -116,6 +116,53 @@ describe('session', () => {
     assert.equal((await c.request('GET', '/api/auth/me')).status, 401);
   });
 
+  // Kayan süre: kullanılan oturum 30 gün daha uzar; günde en çok bir kez yazılır (kalan < 29 gün ise).
+  const daysLeft = async () => {
+    const { rows: [row] } = await pool.query(
+      `SELECT EXTRACT(EPOCH FROM expires_at - now()) / 86400 AS days FROM user_sessions`,
+    );
+    return Number(row.days);
+  };
+
+  test('active session is extended to 30 days from now', async () => {
+    const { c } = await loggedInCustomer();
+    await pool.query(`UPDATE user_sessions SET expires_at = now() + interval '10 days'`);
+
+    assert.equal((await c.request('GET', '/api/auth/me')).status, 200);
+    assert.ok((await daysLeft()) > 29.9);
+  });
+
+  test('renewed session sends a fresh cookie', async () => {
+    const { c } = await loggedInCustomer();
+    await pool.query(`UPDATE user_sessions SET expires_at = now() + interval '10 days'`);
+
+    const res = await c.request('GET', '/api/auth/me');
+    assert.match(res.setCookie ?? '', /^sid=/);
+    assert.match(res.setCookie, /Max-Age=2592000/);
+    assert.match(res.setCookie, /HttpOnly/);
+    // Aynı çerezle devam edilebiliyor (token değişmez, yalnızca süresi yenilenir).
+    assert.equal((await c.request('GET', '/api/auth/me')).status, 200);
+  });
+
+  test('fresh session is not rewritten', async () => {
+    const { c } = await loggedInCustomer();
+    const { rows: [before] } = await pool.query('SELECT expires_at FROM user_sessions');
+
+    const res = await c.request('GET', '/api/auth/me');
+    assert.equal(res.setCookie, null);
+    const { rows: [after] } = await pool.query('SELECT expires_at FROM user_sessions');
+    assert.deepEqual(after.expires_at, before.expires_at);
+  });
+
+  test('expired session is not renewed', async () => {
+    const { c } = await loggedInCustomer();
+    // Tablo kuralı: expires_at > created_at.
+    await pool.query(`UPDATE user_sessions SET created_at = now() - interval '31 days', expires_at = now() - interval '1 minute'`);
+
+    assert.equal((await c.request('GET', '/api/auth/me')).status, 401);
+    assert.ok((await daysLeft()) < 0);
+  });
+
   test('logout ends the session on the server too', async () => {
     const { c } = await loggedInCustomer();
 
