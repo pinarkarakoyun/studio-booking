@@ -19,7 +19,8 @@ const STRENGTH_HINT = ['En az 8 karakter', 'En az 8 karakter', 'Yeterli', 'Güç
 
 // İlk girişte (veya yönetici şifreyi sıfırladıktan sonra) zorunlu ekran (BR-20).
 // currentPassword: girişte yazılan geçici şifre. Sayfa yenilenmişse elimizde olmaz; o zaman sorarız.
-export default function ChangePasswordPage({ user, studio, currentPassword, onChanged, onLogout }) {
+// voluntary: üye Üyeliğim'den kendi isteğiyle açtı. Şu anki şifresi sorulur, "Vazgeç" (onCancel) geri götürür.
+export default function ChangePasswordPage({ user, studio, currentPassword, onChanged, onLogout, voluntary = false, onCancel }) {
   const [temporary, setTemporary] = useState('');
   const [password, setPassword] = useState('');
   const [repeat, setRepeat] = useState('');
@@ -40,7 +41,7 @@ export default function ChangePasswordPage({ user, studio, currentPassword, onCh
   async function handleSubmit(event) {
     event.preventDefault();
     const found = {
-      temporary: needsTemporary && !temporary ? 'Stüdyonun verdiği geçici şifreyi yaz.' : null,
+      temporary: needsTemporary && !temporary ? (voluntary ? 'Şu anki şifreni yaz.' : 'Stüdyonun verdiği geçici şifreyi yaz.') : null,
       password: password.length < MIN_LENGTH ? `Şifre en az ${MIN_LENGTH} karakter olmalı.` : null,
       repeat: password !== repeat ? 'İki şifre aynı değil.' : null,
     };
@@ -70,16 +71,18 @@ export default function ChangePasswordPage({ user, studio, currentPassword, onCh
     <main className={styles.page}>
       <div className={styles.brand}>
         <Monogram size="small" logoUrl={studio?.logoUrl} name={studio?.name} />
-        <h1 className={styles.title}>Hoş geldin, {firstName}</h1>
+        <h1 className={styles.title}>{voluntary ? 'Şifreni değiştir' : `Hoş geldin, ${firstName}`}</h1>
         <p className={styles.lead}>
-          Stüdyonun verdiği geçici şifreyi kendi şifrenle değiştir. Bundan sonra bununla gireceksin.
+          {voluntary
+            ? 'Diğer cihazlardaki oturumların kapanır; bu cihazda açık kalırsın.'
+            : 'Stüdyonun verdiği geçici şifreyi kendi şifrenle değiştir. Bundan sonra bununla gireceksin.'}
         </p>
       </div>
 
       <form className={styles.form} onSubmit={handleSubmit} noValidate>
         {needsTemporary && (
           <TextField
-            label="Geçici şifre"
+            label={voluntary ? 'Şu anki şifren' : 'Geçici şifre'}
             type="password"
             autoComplete="current-password"
             value={temporary}
@@ -116,9 +119,15 @@ export default function ChangePasswordPage({ user, studio, currentPassword, onCh
       </form>
 
       <p className={styles.footer}>
-        <Button variant="quiet" type="button" onClick={onLogout}>
-          Bu ben değilim, çıkış yap
-        </Button>
+        {voluntary ? (
+          <Button variant="quiet" type="button" onClick={onCancel}>
+            Vazgeç
+          </Button>
+        ) : (
+          <Button variant="quiet" type="button" onClick={onLogout}>
+            Bu ben değilim, çıkış yap
+          </Button>
+        )}
       </p>
     </main>
   );

@@ -347,3 +347,37 @@
   line-height: 1.55;
   color: var(--ink-soft);
 }
+
+/* Ana ekranda üyelikten kalan küçük satırlar: yenileme uyarısı, telafi hakkı, kalan seans.
+   Ayrıntılar Üyeliğim sayfasında; satırlar oraya (ya da telafi seçiciye) götürür. */
+.notice,
+.quick {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--tap);
+  margin-top: var(--space-3);
+  padding: 10px 16px;
+  border: 0;
+  border-radius: var(--radius-card);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  color: var(--ink);
+}
+
+.notice {
+  background: var(--surface-sunken);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.quick {
+  background: var(--surface-raised);
+}
+
+button.quick {
+  cursor: pointer;
+}

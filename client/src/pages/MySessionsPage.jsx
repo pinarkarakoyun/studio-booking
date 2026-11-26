@@ -7,7 +7,9 @@ import { useToast } from '../components/useToast.js';
 import Button from '../components/Button.jsx';
 import { addDays, formatDay, formatDayMonth, formatTime, formatWeekdayTime, todayIn, weekLabel } from '../format.js';
 import MakeupPickerPage, { SessionOption } from './MakeupPickerPage.jsx';
-import MembershipSummary from './MembershipSummary.jsx';
+import { membershipNotice } from '../membershipNotice.js';
+import ChangePasswordPage from './ChangePasswordPage.jsx';
+import MyMembershipPage from './MyMembershipPage.jsx';
 import styles from './MySessionsPage.module.css';
 
 // Paket modelinde ek dersler ayrıca çekilir ("Ek dersler" bölümü); grup modelinde telafi listesinde zaten var.
@@ -58,7 +60,8 @@ export default function MySessionsPage({ user, studio, onLogout }) {
     setSheetOpenedAt(Date.now());
     setSheetSession(session);
   };
-  const [accountOpen, setAccountOpen] = useState(false);
+  // Ana ekran ('home'), Üyeliğim ('membership') ya da oradan açılan şifre değiştirme ('password').
+  const [view, setView] = useState('home');
   // Liste varsayılan olarak bu hafta + gelecek haftayı gösterir; sonrası istenirse açılır.
   const [showLater, setShowLater] = useState(false);
   // Telafi seçme ekranı: { from: ders } "yerine şuna gel" için, { from: null } hakkını kullanmak için.
@@ -159,6 +162,25 @@ export default function MySessionsPage({ user, studio, onLogout }) {
     );
   }
 
+  if (view === 'password') {
+    return (
+      <>
+        <ChangePasswordPage
+          user={user}
+          studio={studio}
+          voluntary
+          onCancel={() => setView('membership')}
+          onChanged={async () => {
+            setView('membership');
+            showToast('success', 'Şifren değiştirildi.');
+          }}
+          onLogout={onLogout}
+        />
+        {toastView}
+      </>
+    );
+  }
+
   if (loadError) {
     return (
       <main className={styles.page}>
@@ -179,11 +201,39 @@ export default function MySessionsPage({ user, studio, onLogout }) {
   // Henüz kayıt olunmamış ek dersler (kayıt olunanlar aşağıdaki listede zaten görünür).
   const openExtras = data.extraSessions.filter((s) => s.myStatus === null);
 
+  if (view === 'membership') {
+    return (
+      <>
+        <MyMembershipPage
+          user={user}
+          data={data}
+          packageModel={packageModel}
+          timeZone={timeZone}
+          onBack={() => setView('home')}
+          onPickMakeup={() => setPicker({ from: null })}
+          onChangePassword={() => setView('password')}
+          onLogout={onLogout}
+        />
+        {toastView}
+      </>
+    );
+  }
+
+  // Ana ekranda üyelikten yalnızca iş gerektirenler: yenileme uyarısı, telafi hakkı ya da kalan seans.
+  const notice = membershipNotice({
+    membership: data.membership,
+    packageModel,
+    reminderDays: studio.paymentReminderDays ?? 7,
+    today,
+  });
+  const membership = data.membership;
+  const sessionsLeft = packageModel && membership && !membership.ended && membership.remaining > 0 ? membership.remaining : null;
+
   return (
     <main className={styles.page}>
       <header className={styles.header}>
         <Monogram size="small" logoUrl={studio.logoUrl} name={studio.name} />
-        <button type="button" className={styles.account} onClick={() => setAccountOpen(true)}>
+        <button type="button" className={styles.account} onClick={() => setView('membership')}>
           {user.fullName.split(' ')[0]}
         </button>
       </header>
@@ -191,15 +241,12 @@ export default function MySessionsPage({ user, studio, onLogout }) {
         <span className={styles.hello}>Merhaba,</span>
         <span className={styles.name}>{user.fullName}</span>
       </h1>
-      {/* Bitiş tarihi her zaman; tutarlar sadece stüdyo ayarı açıksa (sunucu kapalıyken hiç göndermez, BR-37). */}
-      <MembershipSummary
-        membership={data.membership}
-        credits={credits}
-        packageModel={packageModel}
-        timeZone={timeZone}
-        onPickMakeup={() => setPicker({ from: null })}
-      />
-
+      {notice && (
+        <button type="button" className={styles.notice} onClick={() => setView('membership')}>
+          <span>{notice}</span>
+          <span aria-hidden="true">›</span>
+        </button>
+      )}
       {next ? (
         <section className={styles.next} aria-label="Sıradaki dersin">
           <p className={styles.nextLabel}>
@@ -220,6 +267,25 @@ export default function MySessionsPage({ user, studio, onLogout }) {
         <p className={styles.empty}>
           Önümüzdeki günlerde dersin görünmüyor. Bir yanlışlık olduğunu düşünüyorsan stüdyoya yaz.
         </p>
+      )}
+
+      {!packageModel && credits.length > 0 && (
+        <div className={styles.quick}>
+          <span>
+            <strong>{credits.length} telafi hakkın var</strong>
+          </span>
+          <button type="button" className={styles.inlineButton} onClick={() => setPicker({ from: null })}>
+            Telafi seç
+          </button>
+        </div>
+      )}
+      {sessionsLeft !== null && (
+        <button type="button" className={styles.quick} onClick={() => setView('membership')}>
+          <span>
+            <strong>{sessionsLeft} seans</strong> kaldı
+          </span>
+          <span aria-hidden="true">›</span>
+        </button>
       )}
 
       {openExtras.length > 0 && (
@@ -290,12 +356,6 @@ export default function MySessionsPage({ user, studio, onLogout }) {
             onClose={() => setSheetSession(null)}
           />
         )}
-      </Sheet>
-
-      <Sheet open={accountOpen} onClose={() => setAccountOpen(false)} title={user.fullName}>
-        <button type="button" className={styles.option} onClick={onLogout}>
-          <span className={styles.optionTitle}>Çıkış yap</span>
-        </button>
       </Sheet>
 
       {toastView}
