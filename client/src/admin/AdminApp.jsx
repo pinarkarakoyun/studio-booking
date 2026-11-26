@@ -16,7 +16,8 @@ import InstructorDetailPage from './InstructorDetailPage.jsx';
 import InstructorsPage from './InstructorsPage.jsx';
 import NewCustomerPage from './NewCustomerPage.jsx';
 import NewInstructorPage from './NewInstructorPage.jsx';
-import { can, visibleTabs } from './permissions.js';
+import { can, mobileTabs, visibleTabs } from './permissions.js';
+import TabIcon from './TabIcon.jsx';
 import SessionRosterPage from './SessionRosterPage.jsx';
 import TodayPage from './TodayPage.jsx';
 import styles from './Admin.module.css';
@@ -33,6 +34,9 @@ export default function AdminApp({ user, studio, onStudioChange, onLogout }) {
   const [tab, setTab] = useState('today');
   const [view, setView] = useState(START);
   const [accountOpen, setAccountOpen] = useState(false);
+  // Telefonda alt çubuk en fazla 5 yer; sığmayan bölümler "Daha fazla" penceresinde.
+  const { primary: barTabs, more: moreTabs } = mobileTabs(user);
+  const [moreOpen, setMoreOpen] = useState(false);
   // Başarı mesajları tek bir yerden: alt sayfalar showToast(tone, text) çağırır, toast burada bir kez çizilir.
   const { toast, showToast } = useToast();
   // Bugün sekmesinde bakılan gün (null = bugün). Ders detayından geri dönünce aynı gün açılır.
@@ -182,23 +186,27 @@ export default function AdminApp({ user, studio, onStudioChange, onLogout }) {
     );
   }
 
-  // Aynı sekme düğmeleri iki yerde: masaüstünde yan menüde, telefonda alt çubukta (CSS hangisinin görüneceğini seçer).
-  const tabButtons = (className, activeClassName) =>
-    TABS.map((item) => (
-      <button
-        key={item.id}
-        type="button"
-        className={`${className} ${tab === item.id ? activeClassName : ''}`}
-        aria-current={tab === item.id ? 'page' : undefined}
-        onClick={() => {
-          setTab(item.id);
-          setView(START);
-          setDay(null);
-        }}
-      >
-        {item.label}
-      </button>
-    ));
+  const openTab = (id) => {
+    setTab(id);
+    setView(START);
+    setDay(null);
+    setMoreOpen(false);
+  };
+  // "Daha fazla"daki bölümlerden biri açıkken çubukta "Daha fazla" seçili görünür.
+  const moreActive = moreTabs.some((item) => item.id === tab);
+
+  // Masaüstünde yan menü bütün bölümleri yazıyla gösterir; telefonda alt çubuk (ikon + etiket) CSS ile seçilir.
+  const sideButtons = TABS.map((item) => (
+    <button
+      key={item.id}
+      type="button"
+      className={`${styles.sideTab} ${tab === item.id ? styles.sideTabActive : ''}`}
+      aria-current={tab === item.id ? 'page' : undefined}
+      onClick={() => openTab(item.id)}
+    >
+      {item.label}
+    </button>
+  ));
 
   return (
     <div className={styles.shell}>
@@ -208,7 +216,7 @@ export default function AdminApp({ user, studio, onStudioChange, onLogout }) {
           <span className={styles.sidebarSub}>{user.role === 'instructor' ? 'Eğitmen' : 'Yönetim'}</span>
         </div>
         <nav className={styles.sideNav} aria-label="Yönetici paneli">
-          {tabButtons(styles.sideTab, styles.sideTabActive)}
+          {sideButtons}
         </nav>
         <button type="button" className={styles.sidebarAccount} onClick={() => setAccountOpen(true)}>
           {user.fullName}
@@ -218,8 +226,46 @@ export default function AdminApp({ user, studio, onStudioChange, onLogout }) {
       <div className={styles.content}>{content}</div>
 
       <nav className={styles.tabBar} aria-label="Yönetici paneli">
-        {tabButtons(styles.tab, styles.tabActive)}
+        {barTabs.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            className={`${styles.tab} ${tab === item.id ? styles.tabActive : ''}`}
+            aria-current={tab === item.id ? 'page' : undefined}
+            onClick={() => openTab(item.id)}
+          >
+            <TabIcon id={item.id} />
+            <span>{item.label}</span>
+          </button>
+        ))}
+        {moreTabs.length > 0 && (
+          <button
+            type="button"
+            className={`${styles.tab} ${moreActive ? styles.tabActive : ''}`}
+            aria-haspopup="dialog"
+            aria-expanded={moreOpen}
+            onClick={() => setMoreOpen(true)}
+          >
+            <TabIcon id="more" />
+            <span>Daha fazla</span>
+          </button>
+        )}
       </nav>
+
+      <Sheet open={moreOpen} onClose={() => setMoreOpen(false)} title="Daha fazla">
+        {moreTabs.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            className={`${styles.sheetAction} ${styles.moreItem}`}
+            aria-current={tab === item.id ? 'page' : undefined}
+            onClick={() => openTab(item.id)}
+          >
+            <TabIcon id={item.id} />
+            {item.label}
+          </button>
+        ))}
+      </Sheet>
 
       <Sheet open={accountOpen} onClose={() => setAccountOpen(false)} title={user.fullName}>
         <button type="button" className={styles.sheetAction} onClick={onLogout}>

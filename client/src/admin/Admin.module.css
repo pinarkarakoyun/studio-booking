@@ -404,19 +404,31 @@
 }
 
 .tab {
-  /* 7 sekme (Analiz eklenince) dar telefonda sığsın: yazı 11–13px arasında ekrana göre küçülür ve
-     genişlik etikete göre paylaşılır (eşit pay "Eğitmenler" gibi uzun etiketleri taşırırdı). */
-  flex: 1 1 auto;
+  /* En fazla 5 yer (permissions.js mobileTabs): ikon üstte, kısa etiket altta, eşit genişlik. */
+  flex: 1 1 0;
   min-width: 0;
-  min-height: var(--tap);
-  padding: 8px 1px;
+  min-height: 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 6px 2px;
   border: 0;
   border-radius: 12px;
   background: none;
   font: inherit;
-  font-size: clamp(0.6875rem, 3.2vw, 0.8125rem);
+  font-size: 11px;
+  line-height: 1.2;
   color: var(--ink-soft);
   cursor: pointer;
+}
+
+.tab span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tabActive {
@@ -572,6 +584,18 @@
   color: var(--ink);
   text-align: left;
   cursor: pointer;
+}
+
+/* "Daha fazla" penceresindeki bölümler: ikon + ad. */
+.moreItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.moreItem[aria-current='page'] {
+  border-color: var(--brand);
+  color: var(--brand);
 }
 
 /* --- Müşteriler --- */
@@ -1723,8 +1747,37 @@
   cursor: pointer;
 }
 
+/* Damlalık: renk alanının altında küçük bir bağlantı gibi. */
+.pickFromScreen {
+  min-height: 32px;
+  margin-top: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--brand);
+  cursor: pointer;
+}
+
+.colorHint {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}
+
+/* Damlalık düğmesi alanın altına bir satır ekler: kare seçici metin kutusuyla aynı hizada kalsın. */
+.colorRow:has(.pickFromScreen) .colorSwatch {
+  margin-bottom: 36px;
+}
+
 .colorRow:has([aria-invalid]) .colorSwatch {
   margin-bottom: 26px;
+}
+
+.colorRow:has(.pickFromScreen):has([aria-invalid]) .colorSwatch {
+  margin-bottom: 62px;
 }
 
 .colorPreview {

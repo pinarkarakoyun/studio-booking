@@ -53,3 +53,17 @@ export function visibleTabs(user) {
   if (can(user, 'manage_groups')) allowed.add('groups');
   return ALL_TABS.filter((tab) => allowed.has(tab.id));
 }
+
+// Telefondaki alt çubuk en fazla 5 yer: çok sekme varsa en sık kullanılan dördü çubukta, gerisi "Daha fazla"
+// penceresinde (yönetici: Gruplar, Eğitmenler, Ayarlar). Eğitmenin 1–3 sekmesi olduğu için hepsi çubukta durur.
+// Masaüstündeki yan menü bundan etkilenmez (visibleTabs).
+const MOBILE_PRIMARY = ['today', 'customers', 'payments', 'dashboard'];
+const MOBILE_SLOTS = 5;
+
+export function mobileTabs(user) {
+  const tabs = visibleTabs(user);
+  if (tabs.length <= MOBILE_SLOTS) return { primary: tabs, more: [] };
+  const byId = new Map(tabs.map((tab) => [tab.id, tab]));
+  const primary = MOBILE_PRIMARY.filter((id) => byId.has(id)).map((id) => byId.get(id));
+  return { primary, more: tabs.filter((tab) => !MOBILE_PRIMARY.includes(tab.id)) };
+}
