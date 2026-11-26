@@ -88,6 +88,26 @@ export function addDays(instant, days) {
   return result.toISOString();
 }
 
+// Ay ("2026-11") biçimleri: Analiz sekmesi.
+const asMonth = (month) => `${month}-01`;
+
+// "Kasım 2026"
+export function formatMonth(month) {
+  const { month: name, year } = parts(asMonth(month), { month: 'long', year: 'numeric' });
+  return `${name} ${year}`;
+}
+
+// "Kas"
+export function formatMonthShort(month) {
+  return parts(asMonth(month), { month: 'short' }).month;
+}
+
+// "2026-11" + 1 -> "2026-12"
+export function shiftMonth(month, offset) {
+  const [year, m] = month.split('-').map(Number);
+  return new Date(Date.UTC(year, m - 1 + offset, 1)).toISOString().slice(0, 7);
+}
+
 // Para kuruş cinsinden tamsayı olarak gelir (150000 = 1.500 ₺). Küsuratı yoksa gösterilmez.
 export function formatMoney(kurus) {
   const lira = kurus / 100;

@@ -404,14 +404,17 @@
 }
 
 .tab {
-  flex: 1;
+  /* 7 sekme (Analiz eklenince) dar telefonda sığsın: yazı 11–13px arasında ekrana göre küçülür ve
+     genişlik etikete göre paylaşılır (eşit pay "Eğitmenler" gibi uzun etiketleri taşırırdı). */
+  flex: 1 1 auto;
+  min-width: 0;
   min-height: var(--tap);
-  padding: 8px 2px;
+  padding: 8px 1px;
   border: 0;
   border-radius: 12px;
   background: none;
   font: inherit;
-  font-size: 0.8125rem;
+  font-size: clamp(0.6875rem, 3.2vw, 0.8125rem);
   color: var(--ink-soft);
   cursor: pointer;
 }
