@@ -37,6 +37,8 @@ export const PERMISSION_GROUPS = [
 // Eğitmenler hiç.
 const ALL_TABS = [
   { id: 'today', label: 'Bugün' },
+  // Analiz fiyat içerir: yalnızca yönetici (eğitmen kümesine hiç eklenmez).
+  { id: 'dashboard', label: 'Analiz' },
   { id: 'customers', label: 'Müşteriler' },
   { id: 'groups', label: 'Gruplar' },
   { id: 'instructors', label: 'Eğitmenler' },

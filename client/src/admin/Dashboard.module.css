@@ -1,0 +1,229 @@
+/* Analiz sekmesi. Renkler tema değişkenlerinden; yeni renk yok. Sayılar serif (Bugün'deki özet kartları gibi). */
+
+.monthSwitch {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.monthButton {
+  width: var(--tap);
+  height: var(--tap);
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  font: inherit;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.monthButton:disabled {
+  color: var(--ink-faint);
+  cursor: default;
+}
+
+.monthLabel {
+  flex: 1;
+  text-align: center;
+  font-family: var(--font-brand);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.note {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin: var(--space-4) 0 0;
+}
+
+.kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 14px;
+  border-radius: 20px;
+  background: var(--surface-raised);
+}
+
+.kpi dt {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.kpi dd {
+  margin: 0;
+  font-family: var(--font-brand);
+  font-weight: 700;
+  font-size: 2rem;
+  line-height: 1.05;
+  color: var(--ink);
+  font-variant-numeric: lining-nums tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.kpiHint,
+.kpiDelta {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.kpiDelta {
+  font-weight: 600;
+}
+
+/* --- 12 aylık gelir --- */
+
+.trend {
+  margin-top: var(--space-2);
+}
+
+.trendReadout {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}
+
+.trendReadout strong {
+  font-family: var(--font-brand);
+  font-size: var(--text-lg);
+  color: var(--ink);
+  margin-right: 4px;
+}
+
+.bars {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 2px;
+  height: 160px;
+  padding: var(--space-3) var(--space-2) var(--space-2);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+}
+
+/* Dokunma alanı sütundan geniş: bütün sütun yüksekliği ve genişliği. */
+.barSlot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.barSlot:hover,
+.barSlot:focus-visible {
+  background: var(--surface-sunken);
+}
+
+.barTrack {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  /* Taban çizgisi */
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.bar {
+  width: min(70%, 18px);
+  border-radius: 4px 4px 0 0;
+  background: var(--accent);
+  opacity: 0.55;
+  transition: height 0.3s var(--ease);
+}
+
+.barSelected .bar {
+  opacity: 1;
+}
+
+.barLabel {
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
+.barSelected .barLabel {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.table {
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}
+
+.table summary {
+  cursor: pointer;
+  min-height: var(--tap);
+  display: flex;
+  align-items: center;
+}
+
+.table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.table th,
+.table td {
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--line);
+  text-align: right;
+  color: var(--ink);
+}
+
+.table th:first-child {
+  text-align: left;
+  font-weight: 500;
+}
+
+/* --- Bekleyen ödeme --- */
+
+.pending {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--tap);
+  padding: 14px 16px;
+  border: 0;
+  border-radius: 20px;
+  background: var(--surface-raised);
+  font: inherit;
+  text-align: left;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.pending small {
+  display: block;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.pending strong {
+  font-family: var(--font-brand);
+  font-size: var(--text-lg);
+  font-variant-numeric: lining-nums tabular-nums;
+}
