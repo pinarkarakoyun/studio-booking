@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { getAppearance, previewAppearance, updateAppearance } from '../services/adminAppearance.js';
 import { closeBranch, createBranch, listBranches, reopenBranch, updateBranch } from '../services/adminBranches.js';
+import { getDashboard } from '../services/adminDashboard.js';
 import { closePackage, createPackage, listPackages, reopenPackage, updatePackage } from '../services/adminPackages.js';
 import { addPayment, deletePayment, getPaymentOverview } from '../services/adminMemberships.js';
 import {
@@ -123,6 +124,13 @@ router.post('/api/admin/memberships/:id/payments', async (req, res) => {
 
 router.delete('/api/admin/payments/:id', async (req, res) => {
   res.json({ membership: await deletePayment(req.user, paymentId(req)) });
+});
+
+// --- Analiz -------------------------------------------------------------------------------------
+
+// ?month=YYYY-MM (verilmezse bu ay). Fiyat içerdiği için yalnızca yönetici; eğitmene açılmaz.
+router.get('/api/admin/dashboard', async (req, res) => {
+  res.json(await getDashboard(req.user, { month: req.query.month }));
 });
 
 // --- Ayarlar ------------------------------------------------------------------------------------
