@@ -11,6 +11,14 @@
          sonra yüklenebildiği için dosya "html:root" seçicisini kullanır (":root"tan daha güçlü). Renk girilmemişse
          dosya boş gelir ve varsayılan renkler kalır. -->
     <link rel="stylesheet" href="/brand/theme.css" />
+    <!-- Ana ekrana eklenebilir uygulama (PWA). Manifest ve ikonlar her stüdyo için sunucuda üretilir
+         (server/src/routes/theme.js): stüdyonun adı, rengi ve ikonu. iOS manifestteki ikonu kullanmaz; apple-touch-icon
+         ve apple-mobile-web-app-* etiketleri onun için. Uygulama adı olarak iOS sayfa başlığını (stüdyo adı) alır. -->
+    <link rel="manifest" href="/brand/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/brand/icon-192.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   </head>
   <body>
     <div id="root"></div>
