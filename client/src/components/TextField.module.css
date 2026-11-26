@@ -41,6 +41,17 @@
   color: var(--ink);
 }
 
+/* Sabit önek ("0"): yazıyla aynı boyut ve renk, girdinin hemen solunda. */
+.prefix {
+  padding-left: 14px;
+  font-size: 16px;
+  color: var(--ink);
+}
+
+.afterPrefix {
+  padding-left: 6px;
+}
+
 .input:focus {
   outline: none;
 }

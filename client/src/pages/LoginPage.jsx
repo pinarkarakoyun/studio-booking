@@ -3,6 +3,7 @@ import { PRIVACY_PATH } from '../site/PrivacyPage.jsx';
 import { api } from '../api.js';
 import Button from '../components/Button.jsx';
 import Monogram from '../components/Monogram.jsx';
+import PhoneField from '../components/PhoneField.jsx';
 import TextField from '../components/TextField.jsx';
 import styles from './AuthPage.module.css';
 
@@ -60,16 +61,7 @@ export default function LoginPage({ studio, onLoggedIn }) {
       </div>
 
       <form className={styles.form} onSubmit={handleSubmit} noValidate>
-        <TextField
-          label="Telefon numarası"
-          type="tel"
-          inputMode="tel"
-          autoComplete="tel"
-          placeholder="0532 123 45 67"
-          value={phone}
-          onChange={update(setPhone, 'phone')}
-          error={errors.phone}
-        />
+        <PhoneField label="Telefon numarası" value={phone} onChange={update(setPhone, 'phone')} error={errors.phone} />
         <TextField
           label="Şifre"
           type="password"

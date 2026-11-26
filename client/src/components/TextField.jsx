@@ -3,7 +3,8 @@ import styles from './TextField.module.css';
 
 // Etiketli metin alanı. Hata mesajı alanın hemen altında gösterilir ve ekran okuyucuya
 // aria-describedby ile bağlanır. type="password" ise "Göster / Gizle" düğmesi eklenir.
-export default function TextField({ label, type = 'text', error, hint, children, ...inputProps }) {
+// prefix: alanın solunda silinemeyen kısa metin (telefon alanındaki "0"). Ekran okuyucu onu etiketle birlikte okur.
+export default function TextField({ label, type = 'text', error, hint, prefix, children, ...inputProps }) {
   const id = useId();
   const messageId = `${id}-message`;
   const [revealed, setRevealed] = useState(false);
@@ -16,10 +17,15 @@ export default function TextField({ label, type = 'text', error, hint, children,
         {label}
       </label>
       <div className={`${styles.control} ${error ? styles.invalid : ''}`}>
+        {prefix && (
+          <span className={styles.prefix} aria-hidden="true">
+            {prefix}
+          </span>
+        )}
         <input
           id={id}
           type={isPassword && revealed ? 'text' : type}
-          className={styles.input}
+          className={`${styles.input} ${prefix ? styles.afterPrefix : ''}`}
           aria-invalid={error ? true : undefined}
           aria-describedby={message ? messageId : undefined}
           {...inputProps}
