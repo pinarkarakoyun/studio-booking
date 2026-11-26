@@ -106,6 +106,13 @@ export default function AppearanceSection({ showToast }) {
         onChange={(value) => set('accentColor', value)}
       />
 
+      {!canPickFromScreen && (
+        <p className={styles.colorHint}>
+          Stüdyonun web sitesindeki bir rengi doğrudan almak için bu sayfayı bilgisayarda Chrome ya da Edge ile aç: renk
+          alanlarının altında "Ekrandan seç" düğmesi çıkar.
+        </p>
+      )}
+
       {/* Önizleme: sitenin ve panelin parçalarının küçük bir taklidi; ekran okuyucu atlar. */}
       <div ref={boxRef} className={styles.colorPreview} aria-hidden="true">
         <span className={styles.colorPreviewDark}>Koyu kart</span>
@@ -151,6 +158,20 @@ export default function AppearanceSection({ showToast }) {
   );
 }
 
+// Ekrandan renk seçme (damlalık): tarayıcının EyeDropper özelliği. Yönetici stüdyonun web sitesini yan pencerede
+// açar, istediği rengin üstüne tıklar. Yalnızca masaüstü Chrome ve Edge'de var; diğerlerinde düğme hiç çizilmez.
+const canPickFromScreen = typeof window !== 'undefined' && 'EyeDropper' in window;
+
+async function pickFromScreen() {
+  try {
+    const { sRGBHex } = await new window.EyeDropper().open();
+    return sRGBHex.toLowerCase();
+  } catch {
+    // Esc ile vazgeçildi (AbortError) ya da tarayıcı izin vermedi: alan değişmez, hata gösterilmez.
+    return null;
+  }
+}
+
 // Renk seçici ve hex metin kutusu; ikisi birbirini günceller. Metin boşsa seçici varsayılanı (fallback) gösterir.
 function ColorField({ label, value, fallback, onChange }) {
   const trimmed = value.trim();
@@ -172,7 +193,20 @@ function ColorField({ label, value, fallback, onChange }) {
         autoCapitalize="off"
         onChange={(event) => onChange(event.target.value)}
         error={isValid(value) ? null : 'Renk #rrggbb biçiminde olmalı (ör. #4b5530).'}
-      />
+      >
+        {canPickFromScreen && (
+          <button
+            type="button"
+            className={styles.pickFromScreen}
+            onClick={async () => {
+              const picked = await pickFromScreen();
+              if (picked) onChange(picked);
+            }}
+          >
+            Ekrandan seç
+          </button>
+        )}
+      </TextField>
     </div>
   );
 }
